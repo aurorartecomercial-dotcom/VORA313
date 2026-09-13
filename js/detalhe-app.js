@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!idProduto) return mostrarErro('Nenhum ID de produto foi informado.');
 
     try {
-        const cache = JSON.parse(localStorage.getItem('aurora_catalogo_cache') || 'null');
+        const cache = JSON.parse(localStorage.getItem('vora313_catalogo_cache') || 'null');
         if (Array.isArray(cache?.data) && cache.data.length) catalogoAtual = cache.data;
     } catch (_) {}
 

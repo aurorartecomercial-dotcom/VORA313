@@ -21,7 +21,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ✅ Tenta carregar do cache local primeiro
     let catalogo = [];
-    const cachedStr = localStorage.getItem('aurora_catalogo_cache');
+    const cachedStr = localStorage.getItem('vora313_catalogo_cache');
     if (cachedStr) {
         try {
             const cache = JSON.parse(cachedStr);

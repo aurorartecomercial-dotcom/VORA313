@@ -32,7 +32,21 @@ export async function carregarCatalogo() {
       salvarCache(cacheMemoria);
       return cacheMemoria;
     } catch (error) {
-      console.warn('Falha ao buscar catálogo:', error);
+      console.warn('Falha ao buscar catálogo no Firebase:', error);
+      // Fallback local: a loja continua a apresentar o catálogo-base mesmo
+      // quando o Firebase está temporariamente indisponível.
+      try {
+        const resposta = await fetch('produtos.json', { cache: 'no-store' });
+        if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+        const locais = await resposta.json();
+        if (Array.isArray(locais) && locais.length) {
+          cacheMemoria = ordenarProdutosMonetizados(locais.map(p => ({ ...p, id: String(p.id) })));
+          salvarCache(cacheMemoria);
+          return cacheMemoria;
+        }
+      } catch (fallbackError) {
+        console.warn('Fallback local do catálogo também falhou:', fallbackError);
+      }
       return [];
     }
   })();
@@ -48,6 +62,7 @@ async function atualizarDoFirebase() {
     const snapshot = await getDocs(collection(db, 'produtos'));
     cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto));
     salvarCache(cacheMemoria);
+    window.dispatchEvent(new CustomEvent('vora313:catalogo-atualizado', { detail: { total: cacheMemoria.length } }));
   } catch (_) {}
 }
 

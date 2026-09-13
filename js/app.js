@@ -17,6 +17,15 @@ let ordenacao = 'ordem';
 let minAvaliacao = 0;
 let dataFiltro = '';
 
+window.addEventListener('vora313:catalogo-atualizado', () => {
+    catalogo = [];
+    // Reaproveita o catálogo já atualizado pelo módulo e redesenha a página.
+    carregarCatalogo().then((dados) => {
+        catalogo = dados;
+        renderizarTudo();
+    }).catch(() => {});
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
     if (!window.__carrinhoInicializado) {
         initCarrinho();
@@ -38,33 +47,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         carregando.textContent = '⏳ Carregando produtos...';
     }
 
-    let catalogoCarregado = false;
-    const cachedStr = localStorage.getItem('aurora_catalogo_cache');
-    if (cachedStr) {
-        try {
-            const cache = JSON.parse(cachedStr);
-            if (cache.data && cache.data.length > 0) {
-                catalogo = cache.data;
-                catalogoCarregado = true;
-            }
-        } catch (e) {}
-    }
-
-    if (!catalogoCarregado) {
-        try {
-            catalogo = await carregarCatalogo();
-        } catch (e) {
-            console.error('Erro ao carregar catálogo:', e);
-            catalogo = [];
-        }
+    try {
+        catalogo = await carregarCatalogo();
+    } catch (e) {
+        console.error('Erro ao carregar catálogo:', e);
+        catalogo = [];
     }
 
     renderizarTudo();
     if (carregando) carregando.style.display = 'none';
 
-    if (catalogoCarregado) {
-        atualizarCatalogoDoFirebase();
-    }
+    // Quando existe cache, carregarCatalogo já atualiza o Firebase em segundo plano.
+    atualizarCatalogoDoFirebase();
 
     // Chamar recomendações após o catálogo estar pronto
     initRecomendacoes();

@@ -20,7 +20,7 @@ export function escapeHTML(valor) {
 export function urlSegura(valor, fallback = '') {
     if (!valor || typeof valor !== 'string') return fallback;
     try {
-        const url = new URL(valor, window.location.origin);
+        const url = new URL(valor, document.baseURI);
         if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
         if (url.protocol === 'data:' && valor.startsWith('data:image/')) return valor;
     } catch (_) {
