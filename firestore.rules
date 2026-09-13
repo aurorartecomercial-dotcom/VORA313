@@ -2,82 +2,76 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() {
-      return request.auth != null;
-    }
+    function signedIn() { return request.auth != null; }
+    function isAdmin() { return signedIn() && request.auth.token.admin == true; }
+    function isSeller() { return signedIn() && request.auth.token.seller == true; }
+    function isOwner(uid) { return signedIn() && request.auth.uid == uid; }
 
-    function isAdmin() {
-      return signedIn() && request.auth.token.admin == true;
-    }
-
-    function isOwner(uid) {
-      return signedIn() && request.auth.uid == uid;
-    }
-
-    // O catálogo é público; somente administradores podem modificá-lo.
     match /produtos/{produtoId} {
       allow read: if true;
+      // Produtos de vendedor são escritos pelas Cloud Functions. O administrador
+      // continua a ter o controlo direto do catálogo próprio da VORA.
       allow write: if isAdmin();
     }
 
-    // Vendas são criadas exclusivamente pela Cloud Function (Admin SDK). Clientes
-    // só podem consultar os seus pedidos e jamais alterar preço, estoque ou estado.
     match /vendas/{vendaId} {
       allow read: if isAdmin() || isOwner(resource.data.uidCliente);
       allow write: if isAdmin();
     }
 
+    match /vendasVendedor/{vendaId} {
+      allow read: if isAdmin() || (isSeller() && resource.data.uidVendedor == request.auth.uid);
+      allow write: if false;
+    }
+
     match /clientes/{clienteId} {
       allow read: if isAdmin() || isOwner(clienteId);
-      allow create: if isOwner(clienteId) &&
-        request.resource.data.pontos == 0;
-      allow update: if isAdmin() ||
-        (isOwner(clienteId) &&
-          request.resource.data.pontos == resource.data.pontos &&
-          request.resource.data.historico == resource.data.historico);
+      allow create: if isOwner(clienteId) && request.resource.data.pontos == 0;
+      allow update: if isAdmin() || (isOwner(clienteId) && request.resource.data.pontos == resource.data.pontos && request.resource.data.historico == resource.data.historico);
       allow delete: if isAdmin();
     }
 
-    // A validação de cupões é feita no servidor. Um cliente só pode ler os seus
-    // cupões; códigos promocionais nunca precisam ser listados pelo navegador.
     match /cupons/{cupomId} {
-      allow read: if isAdmin() ||
-        (signedIn() && resource.data.uidCliente == request.auth.uid);
+      allow read: if isAdmin() || (signedIn() && resource.data.uidCliente == request.auth.uid);
       allow write: if isAdmin();
     }
 
-    // Registo financeiro gerado exclusivamente pela Cloud Function quando um pedido é pago.
     match /comissoes/{comissaoId} {
       allow read: if isAdmin();
       allow write: if false;
     }
 
-    // Perfis de vendedores e planos são geridos pelo administrador.
     match /vendedores/{vendedorId} {
-      allow read: if isAdmin();
+      allow read: if isAdmin() || (signedIn() && vendedorId == request.auth.uid);
       allow write: if isAdmin();
+    }
+
+    match /movimentosVendedores/{movimentoId} {
+      allow read: if isAdmin() || (isSeller() && resource.data.uidVendedor == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /destaquesSolicitados/{id} {
+      allow read: if isAdmin() || (isSeller() && resource.data.uidVendedor == request.auth.uid);
+      allow write: if false;
+    }
+
+    match /levantamentos/{id} {
+      allow read: if isAdmin() || (isSeller() && resource.data.uidVendedor == request.auth.uid);
+      allow write: if false;
     }
 
     match /avaliacoes/{avaliacaoId} {
       allow read: if true;
-      allow create: if signedIn() &&
-        request.resource.data.uidCliente == request.auth.uid &&
-        request.resource.data.nota is number &&
-        request.resource.data.nota >= 1 && request.resource.data.nota <= 5 &&
-        request.resource.data.produtoId is string;
+      allow create: if signedIn() && request.resource.data.uidCliente == request.auth.uid && request.resource.data.nota is number && request.resource.data.nota >= 1 && request.resource.data.nota <= 5 && request.resource.data.produtoId is string;
       allow update, delete: if isAdmin();
     }
 
-    // Não contém PII. O cliente consulta um documento pelo código, sem poder
-    // listar todos os rastreios.
     match /rastreiosPublicos/{codigo} {
       allow get: if true;
       allow list, write: if isAdmin();
     }
 
-    // Segurança por padrão: uma coleção nova não fica pública por acidente.
-    match /{document=**} {
-      allow read, write: if false;
-    }
+    match /{document=**} { allow read, write: if false; }
   }
 }

@@ -18,9 +18,16 @@ export const MONETIZACAO = Object.freeze({
 // Esta função é usada pelo catálogo público. Mantê-la aqui é seguro porque
 // produtos sem configuração de monetização continuam ordenados normalmente.
 export function ordenarProdutosMonetizados(produtos = []) {
+  const ativo = produto => {
+    if (produto?.monetizacao?.destaque !== true) return false;
+    const fim = produto?.monetizacao?.destaqueFim;
+    if (!fim) return true;
+    const data = fim?.toDate ? fim.toDate() : new Date(fim);
+    return Number.isNaN(data.getTime()) || data.getTime() > Date.now();
+  };
   return [...produtos].sort((a, b) => {
-    const destaqueA = a?.monetizacao?.destaque === true ? 1 : 0;
-    const destaqueB = b?.monetizacao?.destaque === true ? 1 : 0;
+    const destaqueA = ativo(a) ? 1 : 0;
+    const destaqueB = ativo(b) ? 1 : 0;
     if (destaqueA !== destaqueB) return destaqueB - destaqueA;
     return Number(a?.ordem || 0) - Number(b?.ordem || 0);
   });

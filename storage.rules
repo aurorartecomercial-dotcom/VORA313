@@ -2,19 +2,19 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
-    }
+    function isAdmin() { return request.auth != null && request.auth.token.admin == true; }
+    function isSeller() { return request.auth != null && request.auth.token.seller == true; }
 
     match /produtos/{arquivo} {
       allow read: if true;
-      allow write: if isAdmin() &&
-        request.resource.size < 5 * 1024 * 1024 &&
-        request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
+      allow write: if isAdmin() && request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
 
-    match /{allPaths=**} {
-      allow read, write: if false;
+    match /vendedores/{uid}/produtos/{arquivo} {
+      allow read: if true;
+      allow write: if isSeller() && request.auth.uid == uid && request.resource.size < 5 * 1024 * 1024 && request.resource.contentType.matches('image/(jpeg|png|webp|gif)');
     }
+
+    match /{allPaths=**} { allow read, write: if false; }
   }
 }

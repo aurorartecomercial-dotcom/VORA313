@@ -106,6 +106,11 @@ export function criarCardProduto(produto) {
   link.append(imagemContainer);
 
   const info = elemento('div', null, 'produto-info');
+  const destaqueFim = prod?.monetizacao?.destaqueFim;
+  const dataDestaque = destaqueFim?.toDate ? destaqueFim.toDate() : new Date(destaqueFim || '');
+  const destaqueAtivo = prod?.monetizacao?.destaque === true && (!destaqueFim || Number.isNaN(dataDestaque.getTime()) || dataDestaque.getTime() > Date.now());
+  if (destaqueAtivo) info.append(elemento('span', '⭐ Patrocinado', 'produto-selo-patrocinado'));
+  if (prod.vendedorNome) info.append(elemento('span', `🏪 ${prod.vendedorNome}`, 'produto-vendedor-tag'));
   const tagTexto = prod.tag || prod.categoria || '';
   if (tagTexto) info.append(elemento('span', tagTexto, 'categoria-tag'));
   info.append(elemento('h3', prod.nome || 'Produto'));
