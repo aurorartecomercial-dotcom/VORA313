@@ -1,8 +1,9 @@
-// VORA 313 V20 — Central de Monetização + ordenação pública do catálogo
-import { auth, db } from './config.js';
-import { collection, getDocs, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+// VORA 313 V22 — Central de Monetização + ordenação pública do catálogo
+import { auth, db, functions } from './config.js';
+import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { escapeHTML } from './utils.js';
+import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
 
 export const MONETIZACAO = Object.freeze({
   modelo: 'comissao_por_venda',
@@ -156,10 +157,7 @@ function renderizarProdutos(produtos) {
     try {
       const id = btn.dataset.destaque;
       const atual = btn.textContent.includes('Patrocinado');
-      await updateDoc(doc(db, 'produtos', id), {
-        'monetizacao.destaque': !atual,
-        'monetizacao.atualizadoEm': new Date()
-      });
+      await httpsCallable(functions, 'definirDestaqueManual')({ produtoId: id, ativo: !atual });
       inicializado = false;
       await carregarDashboard();
     } catch (e) {

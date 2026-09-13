@@ -21,14 +21,14 @@ export async function carregarCatalogo() {
     try {
       const cache = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || 'null');
       if (Array.isArray(cache?.data) && cache.data.length) {
-        cacheMemoria = ordenarProdutosMonetizados(cache.data);
+        cacheMemoria = ordenarProdutosMonetizados(cache.data.filter(p => p?.ativo !== false && p?.vendedorAtivo !== false));
         atualizarDoFirebase();
         return cacheMemoria;
       }
     } catch (_) {}
     try {
       const snapshot = await getDocs(collection(db, 'produtos'));
-      cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto));
+      cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto).filter(p => p?.ativo !== false && p?.vendedorAtivo !== false));
       salvarCache(cacheMemoria);
       return cacheMemoria;
     } catch (error) {
@@ -40,7 +40,7 @@ export async function carregarCatalogo() {
         if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
         const locais = await resposta.json();
         if (Array.isArray(locais) && locais.length) {
-          cacheMemoria = ordenarProdutosMonetizados(locais.map(p => ({ ...p, id: String(p.id) })));
+          cacheMemoria = ordenarProdutosMonetizados(locais.map(p => ({ ...p, id: String(p.id) })).filter(p => p?.ativo !== false && p?.vendedorAtivo !== false));
           salvarCache(cacheMemoria);
           return cacheMemoria;
         }
@@ -60,7 +60,7 @@ function salvarCache(produtos) {
 async function atualizarDoFirebase() {
   try {
     const snapshot = await getDocs(collection(db, 'produtos'));
-    cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto));
+    cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto).filter(p => p?.ativo !== false && p?.vendedorAtivo !== false));
     salvarCache(cacheMemoria);
     window.dispatchEvent(new CustomEvent('vora313:catalogo-atualizado', { detail: { total: cacheMemoria.length } }));
   } catch (_) {}
@@ -86,7 +86,7 @@ function imagemProduto(src, alt, classe = '') {
 
 export function criarCardProduto(produto) {
   const prod = { ...produto, id: String(produto.id || '') };
-  if (prod.ativo === false) return null;
+  if (prod.ativo === false || prod.vendedorAtivo === false) return null;
   const card = document.createElement('article');
   card.className = 'produto-card';
   card.dataset.produtoId = prod.id;

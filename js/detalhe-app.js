@@ -224,8 +224,8 @@ function renderizarRecomendacoes(prod) {
     if (!container || !catalogoAtual.length) return;
 
     const categoria = normalizar(prod.categoria);
-    const relacionados = catalogoAtual.filter(p => p.ativo !== false && String(p.id) !== String(prod.id) && normalizar(p.categoria) === categoria);
-    const outros = catalogoAtual.filter(p => p.ativo !== false && String(p.id) !== String(prod.id) && normalizar(p.categoria) !== categoria);
+    const relacionados = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && String(p.id) !== String(prod.id) && normalizar(p.categoria) === categoria);
+    const outros = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && String(p.id) !== String(prod.id) && normalizar(p.categoria) !== categoria);
     const usados = new Set();
     const combinar = (lista, limite) => lista.filter(p => !usados.has(String(p.id))).slice(0, limite).map(p => { usados.add(String(p.id)); return p; });
 

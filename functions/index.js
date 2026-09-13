@@ -451,7 +451,7 @@ exports.atualizarEstadoPedido = onCall({ region: 'us-central1' }, async (request
 
 
 exports.solicitarVendedor = onCall({ region: 'us-central1' }, async (request) => {
-  if (!request.auth) erro('unauthenticated', 'Inicie sessão para criar a conta de vendedor.');
+  if (!request.auth) erro('unauthenticated', 'Inicie sessão para enviar a candidatura.');
   const uid = request.auth.uid;
   const nome = limparTexto(request.data?.nome, 120, true);
   const nomeLoja = limparTexto(request.data?.nomeLoja, 120, true);
@@ -463,10 +463,40 @@ exports.solicitarVendedor = onCall({ region: 'us-central1' }, async (request) =>
   if (!/^\d{9,15}$/.test(telefone)) erro('invalid-argument', 'Telefone inválido.');
   const ref = db.collection('vendedores').doc(uid);
   const existente = await ref.get();
-  if (existente.exists && ['pendente', 'aprovado'].includes(existente.data().status)) return { ok: true, status: existente.data().status };
+  if (existente.exists) {
+    const status = String(existente.data().status || '');
+    if (status === 'aprovado') return { ok: true, status };
+    if (status === 'pendente') return { ok: true, status };
+    if (status === 'suspenso') erro('failed-precondition', 'A sua loja está suspensa. Contacte a VORA 313.');
+  }
   const agora = Timestamp.now();
-  await ref.set({ uid, nome, nomeLoja, telefone, email, morada, categoria, descricao, status: 'pendente', ativo: false, plano: 'basico', saldoDisponivel: 0, saldoRetido: 0, totalVendas: 0, totalProdutos: 0, criadoEm: agora, atualizadoEm: agora }, { merge: true });
+  const base = { uid, nome, nomeLoja, telefone, email, morada, categoria, descricao, status: 'pendente', ativo: false, plano: 'basico', atualizadoEm: agora };
+  if (!existente.exists) Object.assign(base, { saldoDisponivel: 0, saldoRetido: 0, totalVendas: 0, totalProdutos: 0, criadoEm: agora });
+  await ref.set(base, { merge: true });
   return { ok: true, status: 'pendente' };
+});
+
+exports.atualizarPerfilVendedor = onCall({ region: 'us-central1' }, async (request) => {
+  garantirVendedorAprovado(request);
+  const nome = limparTexto(request.data?.nome, 120, true);
+  const nomeLoja = limparTexto(request.data?.nomeLoja, 120, true);
+  const telefone = limparTexto(request.data?.telefone, 15, true);
+  const morada = limparTexto(request.data?.morada, 300, false);
+  const categoria = limparTexto(request.data?.categoria, 80, true);
+  const descricao = limparTexto(request.data?.descricao, 1000, false);
+  if (!/^\d{9,15}$/.test(telefone)) erro('invalid-argument', 'Telefone inválido.');
+  await db.collection('vendedores').doc(request.auth.uid).update({ nome, nomeLoja, telefone, morada, categoria, descricao, atualizadoEm: Timestamp.now() });
+  return { ok: true };
+});
+
+exports.atualizarDadosRecebimento = onCall({ region: 'us-central1' }, async (request) => {
+  garantirVendedorAprovado(request);
+  const metodo = texto(request.data?.metodo, 'Método de recebimento', 40);
+  const titular = texto(request.data?.titular, 'Titular', 160);
+  const referencia = texto(request.data?.referencia, 'Conta/IBAN/telefone de recebimento', 160);
+  if (!['transferencia_bancaria', 'multicaixa_express', 'outro'].includes(metodo)) erro('invalid-argument', 'Método de recebimento inválido.');
+  await db.collection('vendedores').doc(request.auth.uid).update({ dadosRecebimento: { metodo, titular, referencia, atualizadoEm: Timestamp.now() }, atualizadoEm: Timestamp.now() });
+  return { ok: true };
 });
 
 exports.criarProdutoVendedor = onCall({ region: 'us-central1' }, async (request) => {
@@ -474,7 +504,7 @@ exports.criarProdutoVendedor = onCall({ region: 'us-central1' }, async (request)
   const nome=limparTexto(input.nome,160,true), categoria=limparTexto(input.categoria,80,true), preco=limparTexto(input.preco,60,true), descricao=limparTexto(input.descricao,3000,true);
   const estoque=Number(input.estoque); if(!Number.isInteger(estoque)||estoque<0||estoque>100000) erro('invalid-argument','Estoque inválido.');
   const imagens=Array.isArray(input.imagens)?input.imagens.map(x=>String(x).trim()).filter(Boolean).slice(0,8):[]; const ref=db.collection('produtos').doc(); const agora=Timestamp.now();
-  const produto={id:ref.id,ordem:999999,nome,categoria,preco,precoAntigo:limparTexto(input.precoAntigo,60,false),desconto:limparTexto(input.desconto,30,false),parcelas:limparTexto(input.parcelas,80,false),freteGratis:input.freteGratis===true,descricao,imagens,tag:limparTexto(input.tag||categoria,80,false),estoque,marca:limparTexto(input.marca,120,false),sku:limparTexto(input.sku,80,false),vendedorId:request.auth.uid,vendedorNome:v.nomeLoja||v.nome,statusAprovacao:'aguardando_aprovacao',ativo:false,monetizacao:{destaque:false},criadoEm:agora,atualizadoEm:agora};
+  const produto={id:ref.id,ordem:999999,nome,categoria,preco,precoAntigo:limparTexto(input.precoAntigo,60,false),desconto:limparTexto(input.desconto,30,false),parcelas:limparTexto(input.parcelas,80,false),freteGratis:input.freteGratis===true,descricao,imagens,tag:limparTexto(input.tag||categoria,80,false),estoque,marca:limparTexto(input.marca,120,false),sku:limparTexto(input.sku,80,false),vendedorId:request.auth.uid,vendedorNome:v.nomeLoja||v.nome,statusAprovacao:'aguardando_aprovacao',ativo:false,vendedorAtivo:true,monetizacao:{destaque:false},criadoEm:agora,atualizadoEm:agora};
   await ref.set(produto); await db.collection('vendedores').doc(request.auth.uid).set({totalProdutos:FieldValue.increment(1),atualizadoEm:agora},{merge:true}); return {ok:true,produtoId:ref.id,status:produto.statusAprovacao};
 });
 
@@ -482,41 +512,77 @@ exports.atualizarProdutoVendedor = onCall({ region: 'us-central1' }, async (requ
   garantirVendedorAprovado(request); const id=texto(request.data?.produtoId,'Produto',128); const ref=db.collection('produtos').doc(id); const snap=await ref.get();
   if(!snap.exists||snap.data().vendedorId!==request.auth.uid) erro('permission-denied','Produto não pertence à sua loja.'); const p=request.data?.produto||{};
   const estoque=Number(p.estoque); if(!Number.isInteger(estoque)||estoque<0||estoque>100000) erro('invalid-argument','Estoque inválido.');
-  await ref.update({nome:limparTexto(p.nome,160,true),categoria:limparTexto(p.categoria,80,true),preco:limparTexto(p.preco,60,true),precoAntigo:limparTexto(p.precoAntigo,60,false),desconto:limparTexto(p.desconto,30,false),parcelas:limparTexto(p.parcelas,80,false),freteGratis:p.freteGratis===true,descricao:limparTexto(p.descricao,3000,true),imagens:Array.isArray(p.imagens)?p.imagens.map(x=>String(x).trim()).filter(Boolean).slice(0,8):[],estoque,marca:limparTexto(p.marca,120,false),sku:limparTexto(p.sku,80,false),tag:limparTexto(p.tag,80,false),statusAprovacao:'aguardando_aprovacao',ativo:false,atualizadoEm:Timestamp.now()});
+  await ref.update({nome:limparTexto(p.nome,160,true),categoria:limparTexto(p.categoria,80,true),preco:limparTexto(p.preco,60,true),precoAntigo:limparTexto(p.precoAntigo,60,false),desconto:limparTexto(p.desconto,30,false),parcelas:limparTexto(p.parcelas,80,false),freteGratis:p.freteGratis===true,descricao:limparTexto(p.descricao,3000,true),imagens:Array.isArray(p.imagens)?p.imagens.map(x=>String(x).trim()).filter(Boolean).slice(0,8):[],estoque,marca:limparTexto(p.marca,120,false),sku:limparTexto(p.sku,80,false),tag:limparTexto(p.tag,80,false),statusAprovacao:'aguardando_aprovacao',ativo:false,vendedorAtivo:true,atualizadoEm:Timestamp.now()});
   return {ok:true,status:'aguardando_aprovacao'};
 });
 
 exports.solicitarDestaque = onCall({ region: 'us-central1' }, async (request) => {
   garantirVendedorAprovado(request); const id=texto(request.data?.produtoId,'Produto',128); const dias=Number(request.data?.dias); const precos={7:5000,15:9000,30:15000};
   if(!precos[dias]) erro('invalid-argument','Período de destaque inválido.'); const produto=await db.collection('produtos').doc(id).get();
-  if(!produto.exists||produto.data().vendedorId!==request.auth.uid||produto.data().statusAprovacao!=='aprovado') erro('permission-denied','Produto não está aprovado para destaque.');
+  if(!produto.exists||produto.data().vendedorId!==request.auth.uid||produto.data().statusAprovacao!=='aprovado'||produto.data().ativo!==true) erro('permission-denied','Produto não está aprovado e publicado.');
+  const existentes=await db.collection('destaquesSolicitados').where('uidVendedor','==',request.auth.uid).where('produtoId','==',id).get();
+  const agoraMs=Date.now();
+  for (const item of existentes.docs) {
+    const d=item.data();
+    if (['aguardando_pagamento','pendente'].includes(d.status)) erro('already-exists','Já existe uma solicitação de destaque pendente para este produto.');
+    const fim=d.fim?.toDate ? d.fim.toDate().getTime() : 0;
+    if (d.status==='ativo' && fim > agoraMs) erro('already-exists','Este produto já tem um destaque ativo.');
+  }
   const ref=db.collection('destaquesSolicitados').doc(); await ref.set({uidVendedor:request.auth.uid,produtoId:id,nomeProduto:produto.data().nome,dias,valor:precos[dias],status:'aguardando_pagamento',criadoEm:Timestamp.now()}); return {ok:true,requestId:ref.id,valor:precos[dias]};
 });
 
 exports.solicitarLevantamento = onCall({ region: 'us-central1' }, async (request) => {
-  garantirVendedorAprovado(request); const v=await obterVendedor(request.auth.uid); const valor=Number(request.data?.valor||v.saldoDisponivel||0);
+  garantirVendedorAprovado(request); const v=await obterVendedor(request.auth.uid); const dados=v.dadosRecebimento||{};
+  if(!dados.metodo||!dados.titular||!dados.referencia) erro('failed-precondition','Configure os dados de recebimento antes de solicitar um levantamento.');
+  const valor=Number(request.data?.valor||v.saldoDisponivel||0);
   if(!Number.isFinite(valor)||valor<=0||valor>Number(v.saldoDisponivel||0)) erro('failed-precondition','Valor de levantamento inválido ou superior ao saldo disponível.');
   const ref=db.collection('levantamentos').doc(); const agora=Timestamp.now();
-  await db.runTransaction(async tx=>{const vr=db.collection('vendedores').doc(request.auth.uid);const fresh=await tx.get(vr);const saldo=Number(fresh.data()?.saldoDisponivel||0);if(valor>saldo) erro('failed-precondition','Saldo alterado. Tente novamente.');tx.update(vr,{saldoDisponivel:FieldValue.increment(-valor),saldoRetido:FieldValue.increment(valor),atualizadoEm:agora});tx.set(ref,{uidVendedor:request.auth.uid,valor,status:'pendente',criadoEm:agora,atualizadoEm:agora});});
+  await db.runTransaction(async tx=>{const vr=db.collection('vendedores').doc(request.auth.uid);const fresh=await tx.get(vr);const saldo=Number(fresh.data()?.saldoDisponivel||0);if(valor>saldo) erro('failed-precondition','Saldo alterado. Tente novamente.');tx.update(vr,{saldoDisponivel:FieldValue.increment(-valor),saldoRetido:FieldValue.increment(valor),atualizadoEm:agora});tx.set(ref,{uidVendedor:request.auth.uid,valor,status:'pendente',dadosRecebimento:{...dados},criadoEm:agora,atualizadoEm:agora});});
   return {ok:true,levantamentoId:ref.id,valor};
 });
+
+async function atualizarProdutosDoVendedor(uid, vendedorAtivo) {
+  const snap = await db.collection('produtos').where('vendedorId','==',uid).get();
+  let batch = db.batch(); let count = 0;
+  for (const produto of snap.docs) {
+    batch.update(produto.ref, { vendedorAtivo, atualizadoEm: Timestamp.now() });
+    count++;
+    if (count === 450) { await batch.commit(); batch = db.batch(); count = 0; }
+  }
+  if (count) await batch.commit();
+}
 
 exports.gerirVendedor = onCall({ region: 'us-central1' }, async (request) => {
   garantirAdmin(request); const uid=texto(request.data?.uid,'Vendedor',128); const acao=texto(request.data?.acao,'Ação',30); const ref=db.collection('vendedores').doc(uid); const snap=await ref.get(); if(!snap.exists) erro('not-found','Vendedor não encontrado.');
   const user=await admin.auth().getUser(uid); const claims={...(user.customClaims||{})};
-  if(acao==='aprovar'||acao==='reativar'){claims.seller=true;await admin.auth().setCustomUserClaims(uid,claims);await ref.update({status:'aprovado',ativo:true,atualizadoEm:Timestamp.now()});}
-  else if(acao==='recusar'||acao==='suspender'){claims.seller=false;await admin.auth().setCustomUserClaims(uid,claims);await ref.update({status:acao==='recusar'?'recusado':'suspenso',ativo:false,atualizadoEm:Timestamp.now()});}
+  if(acao==='aprovar'||acao==='reativar'){claims.seller=true;await admin.auth().setCustomUserClaims(uid,claims);await ref.update({status:'aprovado',ativo:true,atualizadoEm:Timestamp.now()});await atualizarProdutosDoVendedor(uid,true);}
+  else if(acao==='recusar'||acao==='suspender'){claims.seller=false;await admin.auth().setCustomUserClaims(uid,claims);await ref.update({status:acao==='recusar'?'recusado':'suspenso',ativo:false,atualizadoEm:Timestamp.now()});await atualizarProdutosDoVendedor(uid,false);}
   else erro('invalid-argument','Ação inválida.'); return {ok:true,status:(await ref.get()).data().status};
 });
 
 exports.aprovarProdutoVendedor = onCall({ region: 'us-central1' }, async (request) => {
   garantirAdmin(request); const id=texto(request.data?.produtoId,'Produto',128); const acao=texto(request.data?.acao,'Ação',20); if(!['aprovar','recusar'].includes(acao)) erro('invalid-argument','Ação inválida.');
-  const ref=db.collection('produtos').doc(id); const snap=await ref.get(); if(!snap.exists||!snap.data().vendedorId) erro('not-found','Produto de vendedor não encontrado.'); const ativo=acao==='aprovar'; await ref.update({statusAprovacao:ativo?'aprovado':'recusado',ativo,atualizadoEm:Timestamp.now()}); return {ok:true,status:ativo?'aprovado':'recusado'};
+  const ref=db.collection('produtos').doc(id); const snap=await ref.get(); if(!snap.exists||!snap.data().vendedorId) erro('not-found','Produto de vendedor não encontrado.');
+  const produto=snap.data(); const vendedor=await obterVendedor(produto.vendedorId).catch(()=>null);
+  const ativo=acao==='aprovar';
+  if(ativo && !vendedor) erro('failed-precondition','O vendedor não está ativo/aprovado.');
+  await ref.update({statusAprovacao:ativo?'aprovado':'recusado',ativo, vendedorAtivo: ativo ? true : produto.vendedorAtivo !== false, atualizadoEm:Timestamp.now()}); return {ok:true,status:ativo?'aprovado':'recusado'};
+});
+
+exports.definirDestaqueManual = onCall({ region: 'us-central1' }, async (request) => {
+  garantirAdmin(request); const id=texto(request.data?.produtoId,'Produto',128); const ativo=request.data?.ativo===true; const ref=db.collection('produtos').doc(id); const snap=await ref.get(); if(!snap.exists) erro('not-found','Produto não encontrado.');
+  if (ativo) { const p=snap.data(); if (p.vendedorId) { const v=await obterVendedor(p.vendedorId).catch(()=>null); if(!v || p.statusAprovacao!=='aprovado') erro('failed-precondition','O vendedor/produto não está aprovado.'); } }
+  await ref.update({'monetizacao.destaque':ativo, 'monetizacao.destaqueInicio': ativo ? Timestamp.now() : null, 'monetizacao.destaqueFim': ativo ? Timestamp.fromMillis(Date.now()+30*86400000) : null, 'monetizacao.atualizadoEm':Timestamp.now(), atualizadoEm:Timestamp.now()});
+  return {ok:true,ativo};
 });
 
 exports.processarDestaque = onCall({ region: 'us-central1' }, async (request) => {
   garantirAdmin(request); const id=texto(request.data?.requestId,'Solicitação',128); const acao=texto(request.data?.acao,'Ação',20); const reqRef=db.collection('destaquesSolicitados').doc(id); const snap=await reqRef.get(); if(!snap.exists) erro('not-found','Solicitação não encontrada.'); const d=snap.data();
-  if(acao==='recusar'){await reqRef.update({status:'recusado',atualizadoEm:Timestamp.now()});return{ok:true};} if(acao!=='aprovar') erro('invalid-argument','Ação inválida.'); const inicio=Timestamp.now(); const fim=Timestamp.fromMillis(inicio.toMillis()+Number(d.dias)*86400000); const batch=db.batch(); batch.update(reqRef,{status:'ativo',inicio,fim,atualizadoEm:inicio}); batch.update(db.collection('produtos').doc(d.produtoId),{'monetizacao.destaque':true,'monetizacao.destaqueInicio':inicio,'monetizacao.destaqueFim':fim,'monetizacao.destaqueSolicitacaoId':id,atualizadoEm:inicio}); await batch.commit(); return {ok:true,fim:fim.toDate().toISOString()};
+  if(!['aguardando_pagamento','pendente'].includes(d.status)) erro('failed-precondition','Esta solicitação já foi processada.');
+  if(acao==='recusar'){await reqRef.update({status:'recusado',atualizadoEm:Timestamp.now()});return{ok:true};} if(acao!=='aprovar') erro('invalid-argument','Ação inválida.');
+  const produtoRef=db.collection('produtos').doc(d.produtoId); const vendedorRef=db.collection('vendedores').doc(d.uidVendedor); const inicio=Timestamp.now(); const fim=Timestamp.fromMillis(inicio.toMillis()+Number(d.dias)*86400000);
+  await db.runTransaction(async tx=>{const ps=await tx.get(produtoRef);const vs=await tx.get(vendedorRef);if(!ps.exists||!vs.exists||vs.data().status!=='aprovado'||vs.data().ativo===false||ps.data().statusAprovacao!=='aprovado'||ps.data().ativo!==true) erro('failed-precondition','Vendedor ou produto deixou de estar ativo.'); const ativos=await db.collection('destaquesSolicitados').where('uidVendedor','==',d.uidVendedor).where('produtoId','==',d.produtoId).get(); for(const a of ativos.docs){const ad=a.data();const fimAtivo=ad.fim?.toDate?ad.fim.toDate().getTime():0;if(a.id!==id&&ad.status==='ativo'&&fimAtivo>Date.now()) erro('already-exists','O produto já possui um destaque ativo.');} tx.update(reqRef,{status:'ativo',inicio,fim,atualizadoEm:inicio});tx.update(produtoRef,{'monetizacao.destaque':true,'monetizacao.destaqueInicio':inicio,'monetizacao.destaqueFim':fim,'monetizacao.destaqueSolicitacaoId':id,atualizadoEm:inicio});});
+  return {ok:true,fim:fim.toDate().toISOString()};
 });
 
 exports.definirPlanoVendedor = onCall({ region: 'us-central1' }, async (request) => {
