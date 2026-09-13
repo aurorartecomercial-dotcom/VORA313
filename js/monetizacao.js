@@ -1,6 +1,6 @@
 // VORA 313 V18 — Central de Monetização do administrador
 import { auth, db } from './config.js';
-import { collection, getDocs, query, orderBy, updateDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { collection, getDocs, query, orderBy, updateDoc, doc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import { escapeHTML } from './utils.js';
 
@@ -35,6 +35,18 @@ async function carregarDashboard() {
   el('kpiVendas').textContent = String(vendasPagas);
   el('kpiVendedores').textContent = String(vendedoresSnap.size);
   el('kpiDestaques').textContent = String(patrocinados);
+  const vendedores = [];
+  vendedoresSnap.forEach(s => vendedores.push({ _id: s.id, ...s.data() }));
+  vendedores.sort((a,b) => String(a.nome || a.razaoSocial || '').localeCompare(String(b.nome || b.razaoSocial || ''), 'pt'));
+  const boxVend = el('monVendedores');
+  if (boxVend) boxVend.innerHTML = vendedores.length ? vendedores.map(v => {
+    const plano = String(v.plano || 'basico').toLowerCase();
+    const nome = escapeHTML(v.nome || v.razaoSocial || v.nomeEmpresa || 'Vendedor sem nome');
+    const id = escapeHTML(v._id);
+    const ativo = v.ativo !== false;
+    return `<div class="mon-product"><div class="mon-product-info"><div class="mon-product-name">${nome}</div><div class="mon-product-meta">ID: ${id} · Plano: <strong>${escapeHTML(plano)}</strong> · ${ativo ? 'Ativo' : 'Inativo'}</div></div><span class="mon-badge">${ativo ? 'Ativo' : 'Inativo'}</span></div>`;
+  }).join('') : '<div class="mon-empty">Nenhum vendedor registado.</div>';
+
   el('recComissoes').textContent = money(comissoes);
   el('recFretes').textContent = money(fretes);
   el('recPlanos').textContent = '0 Kz';
