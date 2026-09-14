@@ -104,6 +104,7 @@ function renderizarDetalhes(prod) {
                 <h2>${escaparAtributo(prod.nome || 'Produto')}</h2>
                 ${prod.marca ? `<div class="detalhe-marca">Marca: <strong>${escaparAtributo(prod.marca)}</strong>${prod.sku ? ` · SKU: ${escaparAtributo(prod.sku)}` : ''}</div>` : (prod.sku ? `<div class="detalhe-marca">SKU: <strong>${escaparAtributo(prod.sku)}</strong></div>` : '')}
                 ${renderizarDestaques(prod)}
+                ${prod.vendedorId || prod.vendedorNome ? `<a class="detalhe-loja-card" href="loja.html?id=${encodeURIComponent(prod.vendedorId || '')}"><span class="detalhe-loja-avatar">🏪</span><span><small>Vendido por</small><strong>${escaparAtributo(prod.vendedorNome || 'Loja VORA 313')}</strong><em>✓ Loja ativa · Ver loja →</em></span></a>` : ''}
                 <div class="detalhes-precos">
                     ${prod.precoAntigo ? `<span class="preco-antigo">${escaparAtributo(prod.precoAntigo)}</span>` : ''}
                     <span class="preco-destaque">${escaparAtributo(prod.preco || '')}</span>
