@@ -1,65 +1,90 @@
 <!doctype html>
 <html lang="pt-AO">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Central de Monetização — VORA 313</title>
-  <link rel="stylesheet" href="style.css?v=v20">
-  <style>
-    .mon-page{max-width:1380px;margin:0 auto;padding:28px 18px 60px}.mon-hero{background:linear-gradient(135deg,#003D32,#005A4C);color:#fff;border:1px solid #D4AF37;border-radius:22px;padding:30px;box-shadow:0 10px 35px rgba(0,0,0,.12)}
-    .mon-hero h1{margin:0 0 8px}.mon-hero p{margin:0;color:#e8f0ed}.mon-toolbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0}.mon-btn{border:0;border-radius:999px;padding:11px 18px;font-weight:800;cursor:pointer;background:#D4AF37;color:#111;text-decoration:none;display:inline-block}.mon-btn.dark{background:#222;color:#fff}.mon-btn.small{padding:8px 12px;font-size:12px}
-    .mon-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.mon-kpi,.mon-card{background:#fff;border:1px solid #e8e8e8;border-radius:16px;padding:18px;box-shadow:0 6px 24px rgba(0,0,0,.06)}.mon-kpi span{display:block;color:#777;font-size:12px}.mon-kpi strong{display:block;font-size:27px;margin-top:7px;color:#005A4C}.mon-layout{display:grid;grid-template-columns:1.25fr .75fr;gap:16px;margin-top:16px}.mon-card h2{margin-top:0;color:#003D32}.mon-table{width:100%;border-collapse:collapse}.mon-table th,.mon-table td{padding:11px 8px;border-bottom:1px solid #eee;text-align:left;font-size:13px}.mon-table th{color:#666}.mon-badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#E8F0ED;color:#005A4C;font-weight:800;font-size:11px}.mon-badge.off{background:#f3f3f3;color:#777}.mon-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.mon-plan{border:1px solid #ddd;border-radius:14px;padding:15px}.mon-plan.featured{border:2px solid #D4AF37}.mon-plan h3{margin:0}.mon-price{font-size:22px;font-weight:900;margin:8px 0;color:#005A4C}.mon-plan ul{padding-left:18px;margin-bottom:0;font-size:13px;line-height:1.7}.mon-products{max-height:460px;overflow:auto}.mon-product{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid #eee}.mon-product:last-child{border-bottom:0}.mon-product-info{min-width:0}.mon-product-name{font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.mon-product-meta{font-size:12px;color:#777;margin-top:3px}.mon-empty{padding:25px;text-align:center;color:#777}.mon-login{max-width:430px;margin:80px auto}.mon-alert{padding:12px;border-radius:10px;background:#fff8df;border-left:4px solid #D4AF37;margin-top:12px;font-size:13px}.mon-input{width:100%;box-sizing:border-box;padding:12px;border:1px solid #ccc;border-radius:10px;margin:7px 0 12px}.mon-error{color:#c0392b;font-size:13px;display:none}.mon-note{color:#666;font-size:12px;line-height:1.6}.mon-mini-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.mon-mini-stat{padding:14px;border:1px solid #e4e4e4;border-radius:12px;background:#fafafa}.mon-mini-stat span{display:block;font-size:12px;color:#777}.mon-mini-stat strong{display:block;font-size:24px;color:#005A4C;margin:3px 0}.mon-mini-stat small{color:#777;font-size:11px}.mon-two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px}.mon-section-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}.mon-section-head h2{margin-bottom:4px}.mon-tagline{font-size:11px;color:#777}.mon-ready{background:#edf8f2;color:#17663f;border:1px solid #cbe8d8;border-radius:12px;padding:14px;font-size:13px;line-height:1.55}.mon-roadmap{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.mon-roadmap-item{border:1px solid #e5e5e5;border-radius:12px;padding:13px}.mon-roadmap-item strong{display:block;font-size:13px}.mon-roadmap-item span{display:block;font-size:11px;color:#777;margin-top:4px}.mon-danger{background:#fff3f3;border-left:4px solid #c0392b;padding:12px;border-radius:10px;font-size:12px;color:#7d2d2d}
-    body.modo-escuro .mon-kpi,body.modo-escuro .mon-card{background:#1e1e1e;border-color:#333;color:#eee}body.modo-escuro .mon-plan,body.modo-escuro .mon-mini-stat,body.modo-escuro .mon-roadmap-item{border-color:#444;background:#222}body.modo-escuro .mon-table td{border-color:#333}body.modo-escuro .mon-product{border-color:#333}body.modo-escuro .mon-kpi strong,body.modo-escuro .mon-card h2,body.modo-escuro .mon-price,body.modo-escuro .mon-mini-stat strong{color:#D4AF37}
-    @media(max-width:1100px){.mon-kpis{grid-template-columns:repeat(2,1fr)}.mon-layout,.mon-two{grid-template-columns:1fr}.mon-roadmap{grid-template-columns:repeat(2,1fr)}}
-    @media(max-width:650px){.mon-kpis,.mon-plans,.mon-mini-grid,.mon-roadmap{grid-template-columns:1fr}.mon-page{padding:18px 10px 40px}.mon-hero{padding:20px}.mon-toolbar{align-items:stretch}.mon-toolbar .mon-btn{width:100%;text-align:center;box-sizing:border-box}.mon-product{align-items:flex-start;flex-direction:column}.mon-product .mon-btn{width:100%}}
-  </style>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Monetização — VORA 313</title>
+<link rel="stylesheet" href="style.css?v=v26"><link rel="stylesheet" href="monetizacao-v26.css?v=26">
 </head>
 <body>
-  <main class="mon-page">
-    <section id="monLogin" class="mon-card mon-login">
-      <h1>🔐 Central de Monetização</h1><p>Área exclusiva do administrador da VORA 313.</p>
-      <label for="monEmail">E-mail</label><input class="mon-input" id="monEmail" type="email" autocomplete="username" placeholder="admin@...">
-      <label for="monSenha">Palavra-passe</label><input class="mon-input" id="monSenha" type="password" autocomplete="current-password" placeholder="••••••••">
-      <button class="mon-btn" id="monLoginBtn" type="button">Entrar no painel</button>
-      <div class="mon-error" id="monLoginError"></div>
+<main class="mon-v26"><div class="mon-wrap">
+<section id="monLogin" class="mon-card-v26 mon-login-v26">
+  <div class="mon-eyebrow" style="color:#005A4C;border-color:#dbe9e5;background:#f4faf7">VORA 313 · ADMIN</div>
+  <h1>🔐 Central de Monetização</h1><p class="mon-note-v26">Área exclusiva para acompanhar e organizar as receitas da plataforma.</p>
+  <label for="monEmail">E-mail</label><input class="mon-input-v26" id="monEmail" type="email" autocomplete="username" placeholder="admin@...">
+  <label for="monSenha">Palavra-passe</label><input class="mon-input-v26" id="monSenha" type="password" autocomplete="current-password" placeholder="••••••••">
+  <button class="mon-btn-v26 green" id="monLoginBtn" type="button">Entrar no painel</button><div class="mon-error-v26" id="monLoginError"></div>
+</section>
+<section id="monDashboard" style="display:none">
+  <header class="mon-hero-v26"><span class="mon-eyebrow">💰 Negócio VORA 313</span><h1>Central de Monetização</h1><p>Um painel para entender de onde vem o dinheiro da VORA 313, quanto já foi registado, o que está projetado e quais módulos ainda precisam de pagamento automático.</p></header>
+  <div class="mon-toolbar-v26"><div><strong>Visão financeira</strong><div class="mon-note-v26">Valores registados vêm do Firebase. Valores projetados são apenas estimativas comerciais.</div></div><div class="mon-actions"><a class="mon-btn-v26 dark" href="admin.html">← Administração</a><a class="mon-btn-v26" href="admin-vendedores.html">🏪 Vendedores</a><button class="mon-btn-v26" id="monSair" type="button">Sair</button></div></div>
+
+  <section class="mon-kpis-v26">
+    <article class="mon-card-v26 mon-kpi-v26"><span>💰 Receita VORA registada</span><strong id="kpiReceita">0 Kz</strong><small>Comissões + receita de frete registada</small></article>
+    <article class="mon-card-v26 mon-kpi-v26"><span>📈 GMV pago</span><strong id="kpiGMV">0 Kz</strong><small>Volume total dos pedidos pagos</small></article>
+    <article class="mon-card-v26 mon-kpi-v26"><span>🛒 Vendas pagas</span><strong id="kpiVendas">0</strong><small>Pedidos considerados na receita</small></article>
+    <article class="mon-card-v26 mon-kpi-v26"><span>🏪 Vendedores</span><strong id="kpiVendedores">0</strong><small>Contas registadas</small></article>
+    <article class="mon-card-v26 mon-kpi-v26"><span>⭐ Patrocinados ativos</span><strong id="kpiDestaques">0</strong><small>Produtos atualmente destacados</small></article>
+    <article class="mon-card-v26 mon-kpi-v26"><span>💼 Saldo destinado aos vendedores</span><strong id="kpiVendedoresLiquido">0 Kz</strong><small>Após comissão registada</small></article>
+    <article class="mon-card-v26 mon-kpi-v26"><span>⏳ Pedidos pendentes</span><strong id="kpiPendentes">0</strong><small>Aguardando pagamento</small></article>
+    <article class="mon-card-v26 mon-kpi-v26"><span>↩️ Pedidos cancelados</span><strong id="kpiCanceladas">0</strong><small>Não entram na receita paga</small></article>
+  </section>
+
+  <div class="mon-grid-2">
+    <section class="mon-card-v26"><div class="mon-card-head"><div><h2>📊 De onde vem a receita?</h2><p class="mon-note-v26">Separámos o que já existe do que ainda é oportunidade.</p></div><span class="mon-status">Registo</span></div>
+      <table class="mon-table"><thead><tr><th>Fonte</th><th>Valor</th><th>Estado</th></tr></thead><tbody>
+        <tr><td>Comissões de produtos</td><td class="mon-money" id="recComissoes">0 Kz</td><td><span class="mon-status">Registada</span></td></tr>
+        <tr><td>Receita de frete registada</td><td class="mon-money" id="recFretes">0 Kz</td><td><span class="mon-status">Registada</span></td></tr>
+        <tr><td>Planos de vendedores</td><td class="mon-money" id="recPlanos">0 Kz</td><td><span class="mon-status gold">Projetada</span></td></tr>
+        <tr><td>Produtos patrocinados</td><td class="mon-money" id="recPatrocinados">0 Kz</td><td><span class="mon-status gray">Pagamento manual</span></td></tr>
+        <tr><td><strong>Total VORA registado</strong></td><td class="mon-money" id="recTotal">0 Kz</td><td><span class="mon-status">Atual</span></td></tr>
+      </tbody></table>
     </section>
-
-    <section id="monDashboard" style="display:none">
-      <div class="mon-hero"><h1>💰 Central de Monetização VORA 313</h1><p>Visão central das receitas, vendas, vendedores, planos, produtos patrocinados e próximos módulos comerciais.</p></div>
-      <div class="mon-toolbar"><div><strong>Painel financeiro</strong><div class="mon-note">Os valores são calculados a partir dos registos existentes no Firebase. Valores projetados não são receitas recebidas.</div></div><div><a class="mon-btn dark" href="admin.html">← Administração</a> <a class="mon-btn" href="admin-vendedores.html">🏪 Vendedores</a> <button class="mon-btn" id="monSair" type="button">Sair</button></div></div>
-
-      <section class="mon-kpis">
-        <article class="mon-kpi"><span>💰 Receita VORA registada</span><strong id="kpiReceita">0 Kz</strong></article>
-        <article class="mon-kpi"><span>🛒 Vendas pagas</span><strong id="kpiVendas">0</strong></article>
-        <article class="mon-kpi"><span>🏪 Vendedores</span><strong id="kpiVendedores">0</strong></article>
-        <article class="mon-kpi"><span>⭐ Patrocinados ativos</span><strong id="kpiDestaques">0</strong></article>
-        <article class="mon-kpi"><span>📈 Volume de vendas (GMV)</span><strong id="kpiGMV">0 Kz</strong></article>
-        <article class="mon-kpi"><span>💼 Valor destinado aos vendedores</span><strong id="kpiVendedoresLiquido">0 Kz</strong></article>
-        <article class="mon-kpi"><span>⏳ Pedidos pendentes</span><strong id="kpiPendentes">0</strong></article>
-        <article class="mon-kpi"><span>↩️ Pedidos cancelados</span><strong id="kpiCanceladas">0</strong></article>
-      </section>
-
-      <div class="mon-two">
-        <section class="mon-card"><div class="mon-section-head"><div><h2>📊 Receitas por origem</h2><div class="mon-tagline">Separação entre receita registada e módulos ainda preparados.</div></div></div><table class="mon-table"><thead><tr><th>Origem</th><th>Valor</th><th>Estado</th></tr></thead><tbody><tr><td>Comissões de produtos</td><td id="recComissoes">0 Kz</td><td><span class="mon-badge">Registada</span></td></tr><tr><td>Fretes atribuídos à VORA</td><td id="recFretes">0 Kz</td><td><span class="mon-badge">Registada</span></td></tr><tr><td>Planos de vendedores</td><td id="recPlanos">0 Kz</td><td><span class="mon-badge">Projetada</span></td></tr><tr><td>Produtos patrocinados</td><td id="recPatrocinados">0 Kz</td><td><span class="mon-badge">Preparada</span></td></tr><tr><td><strong>Total VORA</strong></td><td><strong id="recTotal">0 Kz</strong></td><td><span class="mon-badge">Registada</span></td></tr></tbody></table></section>
-        <section class="mon-card"><h2>⚙️ Modelo financeiro</h2><table class="mon-table"><tr><td>Comissão padrão</td><td><strong>7%</strong></td></tr><tr><td>Comissão máxima</td><td><strong>30%</strong></td></tr><tr><td>Plano Básico</td><td><strong>0 Kz</strong></td></tr><tr><td>Profissional</td><td><strong>15.000 Kz/mês</strong></td></tr><tr><td>Premium</td><td><strong>30.000 Kz/mês</strong></td></tr><tr><td>GMV pago</td><td><strong id="recGMV">0 Kz</strong></td></tr><tr><td>Valor vendedores</td><td><strong id="recVendedores">0 Kz</strong></td></tr></table><p class="mon-note">A comissão definitiva é validada no servidor. Cancelamentos pagos, estornos e pagamentos automáticos exigem fluxos financeiros próprios.</p></section>
-      </div>
-
-      <section class="mon-card" style="margin-top:16px"><div class="mon-section-head"><div><h2>🏪 Planos de vendedores</h2><p class="mon-note">Preços comerciais configurados e contagem dos planos ativos.</p></div><span class="mon-badge">Módulo preparado</span></div><div class="mon-plans"><article class="mon-plan"><h3>🟢 Básico</h3><div class="mon-price">Grátis</div><ul><li>Até 20 produtos</li><li>Loja básica</li><li>Gestão de pedidos</li><li>Comissão normal</li></ul></article><article class="mon-plan featured"><h3>🔵 Profissional</h3><div class="mon-price">15.000 Kz/mês</div><ul><li>Até 200 produtos</li><li>Estatísticas</li><li>Mais visibilidade</li><li>Recursos comerciais adicionais</li></ul></article><article class="mon-plan"><h3>👑 Premium</h3><div class="mon-price">30.000 Kz/mês</div><ul><li>Maior exposição</li><li>Estatísticas avançadas</li><li>Promoções</li><li>Suporte prioritário</li></ul></article></div><div id="monPlanoResumo" class="mon-mini-grid" style="margin-top:12px"></div></section>
-
-      <div class="mon-two">
-        <section class="mon-card"><div class="mon-section-head"><div><h2>🏪 Gestão de vendedores</h2><p class="mon-note">Resumo dos vendedores, plano e estado. O pagamento automático do plano ainda não está ativo.</p></div></div><div class="mon-products" id="monVendedores"><div class="mon-empty">A carregar vendedores...</div></div></section>
-        <section class="mon-card"><div class="mon-section-head"><div><h2>🧾 Vendas pagas</h2><p class="mon-note">Últimas vendas consideradas na receita da plataforma.</p></div></div><div class="mon-products" id="monVendas"><div class="mon-empty">A carregar vendas...</div></div></section>
-      </div>
-
-      <section class="mon-card" style="margin-top:16px"><div class="mon-section-head"><div><h2>⭐ Produtos patrocinados</h2><p class="mon-note">O botão ativa o destaque no catálogo. A cobrança da publicidade ainda é manual.</p></div><span class="mon-badge">Gestão ativa</span></div><div id="monProdutos" class="mon-products"><div class="mon-empty">A carregar produtos...</div></div></section>
-
-      <section class="mon-card" style="margin-top:16px"><h2>📣 Publicidade e destaque</h2><div class="mon-ready"><strong>Estrutura comercial pronta para crescer.</strong><br>Os próximos produtos de monetização podem incluir banners da página inicial, anúncios por categoria, destaque de loja e campanhas patrocinadas com período, preço e comprovativo de pagamento.</div><table class="mon-table" style="margin-top:12px"><thead><tr><th>Formato</th><th>Preço de referência</th><th>Estado</th></tr></thead><tbody><tr><td>Produto patrocinado — 7 dias</td><td>5.000 Kz</td><td><span class="mon-badge">Preparado</span></td></tr><tr><td>Produto patrocinado — 15 dias</td><td>9.000 Kz</td><td><span class="mon-badge">Preparado</span></td></tr><tr><td>Produto patrocinado — 30 dias</td><td>15.000 Kz</td><td><span class="mon-badge">Preparado</span></td></tr><tr><td>Banner principal</td><td>300.000 Kz/mês</td><td><span class="mon-badge">Comercial</span></td></tr><tr><td>Banner de categoria</td><td>100.000 Kz/mês</td><td><span class="mon-badge">Comercial</span></td></tr></tbody></table></section>
-
-      <section class="mon-card" style="margin-top:16px"><h2>💳 Pagamentos, saldo e levantamentos</h2><div class="mon-ready">A arquitetura pode receber Multicaixa Express/Referência ou outro provedor autorizado. Antes de ativar cobrança automática, será necessário configurar credenciais no servidor, webhooks autenticados, idempotência, conciliação, reembolsos e regras de pagamento aos vendedores.</div><div class="mon-roadmap" style="margin-top:12px"><div class="mon-roadmap-item"><strong>1. Receber pagamento</strong><span>Gateway + confirmação segura</span></div><div class="mon-roadmap-item"><strong>2. Conciliar</strong><span>Registo financeiro por pedido</span></div><div class="mon-roadmap-item"><strong>3. Saldo vendedor</strong><span>Valor bruto − comissão</span></div><div class="mon-roadmap-item"><strong>4. Levantamento</strong><span>Aprovação + comprovativo</span></div></div></section>
-
-      <section class="mon-card" style="margin-top:16px"><h2>↩️ Reembolsos e controlo</h2><div class="mon-danger"><strong>Atenção:</strong> a versão atual não executa estorno automático. Um pedido pago e cancelado exige um processo financeiro específico para não deixar comissão, estoque e saldo do vendedor inconsistentes.</div></section>
+    <section class="mon-card-v26"><div class="mon-card-head"><div><h2>⚙️ Regras comerciais</h2><p class="mon-note-v26">A comissão final continua validada no servidor.</p></div><span class="mon-status gold">Configuração</span></div>
+      <table class="mon-table"><tr><td>Comissão padrão</td><td><strong>7%</strong></td></tr><tr><td>Limite máximo configurado</td><td><strong>30%</strong></td></tr><tr><td>Básico</td><td><strong>0 Kz/mês</strong></td></tr><tr><td>Profissional</td><td><strong>15.000 Kz/mês</strong></td></tr><tr><td>Premium</td><td><strong>30.000 Kz/mês</strong></td></tr><tr><td>GMV pago</td><td class="mon-money" id="recGMV">0 Kz</td></tr><tr><td>Valor vendedores</td><td class="mon-money" id="recVendedores">0 Kz</td></tr></table>
     </section>
-  </main>
-  <script type="module" src="js/monetizacao.js?v=22"></script>
-</body>
-</html>
+  </div>
+
+  <section class="mon-card-v26 mon-simulator" style="margin-top:16px"><div class="mon-card-head"><div><h2>🧮 Simulador de receita</h2><p class="mon-note-v26">Brinca com os números para perceber quanto a VORA poderia faturar. Isto não altera Firebase nem cria cobranças.</p></div><span class="mon-status gold">Simulação</span></div>
+    <div class="mon-fields">
+      <div class="mon-field"><label>Vendas por mês (Kz)</label><input id="simGmv" type="number" min="0" step="1000" value="10000000"></div>
+      <div class="mon-field"><label>Comissão (%)</label><input id="simComissao" type="number" min="0" max="30" step="0.5" value="7"></div>
+      <div class="mon-field"><label>Vendedores pagos (planos)</label><input id="simPlanos" type="number" min="0" step="1" value="10"></div>
+      <div class="mon-field"><label>Patrocinados vendidos/mês</label><input id="simPatrocinados" type="number" min="0" step="1" value="10"></div>
+      <div class="mon-field"><label>Publicidade mensal (Kz)</label><input id="simPublicidade" type="number" min="0" step="1000" value="100000"></div>
+      <div class="mon-field"><label>Margem de entrega mensal (Kz)</label><input id="simEntrega" type="number" min="0" step="1000" value="50000"></div>
+    </div>
+    <div class="mon-result"><div class="mon-result-box"><span>Comissões</span><strong id="simOutComissao">0 Kz</strong></div><div class="mon-result-box"><span>Planos</span><strong id="simOutPlanos">0 Kz</strong></div><div class="mon-result-box"><span>Patrocinados</span><strong id="simOutPatrocinados">0 Kz</strong></div><div class="mon-result-box"><span>Receita estimada</span><strong id="simOutTotal">0 Kz</strong></div></div>
+    <p class="mon-note-v26" style="margin:10px 0 0">Exemplo: 10.000.000 Kz em vendas × 7% = 700.000 Kz de comissão. A simulação não representa dinheiro recebido.</p>
+  </section>
+
+  <section class="mon-card-v26" style="margin-top:16px"><div class="mon-card-head"><div><h2>🏪 Planos de vendedores</h2><p class="mon-note-v26">Estrutura comercial para atrair vendedores gratuitamente e criar níveis pagos.</p></div><span class="mon-status gold">Módulo preparado</span></div><div class="mon-grid-3">
+    <article class="mon-plan"><h3>🟢 Básico</h3><div class="mon-price">Grátis</div><ul><li>Até 20 produtos</li><li>Loja básica</li><li>Gestão de pedidos</li><li>Comissão normal</li></ul></article>
+    <article class="mon-plan featured"><h3>⭐ Profissional</h3><div class="mon-price">15.000 Kz/mês</div><ul><li>Até 200 produtos</li><li>Estatísticas</li><li>Mais visibilidade</li><li>Recursos comerciais adicionais</li></ul></article>
+    <article class="mon-plan"><h3>👑 Premium</h3><div class="mon-price">30.000 Kz/mês</div><ul><li>Maior exposição</li><li>Estatísticas avançadas</li><li>Promoções</li><li>Suporte prioritário</li></ul></article>
+  </div><div id="monPlanoResumo" class="mon-mini-grid"></div></section>
+
+  <div class="mon-grid-2">
+    <section class="mon-card-v26"><div class="mon-card-head"><div><h2>🏪 Vendedores</h2><p class="mon-note-v26">Plano atual e estado das contas.</p></div></div><div class="mon-list" id="monVendedores"><div class="mon-empty">A carregar vendedores...</div></div></section>
+    <section class="mon-card-v26"><div class="mon-card-head"><div><h2>🧾 Vendas pagas</h2><p class="mon-note-v26">Pedidos usados no cálculo da receita registada.</p></div></div><div class="mon-list" id="monVendas"><div class="mon-empty">A carregar vendas...</div></div></section>
+  </div>
+
+  <section class="mon-card-v26" style="margin-top:16px"><div class="mon-card-head"><div><h2>⭐ Produtos patrocinados</h2><p class="mon-note-v26">Destaque atual do catálogo. A cobrança ainda é manual.</p></div><span class="mon-status">Gestão ativa</span></div><div class="mon-list" id="monProdutos"><div class="mon-empty">A carregar produtos...</div></div></section>
+
+  <section class="mon-card-v26" style="margin-top:16px"><div class="mon-card-head"><div><h2>📣 Tabela comercial</h2><p class="mon-note-v26">Preços de referência para criar ofertas comerciais.</p></div><span class="mon-status gold">Preços de referência</span></div><div class="mon-grid-3">
+    <article class="mon-source"><strong>⭐ Produto patrocinado</strong><p>7 dias · <b>5.000 Kz</b><br>15 dias · <b>9.000 Kz</b><br>30 dias · <b>15.000 Kz</b></p></article>
+    <article class="mon-source"><strong>📢 Publicidade</strong><p>Banner principal · <b>300.000 Kz/mês</b><br>Banner categoria · <b>100.000 Kz/mês</b><br>Página de produto · <b>75.000 Kz/mês</b></p></article>
+    <article class="mon-source"><strong>🏆 Serviços premium</strong><p>Verificação de loja, campanhas, criação de vitrines e outras ferramentas comerciais podem ser vendidos separadamente.</p></article>
+  </div></section>
+
+  <section class="mon-card-v26" style="margin-top:16px"><div class="mon-card-head"><div><h2>💳 O que falta para cobrar automaticamente?</h2><p class="mon-note-v26">Podemos construir tudo antes de ativar o Blaze. A cobrança real exige integração segura com um meio de pagamento.</p></div></div><div class="mon-checklist">
+    <div class="mon-check">1. <b>Gateway de pagamento</b><br>Escolher provedor e credenciais.</div><div class="mon-check">2. <b>Webhook seguro</b><br>Confirmar pagamentos no servidor.</div><div class="mon-check">3. <b>Conciliação</b><br>Comparar pagamentos e pedidos.</div><div class="mon-check">4. <b>Saldo do vendedor</b><br>Separar comissão e valor líquido.</div><div class="mon-check">5. <b>Levantamentos</b><br>Pedido, aprovação e comprovativo.</div><div class="mon-check">6. <b>Reembolsos</b><br>Reverter venda, comissão e saldo.</div></div></section>
+
+  <section class="mon-card-v26" style="margin-top:16px"><div class="mon-warning"><strong>⚠️ Regra importante:</strong> atualmente a plataforma não deve prometer pagamento automático aos vendedores. O saldo e os levantamentos estão preparados, mas a liquidação real depende do fluxo financeiro e do pagamento confirmado.</div></section>
+  <div class="mon-footer-note">VORA 313 · Central de Monetização · Valores comerciais de referência</div>
+</section>
+</div></main>
+<script type="module" src="js/monetizacao.js?v=26"></script>
+<script>
+document.addEventListener('DOMContentLoaded',()=>{const ids=['simGmv','simComissao','simPlanos','simPatrocinados','simPublicidade','simEntrega'];const money=v=>new Intl.NumberFormat('pt-AO',{maximumFractionDigits:0}).format(Math.max(0,Number(v)||0))+' Kz';function calc(){const g=+document.getElementById('simGmv').value||0,c=Math.min(30,Math.max(0,+document.getElementById('simComissao').value||0)),p=+document.getElementById('simPlanos').value||0,s=+document.getElementById('simPatrocinados').value||0,a=+document.getElementById('simPublicidade').value||0,e=+document.getElementById('simEntrega').value||0;const com=g*c/100,plan=p*15000,pat=s*15000,total=com+plan+pat+a+e;document.getElementById('simOutComissao').textContent=money(com);document.getElementById('simOutPlanos').textContent=money(plan);document.getElementById('simOutPatrocinados').textContent=money(pat);document.getElementById('simOutTotal').textContent=money(total)}ids.forEach(id=>document.getElementById(id)?.addEventListener('input',calc));calc();});
+</script>
+</body></html>

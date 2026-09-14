@@ -5,6 +5,7 @@ import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, urlSegura, IM
 import { initFidelidade } from './fidelidade.js';
 import { initFavoritos } from './favoritos.js';
 import { initRecomendacoes, initAfiliados, initI18n, initChatbot } from './fase3.js';
+import { renderizarLojas, carregarLojasPublicas } from './lojas-publicas.js';
 
 let catalogo = [];
 let paginaAtual = 1;
@@ -55,6 +56,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     renderizarTudo();
+    await renderizarDestaquesVora();
+    carregarLojasPublicas().then((produtos) => renderizarLojas(document.getElementById('lojasPublicasGrid'), produtos, 8));
     if (carregando) carregando.style.display = 'none';
 
     // Quando existe cache, carregarCatalogo já atualiza o Firebase em segundo plano.
@@ -162,7 +165,33 @@ document.addEventListener('click', function(e) {
 
 function renderizarTudo() {
     renderizarMaisComprados();
+    renderizarDestaquesVora();
     aplicarFiltros();
+}
+
+function destaqueAtivo(produto) {
+    if (produto?.monetizacao?.destaque !== true) return false;
+    const fim = produto?.monetizacao?.destaqueFim;
+    if (!fim) return true;
+    const data = fim?.toDate ? fim.toDate() : new Date(fim);
+    return Number.isNaN(data.getTime()) || data.getTime() > Date.now();
+}
+
+async function renderizarDestaquesVora() {
+    const grid = document.getElementById('destaquesVoraGrid');
+    if (!grid) return;
+    const destaques = catalogo.filter(destaqueAtivo);
+    grid.innerHTML = '';
+    if (!destaques.length) {
+        grid.innerHTML = '<div class="destaques-vazio"><strong>⭐ Ainda não existem produtos patrocinados</strong><span>Os produtos destacados pelos vendedores aparecerão aqui automaticamente.</span><a href="vendedor.html">Quero vender na VORA →</a></div>';
+        return;
+    }
+    const fragment = document.createDocumentFragment();
+    destaques.slice(0, 12).forEach((produto) => {
+        const card = criarCardProduto(produto);
+        if (card) fragment.appendChild(card);
+    });
+    grid.appendChild(fragment);
 }
 
 async function atualizarCatalogoDoFirebase() {

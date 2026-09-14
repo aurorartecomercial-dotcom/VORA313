@@ -1,1 +1,61 @@
-<!doctype html><html lang="pt-AO"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Loja — VORA 313</title><link rel="stylesheet" href="style.css"><style>.loja{max-width:1180px;margin:auto;padding:25px 16px}.loja-head{background:linear-gradient(135deg,#075946,#003d32);color:#fff;border-radius:20px;padding:26px;margin-bottom:18px}.loja-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}.loja-empty{background:#fff;border:1px solid #e2ebe7;border-radius:15px;padding:35px;text-align:center;color:#777}@media(max-width:900px){.loja-grid{grid-template-columns:repeat(3,1fr)}}@media(max-width:600px){.loja-grid{grid-template-columns:repeat(2,1fr)}.loja{padding:15px 8px}}</style></head><body><main class="loja"><a href="index.html">← Voltar</a><section class="loja-head"><h1 id="nome">Loja VORA 313</h1><p id="desc">Produtos publicados por este vendedor.</p><span id="estado"></span></section><div id="produtos" class="loja-grid"><div class="loja-empty">A carregar produtos...</div></div></main><script type="module">import {db} from './js/config.js';import {collection,getDocs,getDoc,doc,query,where} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';import {criarCardProduto} from './js/catalogo.js';const id=new URLSearchParams(location.search).get('id');const $=x=>document.getElementById(x);async function run(){if(!id){$('produtos').innerHTML='<div class="loja-empty">Loja não encontrada.</div>';return}try{const v=await getDoc(doc(db,'vendedores',id));if(!v.exists()||v.data().status!=='aprovado'||v.data().ativo===false){$('produtos').innerHTML='<div class="loja-empty">Esta loja não está disponível.</div>';return}const d=v.data();$('nome').textContent=d.nomeLoja||d.nome||'Loja';$('desc').textContent=d.descricao||'Produtos publicados na VORA 313.';const s=await getDocs(query(collection(db,'produtos'),where('vendedorId','==',id),where('ativo','==',true)));const box=$('produtos');box.innerHTML='';s.docs.forEach(x=>{const c=criarCardProduto({id:x.id,...x.data()});if(c)box.append(c)});if(!box.children.length)box.innerHTML='<div class="loja-empty">Esta loja ainda não tem produtos publicados.</div>'}catch(e){console.error(e);$('produtos').innerHTML='<div class="loja-empty">Não foi possível carregar a loja.</div>'}}run();</script></body></html>
+<!doctype html>
+<html lang="pt-AO">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Loja — VORA 313</title>
+<meta name="description" content="Visite uma loja de vendedor na VORA 313 e veja os seus produtos publicados.">
+<link rel="stylesheet" href="style.css?v=27">
+<style>
+.loja-publica{max-width:1400px;margin:0 auto;padding:22px 24px 50px}.loja-publica-top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.loja-publica-top a{color:#075946;font-weight:700}.loja-hero-publico{position:relative;overflow:hidden;border-radius:22px;background:linear-gradient(135deg,#003d32,#075946 55%,#0f8a63);color:#fff;padding:30px;margin-bottom:20px;box-shadow:0 15px 45px rgba(0,61,50,.15);border:1px solid rgba(212,175,55,.45)}.loja-hero-publico:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-70px;top:-100px;background:rgba(212,175,55,.15)}.loja-hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px}.loja-avatar-grande{width:88px;height:88px;border-radius:22px;display:grid;place-items:center;background:linear-gradient(135deg,#d4af37,#f5e6a3);color:#073b2a;font-size:42px;box-shadow:0 10px 25px rgba(0,0,0,.16)}.loja-hero-publico h1{margin:0 0 7px;font-size:32px}.loja-hero-publico p{margin:0 0 12px;max-width:720px;color:#eefaf6}.loja-selos{display:flex;flex-wrap:wrap;gap:7px}.loja-selo{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}.loja-estatisticas{display:flex;gap:18px}.loja-estatistica{text-align:center;min-width:82px}.loja-estatistica strong{display:block;font-size:22px;color:#f5e6a3}.loja-estatistica span{font-size:11px;color:#d7eee7}.loja-acoes{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}.loja-acoes a{display:inline-flex;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:700;background:#d4af37;color:#111}.loja-acoes a.secundario{background:#fff;color:#075946}.loja-barra{background:#fff;border:1px solid #e1ebe7;border-radius:16px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px}.loja-barra h2{font-size:20px;margin:0;color:#073b2a}.loja-grid-publica{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.loja-vazia{background:#fff;border:1px solid #e2ebe7;border-radius:18px;padding:45px 25px;text-align:center;color:#6b7773;grid-column:1/-1}.loja-vazia strong{display:block;color:#075946;font-size:18px;margin-bottom:8px}.loja-vazia a{display:inline-block;margin-top:14px;background:#d4af37;color:#111;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:700}
+@media(max-width:950px){.loja-hero-inner{grid-template-columns:auto 1fr}.loja-estatisticas{grid-column:1/-1;justify-content:flex-start}.loja-grid-publica{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:650px){.loja-publica{padding:12px 8px 35px}.loja-hero-publico{padding:20px 16px;border-radius:16px}.loja-hero-inner{grid-template-columns:1fr}.loja-avatar-grande{width:66px;height:66px;font-size:32px}.loja-hero-publico h1{font-size:25px}.loja-estatisticas{width:100%;justify-content:space-between;gap:6px}.loja-estatistica{min-width:0;flex:1}.loja-grid-publica{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.loja-barra{padding:10px 12px}.loja-barra h2{font-size:17px}.loja-publica-top{font-size:13px}}
+</style>
+</head>
+<body>
+<main class="loja-publica">
+  <div class="loja-publica-top"><a href="index.html">← Voltar à VORA 313</a><a href="vendedor.html">🏪 Vender na VORA</a></div>
+  <section class="loja-hero-publico" aria-labelledby="nome">
+    <div class="loja-hero-inner">
+      <div class="loja-avatar-grande">🏪</div>
+      <div>
+        <h1 id="nome">Loja VORA 313</h1>
+        <p id="desc">Produtos publicados por este vendedor.</p>
+        <div class="loja-selos"><span class="loja-selo">✓ Loja ativa</span><span class="loja-selo">🛍️ Vendedor VORA 313</span></div>
+        <div class="loja-acoes"><a id="whatsappLoja" href="#" target="_blank" rel="noopener" style="display:none">💬 Contactar no WhatsApp</a><a class="secundario" href="index.html">Continuar a comprar</a></div>
+      </div>
+      <div class="loja-estatisticas"><div class="loja-estatistica"><strong id="totalProdutos">0</strong><span>Produtos</span></div><div class="loja-estatistica"><strong id="totalDestaques">0</strong><span>Em destaque</span></div></div>
+    </div>
+  </section>
+  <div class="loja-barra"><h2>🛍️ Produtos da loja</h2><span id="estado">A carregar...</span></div>
+  <div id="produtos" class="loja-grid-publica"><div class="loja-vazia">A carregar produtos...</div></div>
+</main>
+<script type="module">
+import { db } from './js/config.js';
+import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { criarCardProduto } from './js/catalogo.js';
+const id = new URLSearchParams(location.search).get('id');
+const $ = (x) => document.getElementById(x);
+function destaqueAtivo(p){ if(p?.monetizacao?.destaque!==true)return false; const f=p?.monetizacao?.destaqueFim;if(!f)return true;const d=f?.toDate?f.toDate():new Date(f);return Number.isNaN(d.getTime())||d.getTime()>Date.now(); }
+async function run(){
+  if(!id){$('produtos').innerHTML='<div class="loja-vazia"><strong>Loja não encontrada.</strong></div>';return;}
+  try{
+    const snap=await getDocs(query(collection(db,'produtos'),where('vendedorId','==',id)));
+    const produtos=snap.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p?.ativo!==false&&p?.vendedorAtivo!==false);
+    if(!produtos.length){$('produtos').innerHTML='<div class="loja-vazia"><strong>Esta loja ainda não tem produtos publicados.</strong><span>Quando houver produtos aprovados, eles aparecerão aqui.</span></div>';return;}
+    const nome=String(produtos.find(p=>p.vendedorNome)?.vendedorNome||'Loja VORA 313');
+    $('nome').textContent=nome;
+    $('desc').textContent=`Encontre ${produtos.length} ${produtos.length===1?'produto':'produtos'} publicados na VORA 313.`;
+    $('totalProdutos').textContent=produtos.length;
+    $('totalDestaques').textContent=produtos.filter(destaqueAtivo).length;
+    $('estado').textContent='Loja ativa';
+    const telef=produtos.find(p=>p.vendedorTelefone||p.telefoneVendedor)?.vendedorTelefone||produtos.find(p=>p.telefoneVendedor)?.telefoneVendedor||'';
+    if(telef){const a=$('whatsappLoja');a.href=`https://wa.me/${String(telef).replace(/[^0-9]/g,'')}`;a.style.display='inline-flex';}
+    produtos.sort((a,b)=>(destaqueAtivo(b)-destaqueAtivo(a))||Number(a.ordem||0)-Number(b.ordem||0));
+    const box=$('produtos');box.innerHTML='';produtos.forEach(p=>{const c=criarCardProduto(p);if(c)box.append(c);});
+  }catch(e){console.error(e);$('estado').textContent='Erro';$('produtos').innerHTML='<div class="loja-vazia"><strong>Não foi possível carregar a loja.</strong><span>Tente novamente dentro de alguns instantes.</span></div>';}
+}
+run();
+</script>
+</body>
+</html>

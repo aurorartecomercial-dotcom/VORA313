@@ -1,4 +1,4 @@
-// VORA 313 V22 — Central de Monetização + ordenação pública do catálogo
+// VORA 313 V26 — Central de Monetização + ordenação pública do catálogo
 import { auth, db, functions } from './config.js';
 import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';

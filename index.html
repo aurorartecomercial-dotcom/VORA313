@@ -219,6 +219,40 @@
             </div>
         </div>
 
+        <!-- PRODUTOS EM DESTAQUE — monetização real -->
+        <section class="secao-destaques-vora" aria-labelledby="tituloDestaquesVora">
+            <div class="secao-titulo destaque-titulo">
+                <div>
+                    <span class="secao-kicker">MAIS VISIBILIDADE PARA OS VENDEDORES</span>
+                    <h2 id="tituloDestaquesVora">⭐ Produtos em destaque</h2>
+                    <p>Produtos patrocinados por vendedores, apresentados com maior visibilidade.</p>
+                </div>
+                <a href="#gradeProdutos" class="ver-todos">Explorar produtos →</a>
+            </div>
+            <div class="aurora-rail-wrap destaque-rail-wrap">
+                <button class="aurora-rail-btn anterior" type="button" data-rail-target="destaquesVoraGrid" aria-label="Produtos em destaque anteriores">‹</button>
+                <div class="produtos-rail" id="destaquesVoraGrid">
+                    <div class="destaques-vazio">A carregar produtos em destaque...</div>
+                </div>
+                <button class="aurora-rail-btn proximo" type="button" data-rail-target="destaquesVoraGrid" aria-label="Mais produtos em destaque">›</button>
+            </div>
+        </section>
+
+        <!-- LOJAS DOS VENDEDORES -->
+        <section class="secao-lojas-vora" aria-labelledby="tituloLojasVora">
+            <div class="secao-titulo">
+                <div>
+                    <span class="secao-kicker">MARKETPLACE PARA NEGÓCIOS</span>
+                    <h2 id="tituloLojasVora">🏪 Lojas em destaque na VORA 313</h2>
+                    <p>Conheça vendedores e visite as suas lojas dentro da plataforma.</p>
+                </div>
+                <a href="vendedor.html" class="ver-todos">Vender na VORA →</a>
+            </div>
+            <div class="lojas-publicas-grid" id="lojasPublicasGrid">
+                <div class="lojas-empty"><strong>🏪 A carregar lojas...</strong><span>Estamos a procurar lojas de vendedores.</span></div>
+            </div>
+        </section>
+
         <!-- MAIS COMPRADOS -->
         <section class="secao-mais-comprados">
             <div class="secao-titulo">
@@ -557,7 +591,7 @@
     </script>
 
     <!-- SCRIPTS PRINCIPAIS -->
-    <script type="module" src="js/app.js?v=22"></script>
+    <script type="module" src="js/app.js?v=27"></script>
     <script type="module" src="js/carrinho.js?v=7"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
     <script type="module" src="js/favoritos.js?v=6"></script>
