@@ -152,6 +152,19 @@ export function atualizarCarrinho() {
     total += extrairValorNumerico(item.preco) * item.quantidade;
     const li = document.createElement('li');
     li.className = 'item-carrinho-loja';
+    const imagem = document.createElement('div');
+    imagem.className = 'v32-cart-thumb';
+    if (item.imagem) {
+      const img = document.createElement('img');
+      img.src = item.imagem;
+      img.alt = item.nome;
+      img.loading = 'lazy';
+      img.addEventListener('error', () => imagem.classList.add('sem-imagem'));
+      imagem.append(img);
+    } else {
+      imagem.textContent = '🛍️';
+      imagem.classList.add('sem-imagem');
+    }
     const info = document.createElement('div');
     info.className = 'item-info-loja';
     const nome = document.createElement('h4');
@@ -174,10 +187,12 @@ export function atualizarCarrinho() {
       criarBotao('+', { index, mudanca: 1 }),
       criarBotao('🗑️', { remover: index }, 'Remover do carrinho')
     );
-    li.append(info, controles);
+    li.append(imagem, info, controles);
     listaProdutosHTML.append(li);
   });
   totalHTML.textContent = formatarMoeda(total).replace(/\s*Kz$/, '');
+  const subtotalResumo = document.getElementById('v32CartSubtotal');
+  if (subtotalResumo) subtotalResumo.textContent = formatarMoeda(total);
   atualizarBadge();
   salvarCarrinho();
 }
@@ -221,6 +236,7 @@ export function adicionarProdutoCarrinho(produto, observacao = '') {
     produtoId: produto.id,
     nome: String(produto.nome || 'Produto'),
     preco: String(produto.preco || ''),
+    imagem: String(produto.imagem || produto.imagemUrl || produto.foto || produto.image || ''),
     quantidade: 1,
     observacao: String(observacao || '').slice(0, 500)
   });

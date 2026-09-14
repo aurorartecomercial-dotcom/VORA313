@@ -125,13 +125,15 @@
     <!-- CARRINHO LATERAL -->
     <aside class="carrinho-sidebar" id="carrinhoSidebar" role="dialog" aria-label="Sacola de compras">
         <div class="carrinho-header">
-            <h2>🛒 Minha Sacola</h2>
+            <div class="v32-cart-title"><h2>🛒 Minha Sacola</h2><span>Revise os seus produtos antes de finalizar</span></div>
             <button class="btn-fechar-carrinho" id="btnFecharCarrinho" aria-label="Fechar sacola">&times;</button>
         </div>
         <ul class="carrinho-corpo" id="itensCarrinhoLoja"></ul>
         <div class="carrinho-footer">
+            <div class="v32-cart-benefits"><span>🔒 Compra segura</span><span>🚚 Entrega em Angola</span></div>
+            <div class="v32-subtotal-linha"><span>Subtotal</span><strong id="v32CartSubtotal">0 Kz</strong></div>
             <div class="total-linha">
-                <span>Total:</span>
+                <span>Total da compra:</span>
                 <span><span id="totalCarrinhoLoja">0</span> Kz</span>
             </div>
             <button id="btnFinalizarWhatsApp" class="btn-finalizar">Enviar Pedido ao WhatsApp</button>
