@@ -5,55 +5,82 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Loja — VORA 313</title>
 <meta name="description" content="Visite uma loja de vendedor na VORA 313 e veja os seus produtos publicados.">
-<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" href="style.css?v=28">
 <style>
-.loja-publica{max-width:1400px;margin:0 auto;padding:22px 24px 50px}.loja-publica-top{display:flex;justify-content:space-between;align-items:center;gap:15px;margin-bottom:14px}.loja-publica-top a{color:#075946;font-weight:700}.loja-hero-publico{position:relative;overflow:hidden;border-radius:22px;background:linear-gradient(135deg,#003d32,#075946 55%,#0f8a63);color:#fff;padding:30px;margin-bottom:20px;box-shadow:0 15px 45px rgba(0,61,50,.15);border:1px solid rgba(212,175,55,.45)}.loja-hero-publico:after{content:"";position:absolute;width:260px;height:260px;border-radius:50%;right:-70px;top:-100px;background:rgba(212,175,55,.15)}.loja-hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px}.loja-avatar-grande{width:88px;height:88px;border-radius:22px;display:grid;place-items:center;background:linear-gradient(135deg,#d4af37,#f5e6a3);color:#073b2a;font-size:42px;box-shadow:0 10px 25px rgba(0,0,0,.16)}.loja-hero-publico h1{margin:0 0 7px;font-size:32px}.loja-hero-publico p{margin:0 0 12px;max-width:720px;color:#eefaf6}.loja-selos{display:flex;flex-wrap:wrap;gap:7px}.loja-selo{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}.loja-estatisticas{display:flex;gap:18px}.loja-estatistica{text-align:center;min-width:82px}.loja-estatistica strong{display:block;font-size:22px;color:#f5e6a3}.loja-estatistica span{font-size:11px;color:#d7eee7}.loja-acoes{display:flex;gap:9px;margin-top:15px;flex-wrap:wrap}.loja-acoes a{display:inline-flex;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:700;background:#d4af37;color:#111}.loja-acoes a.secundario{background:#fff;color:#075946}.loja-barra{background:#fff;border:1px solid #e1ebe7;border-radius:16px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;gap:12px}.loja-barra h2{font-size:20px;margin:0;color:#073b2a}.loja-grid-publica{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.loja-vazia{background:#fff;border:1px solid #e2ebe7;border-radius:18px;padding:45px 25px;text-align:center;color:#6b7773;grid-column:1/-1}.loja-vazia strong{display:block;color:#075946;font-size:18px;margin-bottom:8px}.loja-vazia a{display:inline-block;margin-top:14px;background:#d4af37;color:#111;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:700}
+.loja-publica{max-width:1400px;margin:0 auto;padding:18px 24px 55px}.loja-publica-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.loja-publica-top a{color:#075946;font-weight:800;text-decoration:none}.loja-publica-top .demo-link{background:#fff6d5;border:1px solid #ead58b;padding:8px 12px;border-radius:999px;font-size:12px;color:#6d5600}
+.loja-hero-publico{position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,#003d32,#075946 55%,#0f8a63);color:#fff;margin-bottom:18px;box-shadow:0 16px 45px rgba(0,61,50,.15);border:1px solid rgba(212,175,55,.45)}.loja-capa-demo{height:145px;background:linear-gradient(135deg,rgba(0,61,50,.25),rgba(212,175,55,.22)),url('oferta-1-tecnologia.png') center/cover;position:relative}.loja-capa-demo:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,61,50,.12),rgba(0,61,50,.75))}.loja-hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;padding:0 30px 28px;margin-top:-35px}.loja-avatar-grande{width:92px;height:92px;border-radius:24px;display:grid;place-items:center;background:linear-gradient(135deg,#d4af37,#f5e6a3);color:#073b2a;font-size:40px;box-shadow:0 10px 25px rgba(0,0,0,.22);border:5px solid #fff}.loja-hero-publico h1{margin:0 0 6px;font-size:32px}.loja-hero-publico p{margin:0 0 11px;max-width:720px;color:#eefaf6}.loja-selos{display:flex;flex-wrap:wrap;gap:7px}.loja-selo{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}.loja-estatisticas{display:flex;gap:12px}.loja-estatistica{text-align:center;min-width:82px;background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 8px}.loja-estatistica strong{display:block;font-size:22px;color:#f5e6a3}.loja-estatistica span{font-size:11px;color:#d7eee7}.loja-acoes{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}.loja-acoes a{display:inline-flex;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:800;background:#d4af37;color:#111}.loja-acoes a.secundario{background:#fff;color:#075946}.loja-info-extra{display:flex;gap:15px;flex-wrap:wrap;margin-top:11px;font-size:12px;color:#d9eee8}
+.loja-navegacao{display:flex;gap:8px;overflow:auto;background:#fff;border:1px solid #e1ebe7;border-radius:16px;padding:9px;margin-bottom:15px;position:sticky;top:8px;z-index:5;box-shadow:0 5px 16px rgba(5,62,49,.05)}.loja-navegacao a{white-space:nowrap;text-decoration:none;color:#31584e;font-weight:800;font-size:12px;padding:9px 13px;border-radius:999px}.loja-navegacao a.ativo{background:#075946;color:#fff}
+.loja-painel{background:#fff;border:1px solid #e1ebe7;border-radius:18px;padding:16px;margin-bottom:16px}.loja-painel-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:12px}.loja-painel h2{font-size:20px;margin:0;color:#073b2a}.loja-painel small{color:#71807a}.loja-busca{width:100%;box-sizing:border-box;border:1px solid #d6e2dd;border-radius:12px;padding:12px 14px;font:inherit;outline:none}.loja-busca:focus{border-color:#d4af37;box-shadow:0 0 0 3px rgba(212,175,55,.12)}.loja-categorias{display:flex;gap:8px;flex-wrap:wrap;margin-top:11px}.loja-categoria{border:1px solid #d9e4df;background:#f8fbfa;border-radius:999px;padding:7px 11px;font-size:11px;font-weight:800;color:#075946;cursor:pointer}.loja-categoria.ativo{background:#d4af37;border-color:#d4af37;color:#111}
+.loja-grid-publica{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px}.loja-vazia{background:#fff;border:1px solid #e2ebe7;border-radius:18px;padding:45px 25px;text-align:center;color:#6b7773;grid-column:1/-1}.loja-vazia strong{display:block;color:#075946;font-size:18px;margin-bottom:8px}.loja-vazia a{display:inline-block;margin-top:14px;background:#d4af37;color:#111;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:700}.loja-demo-note{background:#fffdf1;border:1px solid #ead58b;color:#6d5600;border-radius:14px;padding:11px 13px;font-size:12px;margin-bottom:16px}.loja-demo-note strong{font-weight:900}
 @media(max-width:950px){.loja-hero-inner{grid-template-columns:auto 1fr}.loja-estatisticas{grid-column:1/-1;justify-content:flex-start}.loja-grid-publica{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:650px){.loja-publica{padding:12px 8px 35px}.loja-hero-publico{padding:20px 16px;border-radius:16px}.loja-hero-inner{grid-template-columns:1fr}.loja-avatar-grande{width:66px;height:66px;font-size:32px}.loja-hero-publico h1{font-size:25px}.loja-estatisticas{width:100%;justify-content:space-between;gap:6px}.loja-estatistica{min-width:0;flex:1}.loja-grid-publica{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.loja-barra{padding:10px 12px}.loja-barra h2{font-size:17px}.loja-publica-top{font-size:13px}}
+@media(max-width:650px){.loja-publica{padding:10px 8px 35px}.loja-publica-top{font-size:12px}.loja-publica-top .demo-link{display:none}.loja-hero-publico{border-radius:17px}.loja-capa-demo{height:120px}.loja-hero-inner{grid-template-columns:1fr;padding:0 16px 20px;margin-top:-28px}.loja-avatar-grande{width:68px;height:68px;font-size:30px;border-width:4px}.loja-hero-publico h1{font-size:25px}.loja-estatisticas{width:100%;justify-content:space-between;gap:6px}.loja-estatistica{min-width:0;flex:1}.loja-navegacao{top:4px}.loja-grid-publica{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.loja-painel{padding:12px}.loja-painel h2{font-size:17px}}
 </style>
 </head>
 <body>
 <main class="loja-publica">
-  <div class="loja-publica-top"><a href="index.html">← Voltar à VORA 313</a><a href="vendedor.html">🏪 Vender na VORA</a></div>
+  <div class="loja-publica-top"><a href="index.html">← Voltar à VORA 313</a><a class="demo-link" href="loja.html?demo=1">🧪 Ver exemplo da loja</a><a href="vendedor.html">🏪 Vender na VORA</a></div>
   <section class="loja-hero-publico" aria-labelledby="nome">
+    <div class="loja-capa-demo"></div>
     <div class="loja-hero-inner">
       <div class="loja-avatar-grande">🏪</div>
       <div>
         <h1 id="nome">Loja VORA 313</h1>
         <p id="desc">Produtos publicados por este vendedor.</p>
-        <div class="loja-selos"><span class="loja-selo">✓ Loja ativa</span><span class="loja-selo">🛍️ Vendedor VORA 313</span></div>
+        <div class="loja-selos"><span class="loja-selo">✓ Loja ativa</span><span class="loja-selo">✓ Vendedor verificado</span><span class="loja-selo">⭐ 4,9</span></div>
+        <div class="loja-info-extra"><span>📍 Luanda, Angola</span><span>⚡ Responde rapidamente</span><span>🛡️ Compra segura na VORA 313</span></div>
         <div class="loja-acoes"><a id="whatsappLoja" href="#" target="_blank" rel="noopener" style="display:none">💬 Contactar no WhatsApp</a><a class="secundario" href="index.html">Continuar a comprar</a></div>
       </div>
-      <div class="loja-estatisticas"><div class="loja-estatistica"><strong id="totalProdutos">0</strong><span>Produtos</span></div><div class="loja-estatistica"><strong id="totalDestaques">0</strong><span>Em destaque</span></div></div>
+      <div class="loja-estatisticas"><div class="loja-estatistica"><strong id="totalProdutos">0</strong><span>Produtos</span></div><div class="loja-estatistica"><strong id="totalDestaques">0</strong><span>Destaques</span></div><div class="loja-estatistica"><strong id="totalVendas">1,2k</strong><span>Vendas</span></div></div>
     </div>
   </section>
-  <div class="loja-barra"><h2>🛍️ Produtos da loja</h2><span id="estado">A carregar...</span></div>
+  <div id="demoNote" class="loja-demo-note" style="display:none"><strong>🧪 Modo demonstração:</strong> esta loja é apenas um exemplo visual. Nenhum vendedor real foi criado e nada é gravado no Firebase.</div>
+  <nav class="loja-navegacao" aria-label="Navegação da loja"><a class="ativo" href="#produtosSecao">Produtos</a><a href="#sobreLoja">Sobre a loja</a><a href="#avaliacoesLoja">Avaliações</a><a href="vendedor.html">Abrir a minha loja</a></nav>
+  <section class="loja-painel" id="produtosSecao">
+    <div class="loja-painel-top"><h2>⭐ Produtos em destaque</h2><small id="estadoDestaques">Escolhas da loja</small></div>
+    <div id="destaquesLoja" class="loja-grid-publica"></div>
+  </section>
+  <section class="loja-painel">
+    <div class="loja-painel-top"><h2>🛍️ Todos os produtos</h2><small id="estado">A carregar...</small></div>
+    <input id="buscaLoja" class="loja-busca" type="search" placeholder="🔎 Procurar produtos nesta loja..." autocomplete="off">
+    <div id="categoriasLoja" class="loja-categorias"></div>
+  </section>
   <div id="produtos" class="loja-grid-publica"><div class="loja-vazia">A carregar produtos...</div></div>
+  <section class="loja-painel" id="sobreLoja"><div class="loja-painel-top"><h2>🏪 Sobre a loja</h2></div><p id="sobreTexto" style="margin:0;color:#5e6d67;line-height:1.6">Esta área será preenchida pelo vendedor com uma apresentação profissional da sua loja, marcas trabalhadas, localização, horário e informações úteis para os clientes.</p></section>
+  <section class="loja-painel" id="avaliacoesLoja"><div class="loja-painel-top"><h2>⭐ Avaliações da loja</h2><strong>4,9/5</strong></div><p style="margin:0;color:#5e6d67">As avaliações reais dos clientes aparecerão aqui depois das primeiras compras concluídas.</p></section>
 </main>
 <script type="module">
 import { db } from './js/config.js';
 import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 import { criarCardProduto } from './js/catalogo.js';
-const id = new URLSearchParams(location.search).get('id');
-const $ = (x) => document.getElementById(x);
-function destaqueAtivo(p){ if(p?.monetizacao?.destaque!==true)return false; const f=p?.monetizacao?.destaqueFim;if(!f)return true;const d=f?.toDate?f.toDate():new Date(f);return Number.isNaN(d.getTime())||d.getTime()>Date.now(); }
+const params=new URLSearchParams(location.search), id=params.get('id'), demo=params.get('demo')==='1';
+const $=x=>document.getElementById(x);
+const demoProdutos=[
+ {id:'demo-1',nome:'Smartphone VORA X Pro 256GB',preco:'245.000 Kz',precoAntigo:'275.000 Kz',desconto:'11% OFF',categoria:'Tecnologia',tag:'Mais vendido',imagens:['oferta-4-smartphones.png'],estoque:8,freteGratis:true,vendedorNome:'Kwanza Tech',ativo:true,monetizacao:{destaque:true}},
+ {id:'demo-2',nome:'Relógio Smart Premium',preco:'58.500 Kz',precoAntigo:'70.000 Kz',desconto:'16% OFF',categoria:'Acessórios',imagens:['oferta-6-semana.png'],estoque:4,vendedorNome:'Kwanza Tech',ativo:true,monetizacao:{destaque:true}},
+ {id:'demo-3',nome:'Fones Bluetooth Pro ANC',preco:'42.900 Kz',categoria:'Tecnologia',imagens:['oferta-1-tecnologia.png'],estoque:12,vendedorNome:'Kwanza Tech',ativo:true},
+ {id:'demo-4',nome:'Kit Beleza Premium',preco:'35.000 Kz',categoria:'Beleza',imagens:['oferta-5-beleza.png'],estoque:7,vendedorNome:'Kwanza Tech',ativo:true},
+ {id:'demo-5',nome:'Console Gamer + 2 Comandos',preco:'310.000 Kz',categoria:'Games',imagens:['oferta-3-games.png'],estoque:3,vendedorNome:'Kwanza Tech',ativo:true},
+ {id:'demo-6',nome:'Kit Casa Inteligente',preco:'89.900 Kz',categoria:'Casa',imagens:['oferta-7-casa.png'],estoque:9,vendedorNome:'Kwanza Tech',ativo:true}
+];
+function destaqueAtivo(p){return p?.monetizacao?.destaque===true;}
+function renderLista(lista,box){box.innerHTML='';if(!lista.length){box.innerHTML='<div class="loja-vazia"><strong>Nenhum produto encontrado.</strong><span>Tente outro termo de pesquisa ou categoria.</span></div>';return;}lista.forEach(p=>{const c=criarCardProduto(p);if(c)box.append(c);});}
+function prepararCategorias(produtos){const box=$('categoriasLoja');const cats=['Todos',...new Set(produtos.map(p=>p.categoria).filter(Boolean))];box.innerHTML=cats.map((c,i)=>`<button type="button" class="loja-categoria ${i===0?'ativo':''}" data-cat="${c.replace(/"/g,'&quot;')}">${c}</button>`).join('');return 'Todos';}
 async function run(){
-  if(!id){$('produtos').innerHTML='<div class="loja-vazia"><strong>Loja não encontrada.</strong></div>';return;}
-  try{
-    const snap=await getDocs(query(collection(db,'produtos'),where('vendedorId','==',id)));
-    const produtos=snap.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p?.ativo!==false&&p?.vendedorAtivo!==false);
-    if(!produtos.length){$('produtos').innerHTML='<div class="loja-vazia"><strong>Esta loja ainda não tem produtos publicados.</strong><span>Quando houver produtos aprovados, eles aparecerão aqui.</span></div>';return;}
-    const nome=String(produtos.find(p=>p.vendedorNome)?.vendedorNome||'Loja VORA 313');
-    $('nome').textContent=nome;
-    $('desc').textContent=`Encontre ${produtos.length} ${produtos.length===1?'produto':'produtos'} publicados na VORA 313.`;
-    $('totalProdutos').textContent=produtos.length;
-    $('totalDestaques').textContent=produtos.filter(destaqueAtivo).length;
-    $('estado').textContent='Loja ativa';
-    const telef=produtos.find(p=>p.vendedorTelefone||p.telefoneVendedor)?.vendedorTelefone||produtos.find(p=>p.telefoneVendedor)?.telefoneVendedor||'';
-    if(telef){const a=$('whatsappLoja');a.href=`https://wa.me/${String(telef).replace(/[^0-9]/g,'')}`;a.style.display='inline-flex';}
-    produtos.sort((a,b)=>(destaqueAtivo(b)-destaqueAtivo(a))||Number(a.ordem||0)-Number(b.ordem||0));
-    const box=$('produtos');box.innerHTML='';produtos.forEach(p=>{const c=criarCardProduto(p);if(c)box.append(c);});
-  }catch(e){console.error(e);$('estado').textContent='Erro';$('produtos').innerHTML='<div class="loja-vazia"><strong>Não foi possível carregar a loja.</strong><span>Tente novamente dentro de alguns instantes.</span></div>';}
+ let produtos=[];
+ if(demo){
+   produtos=demoProdutos; $('demoNote').style.display='block'; $('nome').textContent='Kwanza Tech'; $('desc').textContent='Tecnologia, acessórios e produtos selecionados para si.'; $('totalProdutos').textContent=produtos.length; $('totalDestaques').textContent=produtos.filter(destaqueAtivo).length; $('estado').textContent='6 produtos'; $('sobreTexto').textContent='A Kwanza Tech é uma loja exemplo da VORA 313, criada para mostrar como ficará a vitrine de um vendedor: apresentação, produtos patrocinados, pesquisa, categorias, avaliações e contacto.';
+ } else {
+   if(!id){location.href='loja.html?demo=1';return;}
+   try{const snap=await getDocs(query(collection(db,'produtos'),where('vendedorId','==',id)));produtos=snap.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p?.ativo!==false&&p?.vendedorAtivo!==false);if(!produtos.length){$('produtos').innerHTML='<div class="loja-vazia"><strong>Esta loja ainda não tem produtos publicados.</strong><span>Quando houver produtos aprovados, eles aparecerão aqui.</span></div>';return;}const nome=String(produtos.find(p=>p.vendedorNome)?.vendedorNome||'Loja VORA 313');$('nome').textContent=nome;$('desc').textContent=`Encontre ${produtos.length} ${produtos.length===1?'produto':'produtos'} publicados na VORA 313.`;$('totalProdutos').textContent=produtos.length;$('totalDestaques').textContent=produtos.filter(destaqueAtivo).length;$('estado').textContent=`${produtos.length} produtos`;const telef=produtos.find(p=>p.vendedorTelefone||p.telefoneVendedor)?.vendedorTelefone||produtos.find(p=>p.telefoneVendedor)?.telefoneVendedor||'';if(telef){const a=$('whatsappLoja');a.href=`https://wa.me/${String(telef).replace(/[^0-9]/g,'')}`;a.style.display='inline-flex';}}catch(e){console.error(e);$('estado').textContent='Erro';$('produtos').innerHTML='<div class="loja-vazia"><strong>Não foi possível carregar a loja.</strong><span>Tente novamente dentro de alguns instantes.</span></div>';return;}
+ }
+ produtos.sort((a,b)=>(destaqueAtivo(b)-destaqueAtivo(a))||Number(a.ordem||0)-Number(b.ordem||0));
+ renderLista(produtos.filter(destaqueAtivo),$('destaquesLoja'));
+ if(!produtos.some(destaqueAtivo)){$('destaquesLoja').innerHTML='<div class="loja-vazia"><strong>Ainda não há produtos em destaque.</strong><span>O vendedor poderá patrocinar produtos para aparecerem nesta área.</span></div>';}
+ let categoria='Todos';
+ prepararCategorias(produtos);
+ const filtrar=()=>{const termo=($('buscaLoja').value||'').toLowerCase().trim();const lista=produtos.filter(p=>(categoria==='Todos'||p.categoria===categoria)&&(!termo||String(p.nome||'').toLowerCase().includes(termo)));renderLista(lista,$('produtos'));$('estado').textContent=`${lista.length} ${lista.length===1?'produto':'produtos'}`;};
+ $('buscaLoja').addEventListener('input',filtrar);$('categoriasLoja').addEventListener('click',e=>{const b=e.target.closest('.loja-categoria');if(!b)return;categoria=b.dataset.cat;$('categoriasLoja').querySelectorAll('.loja-categoria').forEach(x=>x.classList.toggle('ativo',x===b));filtrar();});
+ filtrar();
 }
 run();
 </script>
