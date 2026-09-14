@@ -1582,3 +1582,73 @@ body{background:linear-gradient(180deg,#f7faf9 0,#fff 360px);color:#17352e}
  .v30-atalhos-head a{font-size:9px}
  .produto-imagem{height:150px!important}
 }
+
+/* ============================================================
+   VORA 313 V31 — MOBILE EXPERIENCE
+   Navegação inferior, pesquisa rápida e filtros recolhíveis.
+   Camada visual/UX; não altera integrações Firebase.
+   ============================================================ */
+.v31-mobile-nav{display:none}
+.v31-filter-toggle{display:none}
+
+@media (max-width:768px){
+  body{padding-bottom:76px!important}
+  .v31-mobile-nav{
+    position:fixed;left:8px;right:8px;bottom:8px;z-index:2100;
+    display:grid;grid-template-columns:repeat(5,1fr);gap:3px;
+    padding:7px 5px calc(7px + env(safe-area-inset-bottom));
+    background:rgba(255,255,255,.96);backdrop-filter:blur(14px);
+    border:1px solid #dfeae5;border-radius:18px;
+    box-shadow:0 12px 35px rgba(0,45,36,.18)
+  }
+  .v31-mobile-nav-item{
+    min-width:0;min-height:50px;border:0;background:transparent;color:#64736e;
+    text-decoration:none;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    gap:3px;border-radius:12px;font:inherit;cursor:pointer;position:relative
+  }
+  .v31-mobile-nav-item span{font-size:21px;line-height:1;position:relative}
+  .v31-mobile-nav-item small{font-size:8px;font-weight:800;letter-spacing:.01em}
+  .v31-mobile-nav-item.ativo{background:#edf7f3;color:#075946}
+  .v31-mobile-nav-item:active{transform:scale(.96)}
+  .v31-mobile-nav-item b,.v31-mobile-nav-item #v31MobileCartCount{
+    position:absolute;right:-9px;top:-6px;min-width:15px;height:15px;padding:0 3px;
+    display:grid;place-items:center;border-radius:999px;background:#d4af37;color:#111;
+    font-size:8px;font-weight:900;border:2px solid #fff
+  }
+
+  /* Deixa a área de filtros opcional para não empurrar os produtos para baixo. */
+  .v31-filter-toggle{
+    width:100%;display:flex;align-items:center;justify-content:space-between;
+    padding:11px 13px;margin:0;border:1px solid #dce8e3;border-radius:12px;
+    background:#fff;color:#075946;font-size:11px;font-weight:850;
+    box-shadow:0 5px 15px rgba(0,61,50,.05)
+  }
+  .v31-filter-toggle span{font-size:16px;transition:transform .2s}
+  .v31-filter-toggle[aria-expanded="true"] span{transform:rotate(180deg)}
+  .filtros-sidebar#filtrosSidebar{display:none}
+  .filtros-sidebar#filtrosSidebar.v31-filtros-abertos{display:grid}
+
+  /* Pesquisa fica visualmente confortável para o polegar. */
+  .busca-container{position:relative;z-index:1}
+  #campoBusca{min-width:0}
+  .carrossel-ofertas{touch-action:pan-y}
+
+  /* Evita que cartões/rails criem scroll horizontal involuntário. */
+  .vitrine-container,.secao-destaques-vora,.secao-lojas-vora,.v30-atalhos{overflow:visible}
+}
+
+@media (max-width:420px){
+  .v31-mobile-nav{left:5px;right:5px;bottom:5px;border-radius:16px}
+  .v31-mobile-nav-item{min-height:47px}
+  .v31-mobile-nav-item span{font-size:19px}
+  .v31-mobile-nav-item small{font-size:7px}
+}
+
+@media (min-width:769px){
+  .v31-mobile-nav,.v31-filter-toggle{display:none!important}
+}
+@media (max-width:768px){
+  .chat-flutuante{right:10px;bottom:88px}
+  .whatsapp-float{padding:9px 12px;font-size:11px;border-radius:999px}
+  #chatMenu{right:10px;bottom:142px;width:min(280px,calc(100vw - 20px));}
+}

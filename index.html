@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=30" />
+    <link rel="stylesheet" href="style.css?v=31" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -143,6 +143,15 @@
             </ul>
         </nav>
     </header>
+
+    <!-- V31 — Navegação mobile fixa -->
+    <nav class="v31-mobile-nav" aria-label="Navegação rápida no telemóvel">
+        <a href="index.html" class="v31-mobile-nav-item ativo"><span>⌂</span><small>Início</small></a>
+        <a href="#secao-categorias" class="v31-mobile-nav-item"><span>▦</span><small>Categorias</small></a>
+        <button type="button" class="v31-mobile-nav-item" id="v31MobileSearch"><span>⌕</span><small>Pesquisar</small></button>
+        <button type="button" class="v31-mobile-nav-item" id="v31MobileCart"><span>🛒<b id="v31MobileCartCount">0</b></span><small>Carrinho</small></button>
+        <a href="perfil.html" class="v31-mobile-nav-item"><span>♙</span><small>Conta</small></a>
+    </nav>
 
     <main id="conteudo-principal" role="main">
         <!-- CARROSSEL DE OFERTAS — 8 imagens enviadas pelo administrador -->
@@ -338,7 +347,8 @@
 
         <!-- VITRINE COM FILTROS AVANÇADOS -->
         <div class="vitrine-container">
-            <aside class="filtros-sidebar">
+            <button type="button" class="v31-filter-toggle" id="v31FilterToggle" aria-expanded="false" aria-controls="filtrosSidebar">⚙️ Filtros e ordenação <span>⌄</span></button>
+            <aside class="filtros-sidebar" id="filtrosSidebar">
                 <h3>Filtrar por</h3>
                 <div class="filtro-preco">
                     <label for="precoMin">Preço mínimo: <span id="precoMinLabel">0</span> Kz</label>
@@ -622,7 +632,7 @@
     </script>
 
     <!-- SCRIPTS PRINCIPAIS -->
-    <script type="module" src="js/app.js?v=27"></script>
+    <script type="module" src="js/app.js?v=31"></script>
     <script type="module" src="js/carrinho.js?v=7"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
     <script type="module" src="js/favoritos.js?v=6"></script>

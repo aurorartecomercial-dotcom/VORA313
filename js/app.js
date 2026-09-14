@@ -420,3 +420,46 @@ window.shareProduct = function(nome, preco, link) {
     const texto = `Olha só este produto incrível da VORA 313!\n\n🔹 *${nome}*\n💰 Preço: ${preco}\n🔗 Confira aqui: ${link}`;
     window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
 };
+
+// V31 — UX mobile: navegação inferior, pesquisa e filtros recolhíveis.
+function initV31MobileUX() {
+    const mobileSearch = document.getElementById('v31MobileSearch');
+    const mobileCart = document.getElementById('v31MobileCart');
+    const searchInput = document.getElementById('campoBusca');
+    const cartButton = document.getElementById('abrirCarrinhoFlutuante');
+    const filterToggle = document.getElementById('v31FilterToggle');
+    const filterPanel = document.getElementById('filtrosSidebar');
+    const cartCount = document.getElementById('badgeContador');
+    const mobileCartCount = document.getElementById('v31MobileCartCount');
+
+    if (mobileSearch && !mobileSearch.dataset.ready) {
+        mobileSearch.dataset.ready = '1';
+        mobileSearch.addEventListener('click', () => {
+            searchInput?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => searchInput?.focus(), 350);
+        });
+    }
+    if (mobileCart && !mobileCart.dataset.ready) {
+        mobileCart.dataset.ready = '1';
+        mobileCart.addEventListener('click', () => cartButton?.click());
+    }
+    if (filterToggle && filterPanel && !filterToggle.dataset.ready) {
+        filterToggle.dataset.ready = '1';
+        filterToggle.addEventListener('click', () => {
+            const open = filterPanel.classList.toggle('v31-filtros-abertos');
+            filterToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+            if (open) filterPanel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    }
+
+    const syncCartBadge = () => {
+        if (mobileCartCount && cartCount) mobileCartCount.textContent = cartCount.textContent || '0';
+    };
+    syncCartBadge();
+    if (cartCount && !cartCount.dataset.v31Observer) {
+        cartCount.dataset.v31Observer = '1';
+        new MutationObserver(syncCartBadge).observe(cartCount, { childList: true, characterData: true, subtree: true });
+    }
+}
+
+document.addEventListener('DOMContentLoaded', initV31MobileUX, { once: true });
