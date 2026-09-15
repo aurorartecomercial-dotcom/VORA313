@@ -2334,3 +2334,168 @@ body{overflow-x:hidden;background:linear-gradient(180deg,#fff 0%,#f7faf9 55%,#ff
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
 }
+
+/* ============================================================
+   V38 — SISTEMA VISUAL VORA 313
+   Paleta semântica: verde principal + dourado + neutros premium
+   Cores secundárias usadas apenas para estados e informação.
+   ============================================================ */
+:root {
+    --vora-verde: #006B5A;
+    --vora-verde-profundo: #003F35;
+    --vora-verde-suave: #EAF7F3;
+    --vora-verde-borda: #BFE3DA;
+    --vora-dourado: #D6B13A;
+    --vora-dourado-profundo: #A98316;
+    --vora-dourado-suave: #FBF4D8;
+    --vora-branco: #FFFFFF;
+    --vora-fundo: #F6F8F7;
+    --vora-superficie: #FFFFFF;
+    --vora-texto: #173B35;
+    --vora-texto-secundario: #60736E;
+    --vora-borda: #DCE9E5;
+    --vora-info: #2878C8;
+    --vora-info-suave: #EAF3FC;
+    --vora-violeta: #6B5CC5;
+    --vora-violeta-suave: #F1EEFF;
+    --vora-sucesso: #168A63;
+    --vora-sucesso-suave: #E8F7F0;
+    --vora-alerta: #D58A18;
+    --vora-alerta-suave: #FFF4DF;
+    --vora-perigo: #D95555;
+    --vora-perigo-suave: #FDEDED;
+    --vora-raio: 14px;
+    --vora-raio-sm: 10px;
+    --vora-sombra: 0 6px 24px rgba(0,63,53,.08);
+    --vora-sombra-hover: 0 12px 30px rgba(0,63,53,.14);
+
+    /* Mantém os nomes antigos para preservar componentes existentes. */
+    --cor-esmeralda: var(--vora-verde);
+    --cor-esmeralda-escuro: var(--vora-verde-profundo);
+    --cor-esmeralda-claro: var(--vora-verde-suave);
+    --cor-ouro: var(--vora-dourado);
+    --cor-ouro-escuro: var(--vora-dourado-profundo);
+    --cor-ouro-claro: var(--vora-dourado-suave);
+    --cor-fundo: var(--vora-fundo);
+    --cor-fundo-card: var(--vora-superficie);
+    --cor-texto: var(--vora-texto);
+    --cor-texto-claro: var(--vora-texto-secundario);
+    --cor-borda: var(--vora-borda);
+}
+
+body { background: var(--vora-fundo); color: var(--vora-texto); }
+
+/* Superfícies e cartões */
+.produto-card,
+.filtros-sidebar,
+.card,
+.loja-card,
+.categoria-card,
+.secao-card {
+    border-color: var(--vora-borda);
+    box-shadow: var(--vora-sombra);
+}
+.produto-card:hover,
+.loja-card:hover,
+.categoria-card:hover {
+    box-shadow: var(--vora-sombra-hover);
+}
+
+/* Verde é a ação principal; dourado fica reservado para destaque. */
+.btn-add-carrinho-card,
+.btn-comprar,
+.btn-comprar-agora,
+.btn-finalizar,
+.btn-principal,
+.btn-acao-principal {
+    background: var(--vora-verde) !important;
+    border-color: var(--vora-verde) !important;
+}
+.btn-add-carrinho-card:hover,
+.btn-comprar:hover,
+.btn-comprar-agora:hover,
+.btn-finalizar:hover,
+.btn-principal:hover,
+.btn-acao-principal:hover {
+    background: var(--vora-verde-profundo) !important;
+}
+
+.preco,
+.preco-atual,
+.preco-destaque,
+.valor-total {
+    color: var(--vora-verde-profundo);
+}
+
+.categoria-tag,
+.selo-patrocinado,
+.badge-destaque,
+.etiqueta-oferta {
+    border-radius: 999px;
+}
+
+/* Estados sem transformar o site numa mistura de cores. */
+.estado-info { color: var(--vora-info); background: var(--vora-info-suave); }
+.estado-sucesso { color: var(--vora-sucesso); background: var(--vora-sucesso-suave); }
+.estado-alerta { color: var(--vora-alerta); background: var(--vora-alerta-suave); }
+.estado-perigo { color: var(--vora-perigo); background: var(--vora-perigo-suave); }
+.estado-fidelidade { color: var(--vora-violeta); background: var(--vora-violeta-suave); }
+
+/* Corrige o seletor legado que tinha uma barra invertida. */
+.carrossel-ofertas {
+    margin: 20px auto 0;
+    max-width: 1480px;
+    border-radius: var(--vora-raio);
+    overflow: hidden;
+    position: relative;
+    box-shadow: var(--vora-sombra);
+    border: 1px solid var(--vora-borda);
+}
+
+/* Cabeçalho: verde como identidade, branco para respirar, dourado para foco. */
+.header-principal {
+    background: var(--vora-verde-profundo);
+    border-bottom-color: var(--vora-dourado);
+}
+.menu-categorias {
+    background: var(--vora-verde);
+    border-top-color: rgba(214,177,58,.65);
+}
+.busca-container {
+    border-color: transparent;
+    box-shadow: 0 3px 14px rgba(0,0,0,.08);
+}
+.busca-container:focus-within {
+    border-color: var(--vora-dourado);
+    box-shadow: 0 0 0 4px rgba(214,177,58,.18);
+}
+.busca-container button { background: var(--vora-dourado); }
+.busca-container button:hover { background: var(--vora-dourado-profundo); }
+
+/* Links e pequenos indicadores */
+a { text-underline-offset: 3px; }
+.link-secundario { color: var(--vora-info); }
+.badge-novo { background: var(--vora-sucesso); color: #fff; }
+.badge-oferta { background: var(--vora-perigo); color: #fff; }
+.badge-patrocinado { background: var(--vora-dourado); color: #173B35; }
+
+/* Navegação mobile: espaço seguro para conteúdo e toque confortável. */
+@media (max-width: 768px) {
+    body { padding-bottom: 74px; }
+    .produto-card { border: 1px solid var(--vora-borda); box-shadow: 0 4px 16px rgba(0,63,53,.06); }
+    .produto-card:hover { transform: none; }
+    .produto-imagem { background: #FBFCFC; }
+    .btn-add-carrinho-card { width: 42px; height: 42px; }
+    .header-principal { border-bottom-width: 1px; }
+    .carrossel-ofertas { margin-top: 10px; border-width: 1px; }
+}
+
+/* Respeita utilizadores que pedem menos movimento. */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        scroll-behavior: auto !important;
+        transition-duration: .01ms !important;
+        animation-duration: .01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+}
