@@ -1910,3 +1910,112 @@ body{background:linear-gradient(180deg,#fbfdfc 0%,var(--v34-bg) 100%)}
  .preco{font-size:14px!important}
 }
 @media(min-width:769px){.v34-header-circle{display:flex!important}.v34-app-btn{display:flex!important}}
+
+
+/* ============================================================
+   V35 — CORREÇÃO MOBILE / CAMADA DE SEGURANÇA VISUAL
+   Corrige sobreposições entre cabeçalho, chat, sacola e navegação.
+   Não altera IDs, Firebase ou lógica de pedidos.
+   ============================================================ */
+
+/* O rastreador possui uma versão curta no telemóvel. */
+.tracker-short{display:none}
+.v34-tracker-btn{white-space:nowrap;justify-content:center}
+
+/* Ícone WhatsApp: botão sempre redondo, sem texto no móvel. */
+.v34-whatsapp-icon{font-family:Arial,sans-serif!important;font-size:22px!important;line-height:1!important;font-weight:700!important;color:#fff!important;display:grid!important;place-items:center!important;transform:none!important}
+.whatsapp-float{display:flex!important;align-items:center!important;justify-content:center!important}
+
+@media(max-width:768px){
+  /* Cabeçalho previsível: logo/ações numa linha e pesquisa na linha seguinte. */
+  .header-top{
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-rows:auto auto!important;
+    align-items:center!important;
+    gap:7px!important;
+    min-height:92px!important;
+    padding:7px 9px!important;
+  }
+  .logo{grid-column:1;grid-row:1;min-width:0!important}
+  .header-icones{grid-column:2;grid-row:1;min-width:0!important;justify-content:flex-end!important}
+  .busca-container{grid-column:1/-1!important;grid-row:2!important;width:100%!important;max-width:none!important;margin:0!important}
+
+  /* App, tema e carrinho usam o mesmo padrão circular. */
+  .v34-app-btn,.v34-header-circle,#btnModoEscuro,.carrinho-icone,#badgeFavoritos{
+    width:34px!important;height:34px!important;min-width:34px!important;
+    border-radius:50%!important;padding:0!important;
+  }
+  .v34-app-btn{display:flex!important;align-items:center!important;justify-content:center!important;font-size:15px!important}
+  .header-icones .btn-idioma,.header-icones .btn-entrar{display:none!important}
+  .header-icones{gap:5px!important}
+
+  /* Espaço real para o cabeçalho fixo, sem esconder o primeiro conteúdo. */
+  body{padding-top:142px!important}
+
+  /* Tracker curto e discreto. */
+  .tracker-full{display:none!important}
+  .tracker-short{display:inline!important}
+  .v34-tracker-wrap{margin:7px 8px 0!important}
+  .v34-tracker-btn{min-height:30px!important;padding:5px 13px!important;font-size:9px!important;border-radius:999px!important}
+
+  /* Banner de instalação não deve disputar espaço com os controles móveis. */
+  .pwa-install-banner{margin-top:7px!important}
+
+  /* WhatsApp fica acima da navegação inferior e não tapa o conteúdo. */
+  .chat-flutuante{
+    right:10px!important;
+    bottom:calc(88px + env(safe-area-inset-bottom))!important;
+    z-index:2200!important;
+  }
+  .whatsapp-float{
+    width:46px!important;height:46px!important;min-width:46px!important;
+    padding:0!important;border-radius:50%!important;
+  }
+  .v34-whatsapp-label{display:none!important}
+
+  /* Menu de atendimento nunca fica por baixo da barra inferior. */
+  #chatMenu{
+    right:10px!important;
+    bottom:calc(144px + env(safe-area-inset-bottom))!important;
+    width:min(310px,calc(100vw - 20px))!important;
+    max-height:calc(100dvh - 215px)!important;
+    overflow-y:auto!important;
+    box-sizing:border-box!important;
+    padding:14px!important;
+    z-index:2201!important;
+    border-radius:18px!important;
+  }
+  #chatMenu a{min-height:40px!important;display:flex!important;align-items:center!important;justify-content:center!important}
+
+  /* Ao abrir a sacola, a navegação e o WhatsApp não podem ficar por cima dela. */
+  body:has(.carrinho-sidebar.ativo) .v31-mobile-nav,
+  body:has(.carrinho-sidebar.ativo) .chat-flutuante{display:none!important}
+  body:has(.carrinho-sidebar.ativo){overflow:hidden!important}
+
+  /* A sacola ocupa o ecrã sem deixar elementos de navegação atravessarem o rodapé. */
+  .carrinho-sidebar{z-index:2300!important}
+  .carrinho-overlay{z-index:2250!important}
+  .carrinho-footer{padding-bottom:calc(14px + env(safe-area-inset-bottom))!important}
+
+  /* Detalhe de produto: a barra fixa de compra ganha espaço próprio. */
+  .v33-mobile-buy{z-index:2200!important;bottom:calc(8px + env(safe-area-inset-bottom))!important}
+  body:has(.v33-mobile-buy){padding-bottom:78px!important}
+}
+
+@media(max-width:430px){
+  .header-top{min-height:90px!important;padding:6px 8px!important}
+  body{padding-top:140px!important}
+  .v34-app-btn,.v34-header-circle,#btnModoEscuro,.carrinho-icone,#badgeFavoritos{width:32px!important;height:32px!important;min-width:32px!important;font-size:13px!important}
+  .header-icones{gap:4px!important}
+  .logo img{width:36px!important;height:36px!important}
+  .logo-wordmark{font-size:15px!important}
+  .busca-container{height:38px!important}
+  .v34-tracker-btn{padding:5px 11px!important;font-size:8px!important}
+  #chatMenu{bottom:calc(142px + env(safe-area-inset-bottom))!important;max-height:calc(100dvh - 205px)!important}
+}
+
+@media(min-width:769px){
+  .tracker-full{display:inline!important}
+  .tracker-short{display:none!important}
+}

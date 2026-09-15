@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=34" />
+    <link rel="stylesheet" href="style.css?v=35" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -232,8 +232,8 @@
                style="background:var(--cor-esmeralda); color:#FFF; border:2px solid var(--cor-ouro); 
                       padding:15px 40px; border-radius:50px; text-decoration:none; font-weight:700; font-size:18px; 
                       display:inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-                      transition: 0.2s;">
-                📦 Rastrear meu pedido
+                      transition: 0.2s;" aria-label="Rastrear meu pedido">
+                <span class="tracker-full">📦 Rastrear meu pedido</span><span class="tracker-short" aria-hidden="true">📦 Rastrear</span>
             </a>
         </div>
 
@@ -610,7 +610,9 @@
 
     <!-- CHAT FLUTUANTE -->
     <div class="chat-flutuante" id="chatFlutuante">
-        <button id="chatBtn" class="whatsapp-float" type="button" aria-label="Fale Connosco no WhatsApp"><span class="v34-whatsapp-icon" aria-hidden="true">◔</span><span class="v34-whatsapp-label">Fale Connosco</span></button>
+        <button id="chatBtn" class="whatsapp-float" type="button" aria-label="Fale Connosco no WhatsApp" title="WhatsApp">
+            <span class="v34-whatsapp-icon" aria-hidden="true">☎</span><span class="v34-whatsapp-label">Fale Connosco</span>
+        </button>
         <div id="chatMenu" style="display:none; position:fixed; bottom:80px; right:20px; background:#fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,0.2); padding:16px; width:300px; z-index:9999;">
             <h4 style="margin-bottom:10px; color:#005A4C;">Atendimento Rápido</h4>
             <a href="#" data-chat-opcao="pedido" style="display:block; padding:8px; background:#25D366; color:#fff; border-radius:8px; text-align:center; margin-bottom:8px; text-decoration:none;">🛒 Fazer Pedido</a>
@@ -635,7 +637,7 @@
     </script>
 
     <!-- SCRIPTS PRINCIPAIS -->
-    <script type="module" src="js/app.js?v=34"></script>
+    <script type="module" src="js/app.js?v=35"></script>
     <script type="module" src="js/carrinho.js?v=7"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
     <script type="module" src="js/favoritos.js?v=6"></script>
@@ -711,12 +713,6 @@
 
     <!-- SCRIPTS PWA -->
     <script>
-        const chatBtn = document.getElementById('chatBtn');
-        const chatMenu = document.getElementById('chatMenu');
-        chatBtn.addEventListener('click', () => {
-            chatMenu.style.display = chatMenu.style.display === 'none' ? 'block' : 'none';
-        });
-
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
         const banner = document.getElementById('pwa-install-banner');
         if (!isStandalone) banner.style.display = 'block';
