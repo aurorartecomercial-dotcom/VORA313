@@ -2670,3 +2670,122 @@ input:focus, select:focus, textarea:focus {
   .header-icones { gap:2px !important; }
   .busca-container button { min-width:40px !important; }
 }
+
+
+/* ==========================================================
+   V40 — QA FINAL + EXPERIÊNCIA DE COMPRA PREMIUM
+   Camada visual segura: não altera Firebase nem regras de negócio.
+   ========================================================== */
+:root{
+  --v40-radius-sm:10px;
+  --v40-radius-md:16px;
+  --v40-radius-lg:22px;
+  --v40-shadow-soft:0 8px 24px rgba(16,45,37,.07);
+  --v40-shadow-hover:0 14px 34px rgba(16,45,37,.12);
+}
+
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{overflow-x:hidden}
+img{max-width:100%;height:auto}
+button,input,select,textarea{font:inherit}
+button{touch-action:manipulation}
+
+/* Foco acessível e consistente */
+:where(a,button,input,select,textarea):focus-visible{
+  outline:3px solid rgba(212,175,55,.72);
+  outline-offset:3px;
+}
+
+/* Cards: acabamento uniforme sem interferir nas classes existentes */
+.product-card,.produto-card,.card-produto,.loja-card,.categoria-card{
+  border-radius:var(--v40-radius-md);
+  overflow:hidden;
+  transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+@media (hover:hover) and (min-width:769px){
+  .product-card:hover,.produto-card:hover,.card-produto:hover,.loja-card:hover,.categoria-card:hover{
+    transform:translateY(-2px);
+    box-shadow:var(--v40-shadow-hover);
+  }
+}
+
+/* Imagens de produto: evita esticamento e quebra de proporção */
+.product-card img,.produto-card img,.card-produto img{
+  max-width:100%;
+  object-fit:contain;
+}
+
+/* Botões de ação com área de toque adequada */
+.btn-add-carrinho-card,.btn-comprar,.btn-comprar-agora,.btn-finalizar,.btn-entrar{
+  min-height:42px;
+}
+
+/* Toast não deve bloquear a navegação no mobile */
+#toast-notificacao{max-width:min(92vw,420px)}
+
+/* Formulários mais previsíveis em telas pequenas */
+input,select,textarea{max-width:100%}
+
+/* Previne overflow causado por textos, preços ou URLs longas */
+.product-card,.produto-card,.card-produto,.loja-card,.section-title,.titulo-secao,
+.checkout-container,.carrinho-sidebar,.modal-content{min-width:0}
+h1,h2,h3,h4,p,a,span,button{overflow-wrap:anywhere}
+
+/* Espaço seguro para navegação fixa no mobile */
+@media (max-width:768px){
+  body{padding-bottom:78px}
+  main{min-width:0}
+  .v31-mobile-nav{bottom:max(5px,env(safe-area-inset-bottom));}
+  .v31-mobile-nav-item{min-width:0;flex:1}
+  .v31-mobile-nav-item small{white-space:nowrap}
+
+  .header-principal{max-width:100vw}
+  .header-top,.aurora-util-inner{min-width:0}
+  .busca-container{min-width:0}
+  .busca-input{min-width:0;width:100%}
+
+  .product-grid,.produtos-grid,.grid-produtos{
+    width:100%;
+    max-width:100%;
+  }
+
+  .product-card,.produto-card,.card-produto{
+    min-width:0;
+  }
+
+  .product-card .preco,.produto-card .preco,.card-produto .preco{
+    line-height:1.15;
+    word-break:break-word;
+  }
+
+  .carrinho-sidebar{
+    max-width:100vw;
+  }
+
+  /* Elementos flutuantes ficam acima da navegação sem criar sobreposição */
+  .whatsapp-float{z-index:4900}
+  .v31-mobile-nav{z-index:5000}
+}
+
+@media (max-width:430px){
+  body{padding-bottom:74px}
+  .v31-mobile-nav{left:4px;right:4px}
+  .v31-mobile-nav-item{min-height:46px;padding:5px 2px}
+  .v31-mobile-nav-item span{font-size:18px}
+  .v31-mobile-nav-item small{font-size:7px}
+  .btn-add-carrinho-card,.btn-comprar,.btn-comprar-agora,.btn-finalizar{min-height:44px}
+}
+
+@media (max-width:360px){
+  body{padding-bottom:72px}
+  .v31-mobile-nav-item span{font-size:17px}
+  .v31-mobile-nav-item small{font-size:6.5px}
+}
+
+/* Utilitários seguros para estados vazios e carregamento */
+[aria-busy="true"]{cursor:wait}
+
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
+}
