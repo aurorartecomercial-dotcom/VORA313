@@ -2789,3 +2789,130 @@ h1,h2,h3,h4,p,a,span,button{overflow-wrap:anywhere}
   html{scroll-behavior:auto}
   *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* ============================================================
+   V40 HOTFIX — MOBILE REAL / CARDS E CABEÇALHO
+   Correção visual isolada. Não altera Firebase, IDs ou lógica.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* O cabeçalho atual é relativo; não reservar espaço falso acima dele. */
+  body { padding-top: 0 !important; }
+
+  /* Rails de produtos: dois cards confortáveis por vez, com swipe horizontal. */
+  .produtos-rail {
+    display: grid !important;
+    grid-auto-flow: column !important;
+    grid-template-columns: none !important;
+    grid-auto-columns: calc(50vw - 18px) !important;
+    gap: 10px !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    padding: 4px 4px 14px !important;
+    scroll-snap-type: x mandatory !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .produtos-rail > .produto-card {
+    width: calc(50vw - 18px) !important;
+    min-width: calc(50vw - 18px) !important;
+    max-width: calc(50vw - 18px) !important;
+    scroll-snap-align: start;
+  }
+
+  /* Cards do detalhe: leitura e botões sem esmagamento. */
+  .recomendacoes-secao {
+    width: 100%;
+    box-sizing: border-box;
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    overflow: hidden;
+  }
+  .recomendacoes-secao .secao-titulo {
+    gap: 8px;
+    flex-wrap: nowrap;
+  }
+  .recomendacoes-secao .secao-titulo h2 {
+    min-width: 0;
+    line-height: 1.15;
+  }
+  .recomendacoes-secao .secao-titulo .ver-todos {
+    flex: 0 0 auto;
+  }
+
+  .produtos-rail .produto-card {
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
+  }
+  .produtos-rail .produto-card .produto-card-link {
+    min-width: 0;
+  }
+  .produtos-rail .produto-card .produto-imagem {
+    height: auto !important;
+    aspect-ratio: 1 / 1 !important;
+    min-height: 0 !important;
+  }
+  .produtos-rail .produto-card .produto-info {
+    min-width: 0;
+    padding: 7px 2px 3px !important;
+  }
+  .produtos-rail .produto-card .produto-info h3 {
+    min-height: 2.6em;
+    max-height: 2.6em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-height: 1.3 !important;
+  }
+  .produtos-rail .produto-card .preco {
+    font-size: 14px !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+  }
+  .produtos-rail .produto-card .acoes-produto {
+    margin-top: auto !important;
+    min-width: 0;
+    gap: 5px !important;
+  }
+  .produtos-rail .produto-card .btn-add-carrinho-card {
+    min-width: 0 !important;
+    width: auto !important;
+    flex: 1 1 auto !important;
+    min-height: 38px !important;
+    height: auto !important;
+    padding: 7px 5px !important;
+    font-size: 9px !important;
+    line-height: 1.15 !important;
+    white-space: normal !important;
+  }
+  .produtos-rail .produto-card .btn-share {
+    flex: 0 0 34px !important;
+    width: 34px !important;
+    min-height: 34px !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .produtos-rail {
+    grid-auto-columns: calc(50vw - 17px) !important;
+  }
+  .produtos-rail > .produto-card {
+    width: calc(50vw - 17px) !important;
+    min-width: calc(50vw - 17px) !important;
+    max-width: calc(50vw - 17px) !important;
+  }
+  .recomendacoes-secao .secao-titulo h2 { font-size: 16px !important; }
+  .recomendacoes-subtitulo { margin-bottom: 8px !important; }
+}
+
+@media (max-width: 360px) {
+  .produtos-rail {
+    grid-auto-columns: calc(100vw - 28px) !important;
+  }
+  .produtos-rail > .produto-card {
+    width: calc(100vw - 28px) !important;
+    min-width: calc(100vw - 28px) !important;
+    max-width: calc(100vw - 28px) !important;
+  }
+}
