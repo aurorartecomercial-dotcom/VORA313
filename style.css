@@ -1736,3 +1736,177 @@ body{background:linear-gradient(180deg,#f7faf9 0,#fff 360px);color:#17352e}
 }
 @media(max-width:420px){.detalhes-imagem-wrap{height:255px}.detalhes-imagem-principal img{max-height:255px}.detalhe-destaques{grid-template-columns:1fr}.entrega-grid{grid-template-columns:1fr 1fr}.preco-destaque{font-size:28px}}
 body.modo-escuro .detalhes-layout,body.modo-escuro .detalhes-imagem-principal,body.modo-escuro .detalhe-bloco,body.modo-escuro .detalhe-loja-card,body.modo-escuro .detalhe-beneficio{background:var(--cor-fundo-card);border-color:#333}body.modo-escuro .detalhes-info h2,body.modo-escuro .detalhe-bloco h3,body.modo-escuro .detalhe-loja-card strong{color:#fff}body.modo-escuro .detalhes-precos{border-color:#333}body.modo-escuro .detalhe-compra-box,body.modo-escuro .entrega-grid>div{background:#171f1d;border-color:#333}body.modo-escuro .detalhe-destaques li{background:#171717;border-color:#333;color:#ddd}
+
+
+/* ============================================================
+   V34 — VISUAL MARKETPLACE PREMIUM / REFERÊNCIA ENVIADA
+   Camada visual: preserva IDs, lógica Firebase e componentes existentes.
+   ============================================================ */
+:root{
+  --v34-bg:#f7faf8;
+  --v34-surface:#ffffff;
+  --v34-line:#e2ebe7;
+  --v34-text:#123b32;
+  --v34-muted:#6e817a;
+  --v34-green:#08745b;
+  --v34-green-dark:#034d3d;
+  --v34-gold:#d4af37;
+  --v34-shadow:0 8px 28px rgba(0,61,50,.07);
+}
+body{background:linear-gradient(180deg,#fbfdfc 0%,var(--v34-bg) 100%)}
+.header-principal{box-shadow:0 6px 24px rgba(0,45,36,.14);border-bottom:1px solid rgba(212,175,55,.55)}
+.aurora-util-bar{font-size:10px!important;letter-spacing:.01em}
+.aurora-util-inner{max-width:1540px!important;padding-left:20px!important;padding-right:20px!important}
+.header-top{background:rgba(255,255,255,.985);max-width:none!important;padding:10px max(20px,calc((100vw - 1420px)/2))!important;gap:18px!important}
+.logo{color:var(--v34-text)!important;min-width:185px}
+.logo img{width:48px!important;height:48px!important;border-radius:14px!important;background:#fff!important;box-shadow:0 3px 12px rgba(0,61,50,.08)}
+.logo-wordmark{font-size:21px!important;font-weight:900!important;letter-spacing:-.03em}
+.busca-container{max-width:680px!important;height:42px!important;border:1px solid #dce7e3!important;box-shadow:0 4px 14px rgba(0,61,50,.05)!important}
+.busca-input{font-size:13px!important;color:var(--v34-text)}
+.busca-container button{background:var(--v34-green)!important;color:#fff!important;min-width:50px}
+.busca-container button:hover{background:var(--v34-green-dark)!important}
+.header-icones{gap:7px!important}
+.v34-header-circle,#btnModoEscuro,.btn-idioma,.carrinho-icone{width:38px!important;height:38px!important;min-width:38px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;padding:0!important;background:#f3f7f5!important;border:1px solid #dce8e3!important;color:var(--v34-green-dark)!important;font-size:16px!important;box-shadow:none!important}
+.v34-header-circle:hover,#btnModoEscuro:hover,.btn-idioma:hover,.carrinho-icone:hover{background:#e8f3ef!important;border-color:var(--v34-gold)!important;color:var(--v34-green-dark)!important}
+.btn-entrar{border:1px solid #dce8e3!important;color:var(--v34-text)!important;background:#f3f7f5!important;min-height:38px!important;padding:5px 12px!important}
+#badgePontos{display:none!important}
+#badgeFavoritos{width:38px!important;height:38px!important;padding:0!important;border-radius:50%!important;background:#f3f7f5!important;color:var(--v34-text)!important;border:1px solid #dce8e3!important}
+.carrinho-icone{position:relative!important}
+.carrinho-icone #badgeContador{position:absolute;right:-2px;top:-3px;padding:1px 5px!important;font-size:9px!important;border:2px solid #fff}
+.menu-categorias{max-width:none!important;padding:0 max(20px,calc((100vw - 1420px)/2))!important;background:var(--v34-green-dark)!important;border-top:0!important}
+.menu-categorias ul{max-width:1420px;width:100%;margin:0 auto}
+.menu-categorias ul li a{font-size:12px!important;padding:10px 15px!important}
+.menu-categorias ul li:first-child a{font-weight:900;color:#fff}
+.carrossel-ofertas{max-width:1420px!important;margin:12px auto 0!important;border:0!important;border-radius:12px!important;box-shadow:0 12px 34px rgba(0,61,50,.10)!important}
+.slide{aspect-ratio:16/6.1!important;background:#fff!important}
+.slide img{object-fit:cover!important}
+.carrossel-btn{width:36px;height:36px;padding:0!important;font-size:17px!important;border:1px solid rgba(255,255,255,.65)!important;background:rgba(0,61,50,.76)!important;color:#fff!important}
+.carrossel-indicadores{bottom:9px!important;gap:6px!important}
+.indicador{width:8px!important;height:8px!important;border:1px solid rgba(255,255,255,.75)!important}
+.indicador.ativo{background:var(--v34-gold)!important}
+.aurora-trust-bar{max-width:1280px!important;margin:10px auto 0!important;background:#fff!important;border:1px solid var(--v34-line)!important;border-radius:10px!important;box-shadow:var(--v34-shadow)!important}
+.aurora-trust-item{padding:11px 16px!important;min-height:56px!important;border-right:1px solid #edf2f0}
+.aurora-trust-item:last-child{border-right:0}
+.aurora-trust-icon{font-size:20px!important}
+.aurora-trust-item strong{font-size:10px!important;color:var(--v34-text)!important}
+.aurora-trust-item span{font-size:8px!important;color:var(--v34-muted)!important}
+.v30-atalhos{max-width:1280px!important;margin:18px auto 0!important;padding:0!important}
+.v30-atalhos-head{margin-bottom:9px!important}
+.v30-atalhos-head h2,.secao-titulo h2,.secao-categorias h2{color:var(--v34-text)!important;letter-spacing:-.035em!important}
+.v30-atalhos-grid{grid-template-columns:repeat(6,minmax(0,1fr))!important;gap:9px!important}
+.v30-atalho{min-height:88px!important;border-radius:12px!important;background:#fff!important;border:1px solid var(--v34-line)!important;box-shadow:0 4px 16px rgba(0,61,50,.045)!important;text-align:center;align-items:center}
+.v30-atalho b{font-size:25px!important}
+.v30-atalho span{font-size:11px!important}
+.v30-atalho small{font-size:8px!important}
+.v34-tracker-wrap{max-width:1280px;margin:12px auto 0;padding:0;display:flex;justify-content:center}
+.v34-tracker-btn{min-height:34px!important;padding:7px 18px!important;border:1px solid rgba(212,175,55,.7)!important;border-radius:999px!important;font-size:11px!important;box-shadow:0 5px 14px rgba(0,61,50,.09)!important}
+.pwa-install-banner{max-width:1280px!important;padding:0!important;margin:10px auto 0!important}
+.pwa-install-banner>div{padding:9px 14px!important;border-radius:10px!important;border:1px solid rgba(212,175,55,.45)!important;min-height:44px!important}
+.pwa-install-banner span{font-size:11px!important}
+.secao-destaques-vora,.secao-lojas-vora,.secao-mais-comprados,.secao-categorias{max-width:1280px!important;margin-left:auto!important;margin-right:auto!important}
+.secao-destaques-vora,.secao-lojas-vora{padding-left:0!important;padding-right:0!important}
+.secao-titulo{border-bottom:1px solid #e5eeea!important;padding-bottom:9px!important;margin-bottom:8px!important}
+.secao-kicker{color:#0b8a68!important;font-size:8px!important}
+.secao-titulo h2{font-size:19px!important;margin-top:2px!important}
+.secao-titulo p{font-size:9px!important;color:var(--v34-muted)!important}
+.ver-todos{font-size:10px!important;color:var(--v34-green)!important;font-weight:900!important}
+.produtos-rail,.grade-produtos{gap:10px!important}
+.produto-card{border:1px solid #e5ece9!important;border-radius:12px!important;padding:8px!important;background:#fff!important;box-shadow:0 3px 14px rgba(0,61,50,.055)!important}
+.produto-card:hover{transform:translateY(-3px)!important;box-shadow:0 10px 24px rgba(0,61,50,.11)!important;border-color:rgba(212,175,55,.65)!important}
+.produto-imagem{height:170px!important;border-radius:9px!important;background:#fafcfb!important}
+.produto-info h3{font-size:11px!important;line-height:1.25!important;color:#27463e!important}
+.categoria-tag{font-size:7px!important;color:#70817b!important}
+.preco{font-size:17px!important;color:var(--v34-green)!important;margin:4px 0!important}
+.parcelas{font-size:8px!important}
+.selo-frete,.selo-entrega{font-size:8px!important;padding:2px 6px!important}
+.btn-add-carrinho-card{position:static!important;width:100%!important;height:32px!important;border-radius:8px!important;margin-top:6px!important;font-size:10px!important;background:var(--v34-green)!important;box-shadow:none!important}
+.btn-share{width:25px!important;height:25px!important;top:7px!important;right:7px!important;font-size:11px!important}
+.aurora-rail-btn{width:28px!important;height:28px!important;font-size:18px!important;border:1px solid #dbe7e2!important;background:#fff!important;color:var(--v34-green)!important;box-shadow:0 4px 12px rgba(0,61,50,.08)!important}
+.lojas-publicas-grid{gap:10px!important}
+.loja-card{border:1px solid var(--v34-line)!important;border-radius:12px!important;box-shadow:0 4px 16px rgba(0,61,50,.045)!important;background:#fff!important}
+.secao-categorias{padding:0!important}
+.grade-categorias{gap:7px!important}
+.categoria-card{min-height:68px!important;border:1px solid var(--v34-line)!important;border-radius:10px!important;background:#fff!important;box-shadow:0 3px 12px rgba(0,61,50,.035)!important}
+.categoria-icone{font-size:21px!important}
+.categoria-nome{font-size:9px!important;font-weight:800!important;color:#31534a!important}
+.vitrine-container{max-width:1280px!important;padding:0!important;grid-template-columns:210px 1fr!important;gap:16px!important;margin-top:20px!important}
+.filtros-sidebar{border:1px solid var(--v34-line)!important;border-radius:12px!important;box-shadow:var(--v34-shadow)!important}
+.grade-produtos{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.vitrine-container .produto-imagem{height:180px!important}
+.aurora-pagamentos{max-width:1280px!important;margin:18px auto!important;border:1px solid var(--v34-line)!important;border-radius:12px!important;background:#fff!important;box-shadow:var(--v34-shadow)!important}
+.rodape-profissional{background:linear-gradient(180deg,#043f32,#022c24)!important;border-top:2px solid rgba(212,175,55,.65)!important}
+.chat-flutuante{right:18px!important;bottom:20px!important}
+.whatsapp-float{width:48px!important;height:48px!important;padding:0!important;border-radius:50%!important;justify-content:center!important;background:#25D366!important;border:3px solid #fff!important;box-shadow:0 8px 24px rgba(37,211,102,.28)!important}
+.v34-whatsapp-icon{font-size:25px;line-height:1;font-weight:900;color:#fff;display:block;transform:rotate(-30deg)}
+.v34-whatsapp-label{display:none}
+
+@media(max-width:1100px){
+ .header-top{padding-left:14px!important;padding-right:14px!important}.logo{min-width:auto}.logo-wordmark{font-size:18px!important}
+ .v30-atalhos,.secao-destaques-vora,.secao-lojas-vora,.secao-mais-comprados,.secao-categorias,.vitrine-container,.aurora-pagamentos{max-width:calc(100% - 28px)!important}
+ .grade-produtos{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+}
+@media(max-width:768px){
+ body{padding-top:106px!important;padding-bottom:84px!important}
+ .aurora-util-bar{display:none!important}
+ .header-principal{border-bottom:1px solid rgba(212,175,55,.35)}
+ .header-top{padding:7px 9px!important;gap:7px!important}
+ .logo{gap:5px!important;min-width:auto!important;flex:0 0 auto}
+ .logo img{width:38px!important;height:38px!important;border-radius:11px!important}
+ .logo-wordmark{font-size:16px!important}
+ .busca-container{height:38px!important;min-width:0!important;flex:1!important;order:2}
+ .busca-input{font-size:11px!important;padding:8px 10px!important}
+ .busca-container button{min-width:40px!important;font-size:15px!important}
+ .header-icones{order:3;gap:4px!important;flex:0 0 auto}
+ .v34-header-circle,#btnModoEscuro,.btn-idioma,.carrinho-icone,#badgeFavoritos{width:34px!important;height:34px!important;min-width:34px!important;font-size:14px!important}
+ .btn-entrar{display:none!important}
+ .menu-categorias{padding:0 8px!important}
+ .menu-categorias>ul{display:none!important}
+ #menuToggle{display:flex!important;width:38px!important;height:36px!important}
+ .carrossel-ofertas{margin:8px 8px 0!important;border-radius:10px!important}
+ .slide{aspect-ratio:16/9!important}
+ .carrossel-btn{width:28px;height:28px;font-size:13px!important}
+ .aurora-trust-bar{margin:7px 8px 0!important;display:grid!important;grid-template-columns:repeat(2,1fr)!important;gap:0!important}
+ .aurora-trust-item{padding:8px!important;min-height:50px!important;border-right:1px solid #edf2f0!important;border-bottom:1px solid #edf2f0!important}
+ .aurora-trust-item strong{font-size:8px!important}.aurora-trust-item span{font-size:7px!important}
+ .v30-atalhos,.secao-destaques-vora,.secao-lojas-vora,.secao-mais-comprados,.secao-categorias,.vitrine-container,.aurora-pagamentos{max-width:none!important;margin-left:8px!important;margin-right:8px!important}
+ .v30-atalhos{padding:0!important;margin-top:12px!important}
+ .v30-atalhos-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important}
+ .v30-atalho{min-height:72px!important;padding:8px!important;border-radius:10px!important}
+ .v30-atalho b{font-size:19px!important;margin-bottom:4px!important}.v30-atalho span{font-size:9px!important}.v30-atalho small{display:none!important}
+ .v30-atalhos-head h2{font-size:17px!important}.v30-atalhos-head a{font-size:9px!important}
+ .v34-tracker-wrap{margin:8px 8px 0;padding:0;justify-content:center}
+ .v34-tracker-btn{min-height:30px!important;padding:6px 13px!important;font-size:9px!important;border-width:1px!important}
+ .pwa-install-banner{margin:7px 8px 0!important}
+ .pwa-install-banner>div{padding:7px 9px!important;border-radius:9px!important}
+ .pwa-install-banner span{font-size:9px!important}.pwa-install-banner .btn-instalar-inline{padding:6px 10px!important;font-size:9px!important}
+ .secao-titulo{margin-bottom:7px!important;padding-bottom:7px!important}.secao-titulo h2{font-size:16px!important}.secao-titulo p{display:none!important}.secao-kicker{font-size:7px!important}
+ #destaquesVoraGrid{grid-auto-columns:calc(50vw - 14px)!important;gap:7px!important}.secao-destaques-vora .produto-card{min-width:calc(50vw - 14px)!important}
+ .lojas-publicas-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important}
+ .loja-card-capa{height:82px!important}.loja-card-info{padding:20px 8px 8px!important}.loja-card-info h3{font-size:10px!important}.loja-card-info p{font-size:7px!important}.loja-card-link{font-size:8px!important}
+ .secao-mais-comprados,.secao-categorias{padding:0!important;margin-top:18px!important}
+ .secao-mais-comprados .produto-card,.secao-categorias .produto-card{min-width:calc(50vw - 14px)!important}
+ .aurora-rail-wrap{margin-left:0!important;margin-right:0!important}
+ .produto-card{border-radius:10px!important;padding:7px!important}.produto-imagem{height:132px!important}.produto-info h3{font-size:10px!important}.preco{font-size:15px!important}.btn-add-carrinho-card{height:29px!important;font-size:9px!important}
+ .grade-categorias{grid-template-columns:repeat(4,minmax(0,1fr))!important;gap:5px!important}.categoria-card{min-height:60px!important}.categoria-icone{font-size:18px!important}.categoria-nome{font-size:7px!important}
+ .vitrine-container{grid-template-columns:1fr!important;padding:0!important;margin-top:12px!important}.filtros-sidebar{display:none}
+ .grade-produtos{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:7px!important;margin-top:8px!important}.vitrine-container .produto-imagem{height:150px!important}
+ .aurora-pagamentos{padding:8px!important;margin-top:14px!important;gap:6px!important;flex-wrap:wrap!important;font-size:8px!important}
+ .rodape-profissional{padding-bottom:8px!important}
+ .chat-flutuante{right:9px!important;bottom:90px!important}
+ .whatsapp-float{width:46px!important;height:46px!important}
+}
+@media(max-width:430px){
+ .header-icones .btn-idioma{display:none!important}
+ .v34-header-circle,#btnModoEscuro,.carrinho-icone,#badgeFavoritos{width:32px!important;height:32px!important;min-width:32px!important}
+ .logo-wordmark{font-size:15px!important}
+ .busca-container{height:36px!important}
+ .v30-atalhos-grid{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+ .v30-atalho{min-height:68px!important}
+ .carrossel-ofertas{margin-left:6px!important;margin-right:6px!important}
+ .aurora-trust-bar{margin-left:6px!important;margin-right:6px!important}
+ .v34-tracker-wrap{margin-left:6px;margin-right:6px}
+ .v34-tracker-btn{font-size:8px!important;padding:5px 11px!important}
+ .produto-imagem{height:124px!important}
+ .preco{font-size:14px!important}
+}
+@media(min-width:769px){.v34-header-circle{display:flex!important}.v34-app-btn{display:flex!important}}

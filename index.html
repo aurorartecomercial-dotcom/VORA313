@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=31" />
+    <link rel="stylesheet" href="style.css?v=34" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -70,6 +70,7 @@
                 <button type="submit" aria-label="Pesquisar">🔍</button>
             </form>
             <div class="header-icones">
+                <button id="btnAppHeader" class="v34-header-circle v34-app-btn" type="button" aria-label="Instalar App VORA 313" title="Instalar App">📲</button>
                 <button id="btnModoEscuro" class="btn-modo-escuro" aria-label="Alternar modo escuro" title="Modo Escuro">🌙</button>
                 <button id="btnIdioma" class="btn-idioma" aria-label="Mudar idioma" title="Change language" style="background:transparent; border:2px solid var(--cor-ouro); color:var(--cor-ouro); padding:6px 10px; border-radius:20px; font-weight:700; cursor:pointer; font-size:12px;">PT | EN</button>
                 <button class="btn-entrar" id="btnEntrar" aria-label="Entrar na conta">
@@ -226,8 +227,8 @@
         </section>
 
         <!-- BOTÃO DE RASTREIO -->
-        <div style="max-width:1480px; margin: 20px auto 0; padding: 0 24px; display:flex; justify-content:center;">
-            <a href="rastreio.html" 
+        <div class="v34-tracker-wrap">
+            <a href="rastreio.html" class="v34-tracker-btn"
                style="background:var(--cor-esmeralda); color:#FFF; border:2px solid var(--cor-ouro); 
                       padding:15px 40px; border-radius:50px; text-decoration:none; font-weight:700; font-size:18px; 
                       display:inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
@@ -609,7 +610,7 @@
 
     <!-- CHAT FLUTUANTE -->
     <div class="chat-flutuante" id="chatFlutuante">
-        <button id="chatBtn" class="whatsapp-float" type="button">💬 Fale Connosco</button>
+        <button id="chatBtn" class="whatsapp-float" type="button" aria-label="Fale Connosco no WhatsApp"><span class="v34-whatsapp-icon" aria-hidden="true">◔</span><span class="v34-whatsapp-label">Fale Connosco</span></button>
         <div id="chatMenu" style="display:none; position:fixed; bottom:80px; right:20px; background:#fff; border-radius:16px; box-shadow:0 8px 30px rgba(0,0,0,0.2); padding:16px; width:300px; z-index:9999;">
             <h4 style="margin-bottom:10px; color:#005A4C;">Atendimento Rápido</h4>
             <a href="#" data-chat-opcao="pedido" style="display:block; padding:8px; background:#25D366; color:#fff; border-radius:8px; text-align:center; margin-bottom:8px; text-decoration:none;">🛒 Fazer Pedido</a>
@@ -634,7 +635,7 @@
     </script>
 
     <!-- SCRIPTS PRINCIPAIS -->
-    <script type="module" src="js/app.js?v=31"></script>
+    <script type="module" src="js/app.js?v=34"></script>
     <script type="module" src="js/carrinho.js?v=7"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
     <script type="module" src="js/favoritos.js?v=6"></script>
@@ -729,6 +730,11 @@
             deferredPrompt = e;
             banner.style.display = 'block';
         });
+
+        const btnAppHeader = document.getElementById('btnAppHeader');
+        if (btnAppHeader) {
+            btnAppHeader.addEventListener('click', () => btnInstalar.click());
+        }
 
         btnInstalar.addEventListener('click', async () => {
             if (deferredPrompt) {
