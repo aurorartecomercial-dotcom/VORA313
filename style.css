@@ -2170,3 +2170,167 @@ body{background:linear-gradient(180deg,#fbfdfc 0%,var(--v34-bg) 100%)}
   body.pagina-detalhe .detalhe-beneficio strong{font-size:8px!important}
   body.pagina-detalhe .v33-mobile-buy button{font-size:12px!important}
 }
+
+/* ============================================================
+   V37 — MARKETPLACE PREMIUM / HOME + MOBILE POLISH
+   Camada visual segura. Não altera Firebase, pedidos ou pagamentos.
+   ============================================================ */
+:root{
+  --v37-green:#075b49;
+  --v37-green-2:#08765d;
+  --v37-gold:#d4af37;
+  --v37-bg:#f7faf9;
+  --v37-line:#e4ece9;
+  --v37-text:#123b32;
+  --v37-muted:#71817b;
+  --v37-shadow:0 8px 26px rgba(0,61,50,.06);
+}
+
+html{scroll-behavior:smooth;overflow-x:hidden}
+body{overflow-x:hidden;background:linear-gradient(180deg,#fff 0%,#f7faf9 55%,#fff 100%)}
+#conteudo-principal{overflow:clip}
+
+/* Header / navegação */
+.header-principal{box-shadow:0 2px 14px rgba(0,61,50,.08)}
+.aurora-util-bar{background:var(--v37-green)!important;color:#fff!important}
+.header-top{background:#fff!important}
+.logo-wordmark{font-weight:900!important;letter-spacing:-.04em!important;color:var(--v37-text)!important}
+.logo-wordmark span{color:var(--v37-gold)!important}
+.busca-container{box-shadow:0 4px 16px rgba(0,61,50,.08);border:1px solid var(--v37-line)!important;border-radius:999px!important;overflow:hidden}
+.busca-container button{border-radius:0!important}
+.menu-categorias{box-shadow:0 3px 12px rgba(0,61,50,.12)}
+
+/* Hero */
+.carrossel-ofertas{border:0!important;border-radius:16px!important;box-shadow:var(--v37-shadow)!important;margin-top:12px!important;background:#fff}
+.carrossel-container{border-radius:16px!important}
+.carrossel-btn{width:38px;height:38px;padding:0!important;display:grid;place-items:center;font-size:18px!important;border:0!important;background:rgba(0,61,50,.82)!important}
+.carrossel-indicadores{gap:7px!important;bottom:10px!important}
+.indicador{width:9px!important;height:9px!important;border:2px solid rgba(255,255,255,.9)!important}
+.indicador.ativo{transform:scale(1.2);background:var(--v37-gold)!important}
+
+/* Blocos da Home */
+.aurora-trust-bar,.v30-atalhos,.secao-destaques-vora,.secao-lojas-vora,.secao-mais-comprados,.secao-categorias,.vitrine-container,.aurora-pagamentos{max-width:1280px!important}
+.aurora-trust-bar{border-radius:14px!important;box-shadow:var(--v37-shadow)!important}
+.v30-atalhos,.secao-destaques-vora,.secao-lojas-vora,.secao-mais-comprados,.secao-categorias{position:relative}
+.v30-atalhos{padding:18px 0 4px!important}
+.v30-atalhos-head,.secao-titulo{align-items:end!important}
+.v30-atalhos-head h2,.secao-titulo h2,.secao-categorias h2{font-weight:900!important;color:var(--v37-text)!important}
+.v30-atalhos-head span,.secao-kicker{color:var(--v37-green-2)!important;font-weight:900!important;letter-spacing:.12em!important}
+.v30-atalho{transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease!important}
+.v30-atalho:hover{transform:translateY(-3px);box-shadow:0 12px 24px rgba(0,61,50,.10)!important;border-color:#cfe2da!important}
+
+/* Secções com respiro */
+.secao-destaques-vora,.secao-lojas-vora,.secao-mais-comprados,.secao-categorias{margin-top:24px!important}
+.secao-destaques-vora,.secao-lojas-vora{padding:18px 0!important}
+.secao-destaques-vora{background:linear-gradient(180deg,#f5faf8,#fff);border-top:1px solid var(--v37-line);border-bottom:1px solid var(--v37-line);border-radius:18px}
+.secao-lojas-vora{background:#fff;border:1px solid var(--v37-line);border-radius:18px}
+.secao-titulo{padding:0 16px 10px!important;border-bottom:1px solid var(--v37-line)!important}
+.secao-titulo h2{letter-spacing:-.03em!important}
+
+/* Cards de produto */
+.produto-card{border:1px solid var(--v37-line)!important;border-radius:14px!important;box-shadow:0 3px 14px rgba(0,61,50,.045)!important;padding:9px!important;transition:transform .2s ease,box-shadow .2s ease,border-color .2s ease!important}
+.produto-card:hover{transform:translateY(-4px)!important;box-shadow:0 14px 28px rgba(0,61,50,.10)!important;border-color:#cfe1db!important}
+.produto-imagem{border-radius:10px!important;background:#f8faf9!important}
+.produto-imagem img{transition:transform .25s ease}
+.produto-card:hover .produto-imagem img{transform:scale(1.035)}
+.produto-info h3{font-weight:750!important;color:var(--v37-text)!important}
+.preco{font-weight:900!important;color:var(--v37-green-2)!important;letter-spacing:-.02em}
+.btn-add-carrinho-card{background:linear-gradient(135deg,var(--v37-green),var(--v37-green-2))!important;font-weight:800!important}
+.btn-add-carrinho-card:hover{background:var(--v37-gold)!important;color:#123b32!important}
+
+/* Lojas */
+.loja-card{transition:transform .2s ease,box-shadow .2s ease!important}
+.loja-card:hover{transform:translateY(-3px);box-shadow:0 12px 26px rgba(0,61,50,.09)!important}
+
+/* Categorias */
+.grade-categorias .categoria-card{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease!important}
+.grade-categorias .categoria-card:hover{transform:translateY(-3px);box-shadow:0 10px 20px rgba(0,61,50,.08)!important;border-color:#cfe1db!important}
+
+/* Filtros / vitrine */
+.vitrine-container{background:transparent!important}
+.filtros-sidebar{position:sticky;top:12px}
+.v31-filter-toggle{box-shadow:var(--v37-shadow)!important}
+
+/* Rodapé */
+.rodape-profissional{background:linear-gradient(145deg,#043f33,#002d25)!important;border-top:3px solid var(--v37-gold)!important}
+
+/* WhatsApp: símbolo visual de telefone dentro da bolha verde */
+.whatsapp-float{border:3px solid #fff!important;background:#25D366!important;box-shadow:0 10px 26px rgba(37,211,102,.28)!important}
+.whatsapp-float:focus-visible,.v31-mobile-nav-item:focus-visible,.btn-add-carrinho-card:focus-visible{outline:3px solid rgba(212,175,55,.65)!important;outline-offset:2px}
+
+/* Mobile premium */
+@media(max-width:768px){
+  body{padding-left:0!important;padding-right:0!important}
+  .header-principal{position:relative;z-index:3000}
+  .aurora-util-bar{font-size:8px!important;min-height:22px!important}
+  .aurora-util-inner{gap:8px!important;padding:4px 8px!important;white-space:nowrap;overflow:hidden}
+  .aurora-util-inner .util-atendimento{display:none!important}
+  .header-top{box-shadow:none!important}
+  .logo-wordmark{font-size:17px!important}
+  .carrossel-ofertas{margin-top:8px!important;margin-left:6px!important;margin-right:6px!important;border-radius:12px!important}
+  .carrossel-container{border-radius:12px!important}
+  .slide{aspect-ratio:16/9!important}
+  .carrossel-btn{width:30px;height:30px;font-size:14px!important}
+  .carrossel-btn.anterior{left:6px}.carrossel-btn.proximo{right:6px}
+  .carrossel-indicadores{bottom:6px!important;gap:5px!important}
+  .indicador{width:7px!important;height:7px!important}
+  .aurora-trust-bar{margin-top:8px!important;border-radius:12px!important}
+  .v30-atalhos,.secao-destaques-vora,.secao-lojas-vora,.secao-mais-comprados,.secao-categorias,.vitrine-container,.aurora-pagamentos{margin-left:8px!important;margin-right:8px!important}
+  .v30-atalhos{padding-top:12px!important}
+  .v30-atalhos-head{padding:0 2px 8px!important}
+  .v30-atalhos-head h2{font-size:16px!important}
+  .v30-atalho{min-height:72px!important}
+  .secao-destaques-vora,.secao-lojas-vora{padding:12px 0!important;border-radius:14px!important}
+  .secao-mais-comprados,.secao-categorias{padding:0!important}
+  .secao-titulo{padding:0 8px 8px!important}
+  .secao-titulo h2{font-size:15px!important}
+  .secao-titulo .ver-todos{font-size:9px!important;white-space:nowrap}
+  .secao-destaques-vora .produtos-rail{padding-left:8px!important;padding-right:8px!important}
+  .lojas-publicas-grid{padding:0 8px!important}
+  .produto-card{padding:7px!important;border-radius:11px!important}
+  .produto-imagem{height:138px!important;border-radius:9px!important}
+  .produto-info{padding-top:7px!important}
+  .categoria-tag{font-size:8px!important}
+  .produto-info h3{font-size:10px!important;line-height:1.28!important;min-height:26px}
+  .preco{font-size:15px!important}
+  .parcelas,.selo-frete,.selo-entrega{font-size:8px!important}
+  .btn-add-carrinho-card{height:31px!important;min-height:31px!important;font-size:9px!important;border-radius:8px!important}
+  .grade-categorias{gap:6px!important}
+  .grade-categorias .categoria-card{min-height:62px!important;border-radius:10px!important}
+  .categoria-icone{font-size:19px!important}
+  .categoria-nome{font-size:7px!important}
+  .vitrine-container{gap:9px!important}
+  .vitrine-container .grade-produtos{gap:7px!important}
+  .filtros-sidebar{position:static!important}
+  .rodape-profissional{margin-top:28px!important}
+}
+
+@media(max-width:430px){
+  .header-top{padding-left:7px!important;padding-right:7px!important}
+  .logo-wordmark{font-size:15px!important}
+  .logo img{width:36px!important;height:36px!important}
+  .header-icones{gap:3px!important}
+  .v34-app-btn,.v34-header-circle,#btnModoEscuro,.carrinho-icone,#badgeFavoritos{width:31px!important;height:31px!important;min-width:31px!important}
+  .busca-container{height:37px!important}
+  .busca-input{font-size:12px!important}
+  .busca-container button{min-width:44px!important}
+  .v30-atalhos-grid{gap:5px!important}
+  .v30-atalho{min-height:64px!important;padding:6px!important}
+  .v30-atalho b{font-size:17px!important}
+  .v30-atalho span{font-size:8px!important}
+  .produto-imagem{height:126px!important}
+  .produto-info h3{font-size:9.5px!important}
+  .preco{font-size:14px!important}
+  .btn-add-carrinho-card{font-size:8px!important;height:29px!important}
+  .v31-mobile-nav{bottom:4px!important}
+}
+
+@media(min-width:769px){
+  .carrossel-ofertas{max-width:1280px!important}
+  .v30-atalhos-grid{grid-template-columns:repeat(6,minmax(0,1fr))!important}
+  .grade-produtos{gap:14px!important}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{scroll-behavior:auto!important;transition:none!important;animation:none!important}
+}
