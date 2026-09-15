@@ -2916,3 +2916,89 @@ h1,h2,h3,h4,p,a,span,button{overflow-wrap:anywhere}
     max-width: calc(100vw - 28px) !important;
   }
 }
+
+/* ============================================================
+   V40.1 — CARRINHO + DETALHE FINAL
+   Correção isolada de camadas, abertura do carrinho e rails.
+   Não altera Firebase nem a lógica de produtos.
+   ============================================================ */
+.carrinho-overlay{
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .25s ease;
+}
+.carrinho-sidebar{
+  transform:translateX(110%);
+  right:0!important;
+  transition:transform .32s cubic-bezier(.4,0,.2,1)!important;
+  overscroll-behavior:contain;
+  isolation:isolate;
+}
+.carrinho-sidebar.ativo{transform:translateX(0)}
+body:has(.carrinho-sidebar.ativo) .carrinho-overlay{
+  opacity:1;
+  pointer-events:auto;
+}
+.carrinho-corpo{
+  overscroll-behavior:contain;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-gutter:stable;
+}
+.carrinho-footer{position:relative;z-index:2}
+
+@media(max-width:768px){
+  /* A sacola passa sempre à frente da navegação inferior e dos botões flutuantes. */
+  .carrinho-sidebar{
+    z-index:10050!important;
+    width:100vw!important;
+    max-width:100vw!important;
+    height:100dvh!important;
+    border-radius:0!important;
+  }
+  .carrinho-overlay{z-index:10040!important}
+  body:has(.carrinho-sidebar.ativo) .v31-mobile-nav,
+  body:has(.carrinho-sidebar.ativo) .chat-flutuante,
+  body:has(.carrinho-sidebar.ativo) .whatsapp-float,
+  body:has(.carrinho-sidebar.ativo) .v33-mobile-buy{
+    display:none!important;
+  }
+  .carrinho-header{border-radius:0!important;padding-top:calc(14px + env(safe-area-inset-top))!important}
+  .carrinho-corpo{padding:10px 14px!important}
+  .carrinho-footer{padding-bottom:calc(14px + env(safe-area-inset-bottom))!important}
+  .carrinho-corpo .item-carrinho-loja{
+    display:grid!important;
+    grid-template-columns:54px minmax(0,1fr) auto!important;
+    align-items:center!important;
+    gap:9px!important;
+  }
+  .carrinho-corpo .item-info-loja{min-width:0!important;padding-right:0!important}
+  .carrinho-corpo .item-info-loja h4{overflow-wrap:anywhere!important}
+  .carrinho-corpo .item-controles{justify-self:end!important}
+
+  /* No detalhe, os produtos relacionados continuam em duas casas confortáveis. */
+  .recomendacoes-secao .produtos-rail{
+    grid-auto-columns:calc(50vw - 18px)!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+  }
+  .recomendacoes-secao .produtos-rail>.produto-card{
+    width:calc(50vw - 18px)!important;
+    min-width:calc(50vw - 18px)!important;
+    max-width:calc(50vw - 18px)!important;
+  }
+}
+
+@media(max-width:360px){
+  .recomendacoes-secao .produtos-rail{
+    grid-auto-columns:calc(50vw - 16px)!important;
+  }
+  .recomendacoes-secao .produtos-rail>.produto-card{
+    width:calc(50vw - 16px)!important;
+    min-width:calc(50vw - 16px)!important;
+    max-width:calc(50vw - 16px)!important;
+  }
+}
+
+@media(prefers-reduced-motion:reduce){
+  .carrinho-sidebar,.carrinho-overlay{transition:none!important}
+}
