@@ -1691,3 +1691,48 @@ body{background:linear-gradient(180deg,#f7faf9 0,#fff 360px);color:#17352e}
   #modalCliente{padding:12px!important;align-items:flex-end!important}
   #modalCliente>div{max-height:92vh;overflow:auto;padding:22px 18px!important;border-radius:22px 22px 14px 14px!important}
 }
+
+/* ============================================================
+   V33 — PÁGINA DE PRODUTO PREMIUM
+   Camada visual, sem alterar a lógica do Firebase.
+   ============================================================ */
+.detalhes-layout{max-width:1180px;grid-template-columns:minmax(0,1.08fr) minmax(360px,.92fr);gap:34px;padding:30px;border:1px solid #eee;box-shadow:0 14px 45px rgba(0,61,50,.08)}
+.detalhes-imagem-principal{background:linear-gradient(145deg,#fff,#fafcfb);border:1px solid #edf1ef;border-radius:22px;padding:22px;position:relative;min-height:520px}
+.detalhes-imagem-wrap{width:100%;height:430px;display:flex;align-items:center;justify-content:center;border-radius:18px;background:#fff;overflow:hidden}
+.detalhes-imagem-principal img{width:100%;height:100%;max-height:430px;object-fit:contain;transition:transform .35s ease}
+.detalhes-imagem-wrap:hover img{transform:scale(1.035)}
+.detalhes-miniaturas{justify-content:flex-start;overflow-x:auto;flex-wrap:nowrap;padding:5px 2px 2px;width:100%;scrollbar-width:thin}
+.detalhes-miniaturas .miniatura-produto{flex:0 0 70px;width:70px;height:70px;padding:4px;border-radius:12px;border:1px solid #e2e8e5;background:#fff;cursor:pointer;transition:.2s}
+.detalhes-miniaturas .miniatura-produto:hover,.detalhes-miniaturas .miniatura-produto.ativa{border-color:var(--cor-ouro);box-shadow:0 0 0 2px rgba(212,175,55,.22);transform:translateY(-2px)}
+.detalhes-miniaturas img{width:100%;height:100%;border:0;border-radius:8px;object-fit:cover}
+.detalhes-info{padding:5px 4px}
+.detalhes-info h2{font-size:30px;line-height:1.2;margin:12px 0 7px;color:#18332d;font-weight:800;letter-spacing:-.5px}
+.categoria-tag,.detalhe-selo{display:inline-flex;align-items:center;gap:5px;border-radius:30px;padding:6px 10px;font-size:11px;font-weight:800;margin-right:5px;text-transform:uppercase;letter-spacing:.4px}
+.categoria-tag{background:#eaf3f0;color:var(--cor-esmeralda)}
+.detalhe-selo{background:#fff3d0;color:#7a5a00;border:1px solid #ead08a}
+.detalhe-marca{font-size:13px;color:#77837f;margin:6px 0 15px}.detalhe-marca strong{color:#344640}
+.detalhes-precos{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin:16px 0 8px;padding:13px 0;border-top:1px solid #edf0ef;border-bottom:1px solid #edf0ef}
+.preco-destaque{font-size:39px;line-height:1;font-weight:900;color:var(--cor-esmeralda);letter-spacing:-1px}
+.preco-antigo{font-size:14px}.desconto-badge{font-weight:800;border-radius:20px;padding:5px 9px}
+.detalhe-avaliacao{padding:5px 0 10px;font-size:14px}.detalhe-compra-box{background:#f7faf8;border:1px solid #e2ebe7;border-radius:18px;padding:17px;margin-top:12px}
+.detalhe-stock{font-size:13px;font-weight:700;color:var(--cor-esmeralda);margin:8px 0 12px}.detalhe-stock.esgotado{color:#c0392b}
+.detalhe-quantidade{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.quantidade-label{font-size:13px;font-weight:700;color:#53625d}.quantidade-controle{display:flex;align-items:center;border:1px solid #d7e0dc;border-radius:12px;overflow:hidden;background:#fff}.quantidade-controle button{width:38px;height:38px;border:0;background:#fff;color:var(--cor-esmeralda);font-size:21px;font-weight:800;cursor:pointer}.quantidade-controle span{min-width:40px;text-align:center;font-weight:800}
+.btn-comprar-grande{max-width:none;border-radius:12px;min-height:50px;background:linear-gradient(135deg,var(--cor-esmeralda),#00705d);box-shadow:0 8px 20px rgba(0,90,76,.18)}
+.btn-adicionar-detalhe{width:100%;min-height:46px;margin-top:9px;border:1.5px solid var(--cor-esmeralda);background:#fff;color:var(--cor-esmeralda);border-radius:12px;font-weight:800;font-size:15px;cursor:pointer;transition:.2s}.btn-adicionar-detalhe:hover{background:#edf7f4}
+.btn-partilhar-detalhe{max-width:none;border-radius:12px}
+.detalhe-loja-card{display:flex;align-items:center;gap:12px;text-decoration:none;color:inherit;background:#fff;border:1px solid #e4ebe8;border-radius:15px;padding:12px;margin:14px 0;transition:.2s}.detalhe-loja-card:hover{border-color:var(--cor-ouro);box-shadow:0 6px 18px rgba(0,0,0,.06)}.detalhe-loja-avatar{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;background:#edf5f2;font-size:21px}.detalhe-loja-card span:nth-child(2){display:flex;flex-direction:column;gap:2px}.detalhe-loja-card small{font-size:11px;color:#7d8985}.detalhe-loja-card strong{font-size:14px;color:#163a32}.detalhe-loja-card em{font-size:11px;font-style:normal;color:var(--cor-esmeralda);font-weight:700}
+.detalhe-destaques{list-style:none;padding:0;margin:12px 0;display:grid;grid-template-columns:1fr 1fr;gap:7px}.detalhe-destaques li{font-size:12px;font-weight:650;background:#fff;border:1px solid #e7eeeb;border-radius:9px;padding:8px;color:#43514d}
+.detalhe-beneficios{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:13px}.detalhe-beneficio{background:#fff;border:1px solid #e4ebe8;border-radius:12px;padding:10px 5px;text-align:center;font-size:16px;color:var(--cor-esmeralda)}.detalhe-beneficio strong{display:block;font-size:10px;color:#53625d;margin-top:4px}
+.detalhe-secoes{max-width:1180px;margin:22px auto 0;display:grid;grid-template-columns:1.5fr 1fr;gap:18px}.detalhe-bloco{background:#fff;border:1px solid #e8eeeb;border-radius:18px;padding:22px;box-shadow:0 5px 20px rgba(0,0,0,.035)}.detalhe-bloco h3{margin:0 0 12px;color:#183b32;font-size:18px}.detalhe-entrega{grid-column:1/-1}.entrega-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}.entrega-grid>div{background:#f7faf8;border-radius:12px;padding:13px}.entrega-grid strong,.entrega-grid span{display:block}.entrega-grid strong{font-size:13px;color:var(--cor-esmeralda)}.entrega-grid span{font-size:12px;color:#6a7672;margin-top:4px}.descricao{max-width:none;text-align:left}
+.v33-mobile-buy{display:none}
+@media(max-width:768px){
+ .container-detalhe{padding:0 12px;margin-top:12px}.breadcrumb{padding:0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+ .detalhes-layout{display:block;padding:12px;border-radius:16px;box-shadow:0 8px 24px rgba(0,61,50,.07)}
+ .detalhes-imagem-principal{min-height:0;padding:10px;border-radius:15px}.detalhes-imagem-wrap{height:300px;border-radius:12px}.detalhes-imagem-principal img{max-height:300px}
+ .detalhes-info{padding:8px 3px 2px}.detalhes-info h2{font-size:22px;margin-top:10px}.preco-destaque{font-size:31px}.detalhe-destaques{grid-template-columns:1fr 1fr}.detalhe-beneficios{grid-template-columns:repeat(3,1fr)}.detalhe-beneficio{padding:8px 3px;font-size:14px}
+ .detalhe-secoes{display:block;margin-top:14px}.detalhe-bloco{padding:17px;border-radius:15px;margin-bottom:12px}.entrega-grid{grid-template-columns:1fr 1fr}
+ .v33-mobile-buy{display:flex;position:fixed;left:10px;right:10px;bottom:calc(10px + env(safe-area-inset-bottom));z-index:998;gap:8px;padding:8px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);border:1px solid #dfe8e4;border-radius:16px;box-shadow:0 10px 35px rgba(0,0,0,.18)}.v33-mobile-buy button{flex:1;min-height:45px;border-radius:11px;border:0;font-weight:800;cursor:pointer}.v33-mobile-buy .v33-add{background:#fff;color:var(--cor-esmeralda);border:1px solid var(--cor-esmeralda)}.v33-mobile-buy .v33-buy{background:var(--cor-esmeralda);color:#fff}
+ body{padding-bottom:82px}
+}
+@media(max-width:420px){.detalhes-imagem-wrap{height:255px}.detalhes-imagem-principal img{max-height:255px}.detalhe-destaques{grid-template-columns:1fr}.entrega-grid{grid-template-columns:1fr 1fr}.preco-destaque{font-size:28px}}
+body.modo-escuro .detalhes-layout,body.modo-escuro .detalhes-imagem-principal,body.modo-escuro .detalhe-bloco,body.modo-escuro .detalhe-loja-card,body.modo-escuro .detalhe-beneficio{background:var(--cor-fundo-card);border-color:#333}body.modo-escuro .detalhes-info h2,body.modo-escuro .detalhe-bloco h3,body.modo-escuro .detalhe-loja-card strong{color:#fff}body.modo-escuro .detalhes-precos{border-color:#333}body.modo-escuro .detalhe-compra-box,body.modo-escuro .entrega-grid>div{background:#171f1d;border-color:#333}body.modo-escuro .detalhe-destaques li{background:#171717;border-color:#333;color:#ddd}

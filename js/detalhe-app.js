@@ -148,6 +148,7 @@ function renderizarDetalhes(prod) {
     `;
 
     configurarGaleria(imagens, prod.nome);
+    adicionarBarraCompraMobile(prod, esgotado);
     document.getElementById('diminuirQtd')?.addEventListener('click', () => alterarQuantidade(-1));
     document.getElementById('aumentarQtd')?.addEventListener('click', () => alterarQuantidade(1));
     document.getElementById('btnAdicionarDetalhe')?.addEventListener('click', () => adicionarQuantidadeAoCarrinho(prod));
@@ -156,6 +157,17 @@ function renderizarDetalhes(prod) {
         setTimeout(() => document.getElementById('abrirCarrinhoFlutuante')?.click(), 80);
     });
     document.getElementById('btnPartilharDetalhe')?.addEventListener('click', () => partilharProduto(prod));
+}
+
+function adicionarBarraCompraMobile(prod, esgotado) {
+    document.querySelector('.v33-mobile-buy')?.remove();
+    if (esgotado) return;
+    const barra = document.createElement('div');
+    barra.className = 'v33-mobile-buy';
+    barra.innerHTML = '<button type="button" class="v33-add">Adicionar</button><button type="button" class="v33-buy">Comprar agora</button>';
+    barra.querySelector('.v33-add')?.addEventListener('click', () => document.getElementById('btnAdicionarDetalhe')?.click());
+    barra.querySelector('.v33-buy')?.addEventListener('click', () => document.getElementById('btnComprarDetalhe')?.click());
+    document.body.appendChild(barra);
 }
 
 function renderizarDestaques(prod) {
