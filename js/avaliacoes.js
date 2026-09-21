@@ -1,6 +1,6 @@
 import { auth, db } from './config.js';
-import { signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { collection, getDocs, query, setDoc, doc, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { signInAnonymously } from './supabase-compat.js';
+import { collection, getDocs, query, setDoc, doc, where } from './supabase-compat.js';
 
 export async function obterAvaliacao(prodId) {
   const q = query(collection(db, 'avaliacoes'), where('produtoId', '==', String(prodId)));

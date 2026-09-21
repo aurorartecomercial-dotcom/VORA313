@@ -1,5 +1,5 @@
 import { db, CONFIG } from './config.js';
-import { doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { doc, getDoc } from './supabase-compat.js';
 
 let map;
 let marcador;

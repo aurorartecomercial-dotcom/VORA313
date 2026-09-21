@@ -1,8 +1,8 @@
 import {auth,db,storage,functions} from './config.js';
-import {collection,doc,getDoc,getDocs,query,where,limit} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import {onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,updateProfile,getIdToken,sendPasswordResetEmail} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import {httpsCallable} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
-import {ref,uploadBytes,getDownloadURL} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import {collection,doc,getDoc,getDocs,query,where,limit} from './supabase-compat.js';
+import {onAuthStateChanged,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,updateProfile,getIdToken,sendPasswordResetEmail} from './supabase-compat.js';
+import {httpsCallable} from './supabase-compat.js';
+import {ref,uploadBytes,getDownloadURL} from './supabase-compat.js';
 import {escapeHTML,extrairValorNumerico} from './utils.js';
 const $=id=>document.getElementById(id),call=n=>httpsCallable(functions,n),money=v=>new Intl.NumberFormat('pt-AO',{maximumFractionDigits:2}).format(Number(v||0))+' Kz';let vend=null,produtos=[];
 function msg(t,ok=true){$('vendMensagem').textContent=t;$('vendMensagem').className='vend-msg '+(ok?'ok':'err');}

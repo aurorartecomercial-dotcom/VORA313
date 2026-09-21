@@ -6,10 +6,10 @@ import {
     signOut, 
     onAuthStateChanged,
     updateProfile
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+} from './supabase-compat.js';
 import { 
     doc, getDoc, setDoc, updateDoc, arrayUnion 
-} from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+} from './supabase-compat.js';
 import { mostrarToast } from './utils.js';
 
 // Estado do usuário atual
@@ -90,7 +90,7 @@ export function initFidelidade() {
                 const senha = senhaRegInput.value;
                 const userCred = await createUserWithEmailAndPassword(auth, email, senha);
                 await updateProfile(userCred.user, { displayName: nome });
-                // Criar documento no Firestore
+                // Criar registo no Supabase
                 await setDoc(doc(db, 'clientes', userCred.user.uid), {
                     nome: nome,
                     email: email,

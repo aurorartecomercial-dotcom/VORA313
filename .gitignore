@@ -5,3 +5,15 @@ node_modules/
 *firebase-adminsdk*.json
 serviceAccountKey.json
 set-admin.js
+
+# VORA 313 migration artifacts / secrets
+migration-output/
+service-account*.json
+firebase-service-account*.json
+
+# Migração local / segredos
+.env
+.env.*
+!.env.example
+migration-secrets/
+migration-output/

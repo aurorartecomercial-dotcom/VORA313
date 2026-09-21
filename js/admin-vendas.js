@@ -1,7 +1,7 @@
 import { auth, db, functions } from './config.js';
-import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getIdTokenResult, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+import { collection, getDocs, query, where } from './supabase-compat.js';
+import { getIdTokenResult, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
+import { httpsCallable } from './supabase-compat.js';
 import { extrairValorNumerico, escapeHTML } from './utils.js';
 import { exportarBackupCompleto } from './fase4.js'; // ✅ Fase 4
 

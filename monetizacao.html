@@ -16,7 +16,7 @@
 </section>
 <section id="monDashboard" style="display:none">
   <header class="mon-hero-v26"><span class="mon-eyebrow">💰 Negócio VORA 313</span><h1>Central de Monetização</h1><p>Um painel para entender de onde vem o dinheiro da VORA 313, quanto já foi registado, o que está projetado e quais módulos ainda precisam de pagamento automático.</p></header>
-  <div class="mon-toolbar-v26"><div><strong>Visão financeira</strong><div class="mon-note-v26">Valores registados vêm do Firebase. Valores projetados são apenas estimativas comerciais.</div></div><div class="mon-actions"><a class="mon-btn-v26 dark" href="admin.html">← Administração</a><a class="mon-btn-v26" href="admin-vendedores.html">🏪 Vendedores</a><button class="mon-btn-v26" id="monSair" type="button">Sair</button></div></div>
+  <div class="mon-toolbar-v26"><div><strong>Visão financeira</strong><div class="mon-note-v26">Valores registados vêm do Supabase. Valores projetados são apenas estimativas comerciais.</div></div><div class="mon-actions"><a class="mon-btn-v26 dark" href="admin.html">← Administração</a><a class="mon-btn-v26" href="admin-vendedores.html">🏪 Vendedores</a><button class="mon-btn-v26" id="monSair" type="button">Sair</button></div></div>
 
   <section class="mon-kpis-v26">
     <article class="mon-card-v26 mon-kpi-v26"><span>💰 Receita VORA registada</span><strong id="kpiReceita">0 Kz</strong><small>Comissões + receita de frete registada</small></article>
@@ -44,7 +44,7 @@
     </section>
   </div>
 
-  <section class="mon-card-v26 mon-simulator" style="margin-top:16px"><div class="mon-card-head"><div><h2>🧮 Simulador de receita</h2><p class="mon-note-v26">Brinca com os números para perceber quanto a VORA poderia faturar. Isto não altera Firebase nem cria cobranças.</p></div><span class="mon-status gold">Simulação</span></div>
+  <section class="mon-card-v26 mon-simulator" style="margin-top:16px"><div class="mon-card-head"><div><h2>🧮 Simulador de receita</h2><p class="mon-note-v26">Brinca com os números para perceber quanto a VORA poderia faturar. Isto não altera dados reais nem cria cobranças.</p></div><span class="mon-status gold">Simulação</span></div>
     <div class="mon-fields">
       <div class="mon-field"><label>Vendas por mês (Kz)</label><input id="simGmv" type="number" min="0" step="1000" value="10000000"></div>
       <div class="mon-field"><label>Comissão (%)</label><input id="simComissao" type="number" min="0" max="30" step="0.5" value="7"></div>

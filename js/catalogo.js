@@ -1,5 +1,5 @@
 import { db, CONFIG } from './config.js';
-import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { collection, getDocs } from './supabase-compat.js';
 import { extrairValorNumerico, IMAGEM_FALLBACK, urlSegura } from './utils.js';
 import { obterAvaliacao } from './avaliacoes.js';
 import { verificarFavorito } from './favoritos.js';
@@ -22,7 +22,7 @@ export async function carregarCatalogo() {
       const cache = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || 'null');
       if (Array.isArray(cache?.data) && cache.data.length) {
         cacheMemoria = ordenarProdutosMonetizados(cache.data.filter(p => p?.ativo !== false && p?.vendedorAtivo !== false));
-        atualizarDoFirebase();
+        atualizarDoSupabase();
         return cacheMemoria;
       }
     } catch (_) {}
@@ -32,9 +32,9 @@ export async function carregarCatalogo() {
       salvarCache(cacheMemoria);
       return cacheMemoria;
     } catch (error) {
-      console.warn('Falha ao buscar catálogo no Firebase:', error);
+      console.warn('Falha ao buscar catálogo no Supabase:', error);
       // Fallback local: a loja continua a apresentar o catálogo-base mesmo
-      // quando o Firebase está temporariamente indisponível.
+      // quando o Supabase está temporariamente indisponível.
       try {
         const resposta = await fetch('produtos.json', { cache: 'no-store' });
         if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
@@ -57,7 +57,7 @@ function salvarCache(produtos) {
   localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({ data: produtos, timestamp: Date.now() }));
 }
 
-async function atualizarDoFirebase() {
+async function atualizarDoSupabase() {
   try {
     const snapshot = await getDocs(collection(db, 'produtos'));
     cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto).filter(p => p?.ativo !== false && p?.vendedorAtivo !== false));

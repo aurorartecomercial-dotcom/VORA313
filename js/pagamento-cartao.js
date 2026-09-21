@@ -3,7 +3,7 @@
 // IMPORTANTE: este módulo nunca contém a chave secreta do Stripe.
 // A criação/verificação do pagamento deve ocorrer numa Cloud Function.
 import { functions } from './config.js';
-import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+import { httpsCallable } from './supabase-compat.js';
 
 export async function iniciarPagamentoCartao(valor, referencia, descricao, emailCliente) {
     if (!Number.isFinite(Number(valor)) || Number(valor) <= 0) {

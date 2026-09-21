@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (e) {}
     }
 
-    // Se não tem cache, busca do Firebase
+    // Se não tem cache, busca do Supabase
     if (catalogo.length === 0) {
         catalogo = await carregarCatalogo();
     }

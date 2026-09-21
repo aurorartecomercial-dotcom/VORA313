@@ -1,0 +1,16 @@
+{
+  "name": "vora313-migration-tools",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.7.0",
+    "dotenv": "^16.4.5"
+  },
+  "scripts": {
+    "migrate": "node migrate.mjs",
+    "migrate:dry": "DRY_RUN=true node migrate.mjs"
+  }
+}

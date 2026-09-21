@@ -1,9 +1,9 @@
 // VORA 313 V26 — Central de Monetização + ordenação pública do catálogo
 import { auth, db, functions } from './config.js';
-import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { collection, getDocs } from './supabase-compat.js';
+import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
 import { escapeHTML } from './utils.js';
-import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+import { httpsCallable } from './supabase-compat.js';
 
 export const MONETIZACAO = Object.freeze({
   modelo: 'comissao_por_venda',
@@ -190,13 +190,19 @@ function renderizarResumoPlanos(vendedores) {
   area.innerHTML = MONETIZACAO.planos.map(p => `<div class="mon-mini-stat"><span>${escapeHTML(p.nome)}</span><strong>${counts[p.id] || 0}</strong><small>${money((counts[p.id] || 0) * p.mensalidade)}/mês projetados</small></div>`).join('');
 }
 
-function iniciarPagina() {
+async function iniciarPagina() {
   const login = el('monLogin');
   const dashboard = el('monDashboard');
   const loginBtn = el('monLoginBtn');
   // Importante: este módulo também é importado pela página inicial para
   // ordenar os produtos. A página inicial não possui o formulário de admin.
   if (!login || !dashboard || !loginBtn) return;
+
+  // A central financeira é área administrativa: não reutilizar uma sessão
+  // que ficou guardada no navegador. O administrador deve autenticar-se aqui.
+  try { await signOut(auth); } catch (_) {}
+  login.style.display = 'block';
+  dashboard.style.display = 'none';
 
   loginBtn.addEventListener('click', async () => {
     const error = el('monLoginError');
@@ -220,17 +226,10 @@ function iniciarPagina() {
   el('monSenha')?.addEventListener('keydown', e => { if (e.key === 'Enter') loginBtn.click(); });
   el('monSair')?.addEventListener('click', async () => { await signOut(auth); location.reload(); });
 
-  onAuthStateChanged(auth, async user => {
-    if (!user) return;
-    try {
-      if (await validarAdmin(user)) {
-        login.style.display = 'none';
-        dashboard.style.display = 'block';
-        await carregarDashboard();
-      }
-    } catch (e) {
-      console.warn('Não foi possível abrir a central de monetização:', e);
-      inicializado = false;
+  onAuthStateChanged(auth, user => {
+    if (!user) {
+      login.style.display = 'block';
+      dashboard.style.display = 'none';
     }
   });
 }

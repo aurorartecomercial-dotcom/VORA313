@@ -505,7 +505,7 @@
             <button id="btnFecharLogin" style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:28px; cursor:pointer; color:#999;">&times;</button>
             <h2 style="color:var(--cor-esmeralda); margin-bottom:16px; text-align:center;">🔐 Minha Conta</h2>
             <button id="btnGoogleLogin" style="width:100%; background:#fff; color:#333; border:2px solid #ddd; border-radius:40px; padding:12px; font-weight:600; font-size:14px; cursor:pointer; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:10px;">
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style="width:20px; height:20px;">
+                <span aria-hidden="true" style="font-size:20px;line-height:1">G</span>
                 Entrar com Google
             </button>
             <div style="text-align:center; margin:10px 0; color:#999;">ou</div>
@@ -652,50 +652,7 @@
         }
     </script>
 
-    <!-- 🔔 FIREBASE CLOUD MESSAGING (NOTIFICAÇÕES PUSH) -->
-    <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-        import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
-        
-        const firebaseConfig = {
-            apiKey: "AIzaSyDhXoAdNf7eAT0GqrpNSHDN1x_Hd5JvzH4",
-            authDomain: "aurora-comerciall.firebaseapp.com",
-            projectId: "aurora-comerciall",
-            storageBucket: "aurora-comerciall.firebasestorage.app",
-            messagingSenderId: "998765354073",
-            appId: "1:998765354073:web:ea2c6934e8e9d4cad3a548",
-            measurementId: "G-FLB61EN4Q9"
-        };
-        
-        const app = initializeApp(firebaseConfig);
-        const messaging = getMessaging(app);
-        
-        Notification.requestPermission().then((permission) => {
-            if (permission === 'granted') {
-                console.log('Permissão de notificações concedida!');
-                getToken(messaging, { 
-                    vapidKey: 'BPhemu1uhFY4adZfQX-a8evSWHRIdkI4IntLdZPdpbl3dFXTVuOR1tQuQqB2G-97FnYrgvxyRiWBpXUHHkzcKrc' 
-                }).then((currentToken) => {
-                    if (currentToken) {
-                        console.log('Token FCM:', currentToken);
-                        localStorage.setItem('fcm_token', currentToken);
-                    } else {
-                        console.log('Não foi possível obter o token.');
-                    }
-                });
-            } else {
-                console.log('Permissão de notificações negada.');
-            }
-        });
-        
-        onMessage(messaging, (payload) => {
-            console.log('Mensagem recebida em primeiro plano:', payload);
-            const notification = new Notification(payload.notification.title, {
-                body: payload.notification.body,
-                icon: 'logo-vora-313.png'
-            });
-        });
-    </script>
+    <!-- NOTIFICAÇÕES PUSH: migradas para infraestrutura Supabase/Web Push. -->
 
     <!-- INSTALAÇÃO PWA -->
     <div id="ios-guide-modal" style="display:none; position:fixed; inset:0; background:rgba(0,90,76,0.7); backdrop-filter:blur(6px); z-index:10000; align-items:center; justify-content:center; padding:20px;">

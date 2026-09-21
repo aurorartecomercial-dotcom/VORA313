@@ -1,34 +1,37 @@
-// =========================================================
-// CONFIGURAÇÃO DO FIREBASE - VORA 313
-// =========================================================
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
-import { getFirestore } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getAuth } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getStorage } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
-import { getFunctions } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+// VORA 313 — configuração central Supabase
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { SUPABASE_CONFIG } from './supabase-config.js';
 
-const firebaseConfig = {
-  apiKey: "AIzaSyDhXoAdNf7eAT0GqrpNSHDN1x_Hd5JvzH4",
-  authDomain: "aurora-comerciall.firebaseapp.com",
-  projectId: "aurora-comerciall",
-  storageBucket: "aurora-comerciall.firebasestorage.app",
-  messagingSenderId: "998765354073",
-  appId: "1:998765354073:web:ea2c6934e8e9d4cad3a548",
-  measurementId: "G-FLB61EN4Q9"
-};
+if (!SUPABASE_CONFIG.url || SUPABASE_CONFIG.url.includes('SEU-PROJETO')) {
+  console.warn('[VORA 313] Configure js/supabase-config.js com a URL do projeto Supabase.');
+}
 
-const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
-export const auth = getAuth(app);
-export const storage = getStorage(app);
-export const functions = getFunctions(app, 'us-central1');
+export const supabase = createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
 
-// ⚠️ NÃO ESQUEÇA DE EXPORTAR O CONFIG!
+export const auth = { currentUser: null, _listeners: new Set(), _ready: false };
+export const db = { __supabase: supabase };
+export const storage = { __supabase: supabase, bucket: SUPABASE_CONFIG.storageBucket || 'vora-public' };
+export const functions = { __supabase: supabase, name: SUPABASE_CONFIG.functionsName || 'api' };
+
 export const CONFIG = {
-    CACHE_KEY: 'vora313_catalogo_cache',
-    CACHE_TTL: 30 * 60 * 1000, // 30 minutos (reduzido de 1h)
-    NUMERO_WHATSAPP: '244933677628',
-    MARCA: 'VORA 313',
-    RASTREIO_PREFIXO: 'VORA',
-    FUNCTIONS_REGION: 'us-central1'
+  CACHE_KEY: 'vora313_catalogo_cache_v2',
+  CACHE_TTL: 30 * 60 * 1000,
+  NUMERO_WHATSAPP: '244933677628',
+  MARCA: 'VORA 313',
+  RASTREIO_PREFIXO: 'VORA',
+  FUNCTIONS_REGION: 'supabase'
 };
+
+supabase.auth.getSession().then(({ data }) => {
+  auth.currentUser = data.session?.user || null;
+  auth._ready = true;
+  for (const fn of auth._listeners) fn(auth.currentUser);
+}).catch((e) => console.error('[VORA 313] Falha ao recuperar sessão:', e));
+
+supabase.auth.onAuthStateChange((_event, session) => {
+  auth.currentUser = session?.user || null;
+  auth._ready = true;
+  for (const fn of auth._listeners) fn(auth.currentUser);
+});

@@ -1,7 +1,7 @@
 import { escapeHTML, extrairValorNumerico, formatarMoeda, mostrarToast, validarCliente } from './utils.js';
 import { auth, CONFIG, functions } from './config.js';
-import { signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+import { signInAnonymously } from './supabase-compat.js';
+import { httpsCallable } from './supabase-compat.js';
 
 let carrinho = [];
 let listaProdutosHTML;

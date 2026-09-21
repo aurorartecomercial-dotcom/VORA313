@@ -1,6 +1,6 @@
 import { auth, db } from './config.js';
-import { collection, getDocs, query, where, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import { collection, getDocs, query, where, doc, getDoc } from './supabase-compat.js';
+import { onAuthStateChanged } from './supabase-compat.js';
 import { mostrarToast, escapeHTML, urlSegura, IMAGEM_FALLBACK } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {

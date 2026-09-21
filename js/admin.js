@@ -1,7 +1,7 @@
 import { auth, db, storage } from './config.js';
-import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
-import { getDownloadURL, ref, uploadBytes } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js';
+import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from './supabase-compat.js';
+import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
+import { getDownloadURL, ref, uploadBytes } from './supabase-compat.js';
 import { escapeHTML, extrairValorNumerico, mostrarToast, IMAGEM_FALLBACK, urlSegura } from './utils.js';
 
 let produtos = [];
@@ -20,7 +20,7 @@ function gerarId() {
     });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const loginDiv = document.getElementById('loginAdmin');
     const conteudoAdmin = document.getElementById('conteudoAdmin');
     const btnLogin = document.getElementById('btnLoginAdmin');
@@ -28,22 +28,39 @@ document.addEventListener('DOMContentLoaded', () => {
     const senhaInput = document.getElementById('senhaAdmin');
     const erroLogin = document.getElementById('erroLogin');
 
+    // O painel administrativo exige nova autenticação sempre que a página
+    // admin.html é aberta. Assim, uma sessão guardada no navegador não
+    // permite entrar automaticamente no painel.
+    try {
+        await signOut(auth);
+    } catch (e) {
+        console.warn('[ADMIN] Não foi possível limpar a sessão anterior:', e);
+    }
+
+    loginDiv.style.display = 'block';
+    conteudoAdmin.style.display = 'none';
+
     btnLogin.addEventListener('click', async () => {
+        erroLogin.style.display = 'none';
+        btnLogin.disabled = true;
+        btnLogin.textContent = '⏳ A entrar...';
         try {
-            const credencial = await signInWithEmailAndPassword(auth, emailInput.value.trim(), senhaInput.value);
+            const email = emailInput.value.trim();
+            const senha = senhaInput.value;
+            if (!email || !senha) throw new Error('Informe o email e a senha.');
+            const credencial = await signInWithEmailAndPassword(auth, email, senha);
             await abrirComoAdmin(credencial.user, loginDiv, conteudoAdmin, erroLogin);
         } catch (error) {
             erroLogin.style.display = 'block';
             erroLogin.textContent = error.message || 'Credenciais inválidas';
+        } finally {
+            btnLogin.disabled = false;
+            btnLogin.textContent = 'Entrar';
         }
     });
 
     senhaInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') btnLogin.click();
-    });
-
-    onAuthStateChanged(auth, (user) => {
-        if (user) abrirComoAdmin(user, loginDiv, conteudoAdmin, erroLogin).catch(() => {});
     });
 });
 
@@ -151,7 +168,7 @@ function iniciarAdmin() {
         imagens.value = imagensAtuais.join(', ');
         atualizarPreview(imagens.value);
         btnUploadImg.disabled = false;
-        btnUploadImg.textContent = '⬆ Enviar para Firebase Storage';
+        btnUploadImg.textContent = '⬆ Enviar para Supabase Storage';
         uploadProgress.textContent = `✅ ${sucesso} imagens adicionadas!`;
 
         if (erros.length > 0) {
@@ -168,7 +185,7 @@ function iniciarAdmin() {
             produtos = snapshot.docs.map(snapshotDoc => ({ ...snapshotDoc.data(), _firestoreId: snapshotDoc.id }));
             renderizarLista();
         } catch (e) {
-            console.error('Erro ao carregar produtos:', e);
+            console.error('Erro ao carregar produtos do Supabase:', e);
             produtos = [];
             renderizarLista();
         }

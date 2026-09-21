@@ -60,8 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     carregarLojasPublicas().then((produtos) => renderizarLojas(document.getElementById('lojasPublicasGrid'), produtos, 8));
     if (carregando) carregando.style.display = 'none';
 
-    // Quando existe cache, carregarCatalogo já atualiza o Firebase em segundo plano.
-    atualizarCatalogoDoFirebase();
+    // Quando existe cache, carregarCatalogo já atualiza o Supabase em segundo plano.
+    atualizarCatalogoDoSupabase();
 
     // Chamar recomendações após o catálogo estar pronto
     initRecomendacoes();
@@ -194,12 +194,12 @@ async function renderizarDestaquesVora() {
     grid.appendChild(fragment);
 }
 
-async function atualizarCatalogoDoFirebase() {
+async function atualizarCatalogoDoSupabase() {
     try {
         catalogo = await carregarCatalogo();
         renderizarTudo();
     } catch (e) {
-        console.warn('Erro ao atualizar do Firebase:', e);
+        console.warn('Erro ao atualizar do Supabase:', e);
     }
 }
 

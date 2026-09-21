@@ -3,7 +3,7 @@
 // As credenciais e chamadas ao provedor devem ficar no servidor.
 // Este módulo é apenas uma interface segura para Cloud Functions.
 import { functions } from './config.js';
-import { httpsCallable } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-functions.js';
+import { httpsCallable } from './supabase-compat.js';
 
 export async function gerarReferenciaMulticaixa(valor, referencia, descricao) {
     if (!Number.isFinite(Number(valor)) || Number(valor) <= 0) {

@@ -34,7 +34,7 @@
       <div class="loja-estatisticas"><div class="loja-estatistica"><strong id="totalProdutos">0</strong><span>Produtos</span></div><div class="loja-estatistica"><strong id="totalDestaques">0</strong><span>Destaques</span></div><div class="loja-estatistica"><strong id="totalVendas">1,2k</strong><span>Vendas</span></div></div>
     </div>
   </section>
-  <div id="demoNote" class="loja-demo-note" style="display:none"><strong>🧪 Modo demonstração:</strong> esta loja é apenas um exemplo visual. Nenhum vendedor real foi criado e nada é gravado no Firebase.</div>
+  <div id="demoNote" class="loja-demo-note" style="display:none"><strong>🧪 Modo demonstração:</strong> esta loja é apenas um exemplo visual. Nenhum vendedor real foi criado e nada é gravado no Supabase.</div>
   <div class="loja-promo-strip"><span>🔥 Oferta especial da loja</span><strong>Envio rápido + produtos selecionados</strong><a href="#produtosSecao">Ver produtos →</a></div>
   <nav class="loja-navegacao" aria-label="Navegação da loja"><a class="ativo" href="#produtosSecao">Produtos</a><a href="#sobreLoja">Sobre a loja</a><a href="#avaliacoesLoja">Avaliações</a><a href="vendedor.html">Abrir a minha loja</a></nav>
   <section class="loja-painel" id="produtosSecao">
@@ -52,7 +52,7 @@
 </main>
 <script type="module">
 import { db } from './js/config.js';
-import { collection, getDocs, query, where } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { collection, getDocs, query, where } from './js/supabase-compat.js';
 import { criarCardProduto } from './js/catalogo.js';
 const params=new URLSearchParams(location.search), id=params.get('id'), demo=params.get('demo')==='1';
 const $=x=>document.getElementById(x);

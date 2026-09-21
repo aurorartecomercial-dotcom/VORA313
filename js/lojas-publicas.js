@@ -1,5 +1,5 @@
 import { db } from './config.js';
-import { collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { collection, getDocs } from './supabase-compat.js';
 import { urlSegura, IMAGEM_FALLBACK, escapeHTML } from './utils.js';
 
 function destaqueAtivo(produto) {

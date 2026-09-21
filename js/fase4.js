@@ -2,7 +2,7 @@
 // FASE 4 - ESCALA INTERNACIONAL (PAGAMENTOS, LOGÍSTICA, EMAIL, BACKUP)
 // ============================================================
 import { db, CONFIG } from './config.js';
-import { collection, getDocs, doc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { collection, getDocs, doc, updateDoc } from './supabase-compat.js';
 import { mostrarToast } from './utils.js';
 
 // --- 1. PAGAMENTO COM CARTÃO ---
@@ -36,7 +36,7 @@ export function calcularPesoTotal(itens) {
 // --- 3. EMAIL (EmailJS) ---
 export async function enviarEmailConfirmacao(dados) {
     try {
-        // Simulação (implementar com EmailJS ou Firebase Functions)
+        // Simulação (implementar com EmailJS ou Edge Function)
         console.log('📧 Email enviado para:', dados.email, '| Pedido:', dados.codigo);
         return true;
     } catch (e) {

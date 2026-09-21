@@ -28,7 +28,7 @@ const urlsToCache = [
     '/js/chatbot.js',
     '/js/perfil.js',
     '/js/fase3.js', // ✅ Adicionado para a Fase 3
-    '/firebase-messaging-sw.js'
+
 ];
 
 self.addEventListener('install', event => {
