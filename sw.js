@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vora313-cache-v40-1-hotfix';
+const CACHE_NAME = 'vora313-cache-v41-admin-login';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html',
   './style.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
@@ -12,6 +12,15 @@ self.addEventListener('activate', event => event.waitUntil(caches.keys().then(ke
 self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET' || !event.request.url.startsWith(self.location.origin)) return;
   const req = event.request;
+  const path = new URL(req.url).pathname.toLowerCase();
+  // Admin/login must never be served from an old HTML cache.
+  if (path.endsWith('/admin.html') || path.endsWith('/js/admin.js')) {
+    event.respondWith(fetch(req, { cache: 'no-store' }).then(res => {
+      if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then(c=>c.put(req, copy)); }
+      return res;
+    }).catch(() => caches.match(req)));
+    return;
+  }
   if (req.destination === 'script' || req.destination === 'style') {
     event.respondWith(fetch(req).then(res => { const copy=res.clone(); caches.open(CACHE_NAME).then(c=>c.put(req,copy)); return res; }).catch(()=>caches.match(req)));
     return;
