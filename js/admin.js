@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const novaSenha = document.getElementById('novaSenhaAdmin');
     const confirmarSenha = document.getElementById('confirmarSenhaAdmin');
 
-    const modoRecuperacao = /(?:^|[&#])type=recovery(?:&|#|$)/.test(location.hash);
+    const modoRecuperacao = /(?:^|[&#])type=recovery(?:&|#|$)/.test(location.hash) || /(?:^|[?&#])type=recovery(?:&|#|$)/.test(location.href);
 
     // Compatibilidade: evita que uma versão antiga do admin.html interrompa o login.
     if (!loginDiv || !conteudoAdmin || !btnLogin || !emailInput || !senhaInput || !erroLogin) {
@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     btnLogin.addEventListener('click', async () => {
         erroLogin.style.display = 'none';
+        erroLogin.style.color = '#ff5555';
         btnLogin.disabled = true;
         btnLogin.textContent = '⏳ A entrar...';
         try {
@@ -89,7 +90,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const credencial = await signInWithEmailAndPassword(auth, email, senha);
             await abrirComoAdmin(credencial.user, loginDiv, conteudoAdmin, erroLogin);
         } catch (error) {
+            console.error('[ADMIN] Falha no login:', error);
             erroLogin.style.display = 'block';
+            erroLogin.style.color = '#ff5555';
             erroLogin.textContent = error.message || 'Credenciais inválidas';
         } finally {
             btnLogin.disabled = false;
