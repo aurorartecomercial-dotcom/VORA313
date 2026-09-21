@@ -69,7 +69,20 @@
             <input type="password" id="senhaAdmin" placeholder="Digite a senha" />
             
             <button id="btnLoginAdmin" class="btn-admin" style="width:100%; margin-top:10px;">Entrar</button>
+            <button id="btnRecuperarSenhaAdmin" type="button" class="btn-admin" style="width:100%; margin-top:8px; background:#333; color:#fff;">Esqueci a palavra-passe</button>
             <p id="erroLogin" style="color:#ff5555; display:none;">Credenciais inválidas.</p>
+        </div>
+
+        <div id="recuperacaoAdmin" style="display:none; max-width:400px; margin:40px auto; padding:24px; border-radius:16px;">
+            <h2>🔑 Nova palavra-passe</h2>
+            <p id="mensagemRecuperacaoAdmin" style="color:#bbb;">Defina uma nova palavra-passe para o acesso administrativo.</p>
+            <label for="novaSenhaAdmin">Nova palavra-passe:</label>
+            <input type="password" id="novaSenhaAdmin" minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required />
+            <label for="confirmarSenhaAdmin" style="margin-top:10px;">Confirmar palavra-passe:</label>
+            <input type="password" id="confirmarSenhaAdmin" minlength="6" autocomplete="new-password" placeholder="Repita a palavra-passe" required />
+            <button id="btnSalvarNovaSenhaAdmin" type="button" class="btn-admin" style="width:100%; margin-top:10px;">Guardar nova palavra-passe</button>
+            <button id="btnVoltarLoginAdmin" type="button" class="btn-admin" style="width:100%; margin-top:8px; background:#333; color:#fff;">Voltar ao login</button>
+            <p id="erroRecuperacaoAdmin" style="color:#ff5555; display:none;"></p>
         </div>
 
         <div id="conteudoAdmin" style="display:none;">

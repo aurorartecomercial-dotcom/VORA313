@@ -183,10 +183,19 @@ export async function getIdTokenResult(user, _forceRefresh = false) {
   return { claims: { admin: data?.role === 'admin' && data?.ativo !== false, seller: seller?.status === 'aprovado' && seller?.ativo !== false } };
 }
 
-export async function sendPasswordResetEmail(_auth, email) {
-  const redirectTo = `${location.origin}/perfil.html`;
+export async function sendPasswordResetEmail(_auth, email, redirectTo = `${location.origin}/perfil.html`) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
   if (error) throw normalizeAuthError(error);
+}
+
+export async function updatePassword(_auth, password) {
+  if (!password || String(password).length < 6) {
+    throw new Error('A palavra-passe deve ter pelo menos 6 caracteres.');
+  }
+  const { data, error } = await supabase.auth.updateUser({ password: String(password) });
+  if (error) throw normalizeAuthError(error);
+  auth.currentUser = data.user || auth.currentUser;
+  return { user: auth.currentUser };
 }
 
 export function ref(_storage, path) { return { path: String(path) }; }

@@ -1,6 +1,6 @@
 import { auth, db, storage } from './config.js';
 import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from './supabase-compat.js';
-import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
+import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword } from './supabase-compat.js';
 import { getDownloadURL, ref, uploadBytes } from './supabase-compat.js';
 import { escapeHTML, extrairValorNumerico, mostrarToast, IMAGEM_FALLBACK, urlSegura } from './utils.js';
 
@@ -27,18 +27,50 @@ document.addEventListener('DOMContentLoaded', async () => {
     const emailInput = document.getElementById('emailAdmin');
     const senhaInput = document.getElementById('senhaAdmin');
     const erroLogin = document.getElementById('erroLogin');
+    const btnRecuperar = document.getElementById('btnRecuperarSenhaAdmin');
+    const recuperacaoDiv = document.getElementById('recuperacaoAdmin');
+    const mensagemRecuperacao = document.getElementById('mensagemRecuperacaoAdmin');
+    const erroRecuperacao = document.getElementById('erroRecuperacaoAdmin');
+    const btnSalvarNovaSenha = document.getElementById('btnSalvarNovaSenhaAdmin');
+    const btnVoltarLogin = document.getElementById('btnVoltarLoginAdmin');
+    const novaSenha = document.getElementById('novaSenhaAdmin');
+    const confirmarSenha = document.getElementById('confirmarSenhaAdmin');
 
-    // O painel administrativo exige nova autenticação sempre que a página
-    // admin.html é aberta. Assim, uma sessão guardada no navegador não
-    // permite entrar automaticamente no painel.
-    try {
-        await signOut(auth);
-    } catch (e) {
-        console.warn('[ADMIN] Não foi possível limpar a sessão anterior:', e);
+    const modoRecuperacao = /(?:^|[&#])type=recovery(?:&|#|$)/.test(location.hash);
+
+    function mostrarLogin() {
+        loginDiv.style.display = 'block';
+        recuperacaoDiv.style.display = 'none';
+        conteudoAdmin.style.display = 'none';
+        if (erroLogin) erroLogin.style.display = 'none';
     }
 
-    loginDiv.style.display = 'block';
-    conteudoAdmin.style.display = 'none';
+    function mostrarRecuperacao() {
+        loginDiv.style.display = 'none';
+        conteudoAdmin.style.display = 'none';
+        recuperacaoDiv.style.display = 'block';
+        if (erroRecuperacao) erroRecuperacao.style.display = 'none';
+    }
+
+    if (modoRecuperacao) {
+        // Não fazer signOut aqui: o link de recuperação entrega uma sessão
+        // temporária ao navegador para permitir a troca da palavra-passe.
+        mostrarRecuperacao();
+        const verificarSessao = () => {
+            if (!auth.currentUser) {
+                mensagemRecuperacao.textContent = 'O link de recuperação expirou ou não é válido. Solicite um novo email de recuperação.';
+            } else {
+                mensagemRecuperacao.textContent = 'Defina uma nova palavra-passe para o acesso administrativo.';
+            }
+        };
+        onAuthStateChanged(auth, verificarSessao);
+    } else {
+        // O Admin exige autenticação explícita sempre que a página é aberta.
+        try { await signOut(auth); } catch (e) {
+            console.warn('[ADMIN] Não foi possível limpar a sessão anterior:', e);
+        }
+        mostrarLogin();
+    }
 
     btnLogin.addEventListener('click', async () => {
         erroLogin.style.display = 'none';
@@ -61,6 +93,66 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     senhaInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') btnLogin.click();
+    });
+
+    btnRecuperar?.addEventListener('click', async () => {
+        const email = emailInput.value.trim();
+        if (!email) {
+            erroLogin.style.display = 'block';
+            erroLogin.textContent = 'Digite o email do administrador primeiro.';
+            return;
+        }
+        btnRecuperar.disabled = true;
+        try {
+            const redirectTo = `${location.origin}${location.pathname}`;
+            await sendPasswordResetEmail(auth, email, redirectTo);
+            erroLogin.style.display = 'block';
+            erroLogin.style.color = '#79d279';
+            erroLogin.textContent = 'Enviámos um link para redefinir a palavra-passe. Verifique o email.';
+        } catch (error) {
+            erroLogin.style.display = 'block';
+            erroLogin.style.color = '#ff5555';
+            erroLogin.textContent = error.message || 'Não foi possível enviar o email de recuperação.';
+        } finally {
+            btnRecuperar.disabled = false;
+        }
+    });
+
+    btnSalvarNovaSenha?.addEventListener('click', async () => {
+        erroRecuperacao.style.display = 'none';
+        const nova = novaSenha.value;
+        const confirmacao = confirmarSenha.value;
+        if (nova.length < 6) {
+            erroRecuperacao.textContent = 'A palavra-passe deve ter pelo menos 6 caracteres.';
+            erroRecuperacao.style.display = 'block';
+            return;
+        }
+        if (nova !== confirmacao) {
+            erroRecuperacao.textContent = 'As palavras-passe não coincidem.';
+            erroRecuperacao.style.display = 'block';
+            return;
+        }
+        btnSalvarNovaSenha.disabled = true;
+        try {
+            await updatePassword(auth, nova);
+            await signOut(auth);
+            location.hash = '';
+            mostrarLogin();
+            erroLogin.style.color = '#79d279';
+            erroLogin.textContent = 'Palavra-passe alterada. Entre novamente com a nova palavra-passe.';
+            erroLogin.style.display = 'block';
+        } catch (error) {
+            erroRecuperacao.textContent = error.message || 'Não foi possível alterar a palavra-passe.';
+            erroRecuperacao.style.display = 'block';
+        } finally {
+            btnSalvarNovaSenha.disabled = false;
+        }
+    });
+
+    btnVoltarLogin?.addEventListener('click', async () => {
+        try { await signOut(auth); } catch (_) {}
+        location.hash = '';
+        mostrarLogin();
     });
 });
 
