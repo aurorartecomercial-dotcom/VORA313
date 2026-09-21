@@ -38,17 +38,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const modoRecuperacao = /(?:^|[&#])type=recovery(?:&|#|$)/.test(location.hash);
 
+    // Compatibilidade: evita que uma versão antiga do admin.html interrompa o login.
+    if (!loginDiv || !conteudoAdmin || !btnLogin || !emailInput || !senhaInput || !erroLogin) {
+        console.error('[ADMIN] Estrutura de login incompleta. Atualize admin.html e admin.js para a mesma versão.');
+        return;
+    }
+
     function mostrarLogin() {
-        loginDiv.style.display = 'block';
-        recuperacaoDiv.style.display = 'none';
-        conteudoAdmin.style.display = 'none';
+        if (loginDiv) loginDiv.style.display = 'block';
+        if (recuperacaoDiv) recuperacaoDiv.style.display = 'none';
+        if (conteudoAdmin) conteudoAdmin.style.display = 'none';
         if (erroLogin) erroLogin.style.display = 'none';
     }
 
     function mostrarRecuperacao() {
-        loginDiv.style.display = 'none';
-        conteudoAdmin.style.display = 'none';
-        recuperacaoDiv.style.display = 'block';
+        if (loginDiv) loginDiv.style.display = 'none';
+        if (conteudoAdmin) conteudoAdmin.style.display = 'none';
+        if (recuperacaoDiv) recuperacaoDiv.style.display = 'block';
         if (erroRecuperacao) erroRecuperacao.style.display = 'none';
     }
 
