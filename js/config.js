@@ -15,8 +15,16 @@ export const db = { __supabase: supabase };
 export const storage = { __supabase: supabase, bucket: SUPABASE_CONFIG.storageBucket || 'vora-public' };
 export const functions = { __supabase: supabase, name: SUPABASE_CONFIG.functionsName || 'api' };
 
+function compatUser(user) {
+  if (user && user.id && !user.uid) {
+    try { Object.defineProperty(user, 'uid', { value: user.id, enumerable: false, configurable: true }); }
+    catch (_) { try { user.uid = user.id; } catch (_) {} }
+  }
+  return user;
+}
+
 export const CONFIG = {
-  CACHE_KEY: 'vora313_catalogo_cache_v2',
+  CACHE_KEY: 'vora313_catalogo_cache_v3',
   CACHE_TTL: 30 * 60 * 1000,
   NUMERO_WHATSAPP: '244933677628',
   MARCA: 'VORA 313',
@@ -25,13 +33,13 @@ export const CONFIG = {
 };
 
 supabase.auth.getSession().then(({ data }) => {
-  auth.currentUser = data.session?.user || null;
+  auth.currentUser = compatUser(data.session?.user || null);
   auth._ready = true;
   for (const fn of auth._listeners) fn(auth.currentUser);
 }).catch((e) => console.error('[VORA 313] Falha ao recuperar sessão:', e));
 
 supabase.auth.onAuthStateChange((_event, session) => {
-  auth.currentUser = session?.user || null;
+  auth.currentUser = compatUser(session?.user || null);
   auth._ready = true;
   for (const fn of auth._listeners) fn(auth.currentUser);
 });

@@ -5,7 +5,8 @@
 - Authentication → Email/Password ativo.
 - Se o checkout continuar a permitir sessão anónima, ative Anonymous Sign-ins.
 - Execute `supabase/migrations/003_firebase_uid_bridge.sql`, `004_migration_support.sql` e `005_supabase_frontend_support.sql` depois das migrations 001 e 002 já aplicadas.
-- Publique `supabase/functions/api`.
+- Execute a migration `008_vora313_schema_repair.sql` depois das migrations anteriores.
+- Publique `supabase/functions/api` usando `supabase functions deploy api`.
 
 ## 2. Frontend
 

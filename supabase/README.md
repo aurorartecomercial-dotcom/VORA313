@@ -11,6 +11,9 @@ Ordem completa:
 3. `003_firebase_uid_bridge.sql` — ponte temporária para dados históricos
 4. `004_migration_support.sql` — apoio à importação histórica
 5. `005_supabase_frontend_support.sql` — suporte do frontend e Storage
+6. `006_produtos_admin_fields.sql` — campos adicionais do painel admin
+7. `007_security_hardening.sql` — proteção de campos sensíveis
+8. `008_vora313_schema_repair.sql` — correção idempotente do schema + reload PostgREST
 
 Como 001 e 002 já foram executadas no projeto atual, a próxima execução deve começar em 003.
 

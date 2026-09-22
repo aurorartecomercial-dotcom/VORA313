@@ -213,11 +213,23 @@ export function httpsCallable(_functions, name) {
   return async (data = {}) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    if (!token) {
+      const e = new Error('É necessário iniciar sessão antes de executar esta operação.');
+      e.code = 'unauthenticated';
+      throw e;
+    }
+    const headers = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
     const { data: result, error } = await supabase.functions.invoke(functions.name || 'api', { body: { name, data }, headers });
-    if (error) throw new Error(error.message || `Falha ao executar ${name}`);
-    if (result?.error) { const e = new Error(result.error.message || 'Operação recusada.'); e.code = result.error.code; throw e; }
+    if (result?.error) {
+      const e = new Error(result.error.message || 'Operação recusada.');
+      e.code = result.error.code || 'function_error';
+      throw e;
+    }
+    if (error) {
+      const e = new Error(error.message || `Falha ao executar ${name}`);
+      e.code = error.code || 'function_error';
+      throw e;
+    }
     return { data: result?.data ?? result };
   };
 }

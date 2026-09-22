@@ -20,8 +20,7 @@ let dataFiltro = '';
 
 window.addEventListener('vora313:catalogo-atualizado', () => {
     catalogo = [];
-    // Reaproveita o catálogo já atualizado pelo módulo e redesenha a página.
-    carregarCatalogo().then((dados) => {
+    carregarCatalogo({ force: true }).then((dados) => {
         catalogo = dados;
         renderizarTudo();
     }).catch(() => {});

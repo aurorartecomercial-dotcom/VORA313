@@ -14,7 +14,7 @@ export function agruparLojas(produtos) {
   const mapa = new Map();
   for (const produto of produtos || []) {
     const id = produto?.vendedorId;
-    if (!id || produto?.ativo === false || produto?.vendedorAtivo === false) continue;
+    if (!id || produto?.ativo === false || produto?.vendedorAtivo === false || (produto?.statusAprovacao && produto.statusAprovacao !== 'aprovado')) continue;
     const nome = String(produto.vendedorNome || 'Loja VORA 313').trim();
     if (!mapa.has(id)) mapa.set(id, { id: String(id), nome, produtos: [], destaque: false });
     const loja = mapa.get(id);
@@ -63,7 +63,7 @@ export async function carregarLojasPublicas() {
   try {
     const snapshot = await getDocs(collection(db, 'produtos'));
     return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }))
-      .filter(p => p?.ativo !== false && p?.vendedorAtivo !== false && p?.vendedorId);
+      .filter(p => p?.ativo !== false && p?.vendedorAtivo !== false && (!p?.statusAprovacao || p.statusAprovacao === 'aprovado') && p?.vendedorId);
   } catch (error) {
     console.warn('Não foi possível carregar lojas públicas:', error);
     return [];

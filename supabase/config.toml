@@ -1,0 +1,4 @@
+# VORA 313 — configuração das Edge Functions
+# A função valida o utilizador dentro do handler e usa service-role apenas no backend.
+[functions.api]
+verify_jwt = true

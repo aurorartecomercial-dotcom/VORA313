@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     try {
         const cache = JSON.parse(localStorage.getItem('vora313_catalogo_cache') || 'null');
-        if (Array.isArray(cache?.data) && cache.data.length) catalogoAtual = cache.data;
+        if (Array.isArray(cache?.data) && cache.data.length) catalogoAtual = cache.data.filter(p => p?.ativo !== false && p?.vendedorAtivo !== false && (!p?.statusAprovacao || p.statusAprovacao === 'aprovado'));
     } catch (_) {}
 
     if (!catalogoAtual.length) catalogoAtual = await carregarCatalogo();
@@ -237,8 +237,8 @@ function renderizarRecomendacoes(prod) {
     if (!container || !catalogoAtual.length) return;
 
     const categoria = normalizar(prod.categoria);
-    const relacionados = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && String(p.id) !== String(prod.id) && normalizar(p.categoria) === categoria);
-    const outros = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && String(p.id) !== String(prod.id) && normalizar(p.categoria) !== categoria);
+    const relacionados = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && (!p.statusAprovacao || p.statusAprovacao === 'aprovado') && String(p.id) !== String(prod.id) && normalizar(p.categoria) === categoria);
+    const outros = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && (!p.statusAprovacao || p.statusAprovacao === 'aprovado') && String(p.id) !== String(prod.id) && normalizar(p.categoria) !== categoria);
     const usados = new Set();
     const combinar = (lista, limite) => lista.filter(p => !usados.has(String(p.id))).slice(0, limite).map(p => { usados.add(String(p.id)); return p; });
 
