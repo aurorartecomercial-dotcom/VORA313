@@ -86,6 +86,7 @@
                 <button class="aba-btn" data-aba="produtos">🛍️ Produtos</button>
                 <button class="aba-btn" data-aba="contabilidade">💼 Contabilidade</button>
                 <button class="aba-btn" data-aba="pedidos">📦 Pedidos</button>
+                <button class="aba-btn" data-aba="vendedores">🏪 Vendedores</button>
             </div>
 
             <!-- DASHBOARD -->
@@ -332,6 +333,35 @@
                     <table id="tabelaProdutos" style="width:100%; border-collapse:collapse; font-size:13px;">
                         <thead><tr style="background:var(--cor-esmeralda); color:#FFF;"><th>ID</th><th>Produto</th><th>Qtd</th><th>Receita</th><th>Custo</th><th>Lucro</th><th>Margem %</th><th>Estoque</th></tr></thead>
                         <tbody id="corpoTabelaProdutos"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- VENDEDORES -->
+            <div id="aba-vendedores" class="aba-conteudo">
+                <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px;">
+                    <div><h2 style="color:var(--cor-esmeralda);margin:0;">🏪 Gestão de Vendedores</h2><p style="margin:6px 0 0;color:#667085;">Acompanhe vendedores, faturamento e aprovações.</p></div>
+                    <button id="btnAtualizarVendedores" class="btn-admin">🔄 Atualizar</button>
+                </div>
+                <div id="msgVendedoresAdmin" style="display:none;margin-bottom:15px;padding:12px;border-radius:10px;"></div>
+                <div class="kpi-contabil" style="margin-bottom:20px;">
+                    <div class="card-kpi"><p>👥 Total de vendedores</p><h3 id="admTotalVendedores">0</h3></div>
+                    <div class="card-kpi verde"><p>✅ Aprovados</p><h3 id="admVendedoresAprovados">0</h3></div>
+                    <div class="card-kpi"><p>⏳ Pendentes</p><h3 id="admVendedoresPendentes">0</h3></div>
+                    <div class="card-kpi"><p>💰 Faturamento dos vendedores</p><h3 id="admFaturamentoVendedores">0 Kz</h3></div>
+                </div>
+                <div class="tabela-scroll" style="margin-bottom:28px;">
+                    <h3 style="color:var(--cor-esmeralda);">👥 Vendedores e faturamento</h3>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead><tr style="background:var(--cor-esmeralda);color:#fff;"><th>Vendedor</th><th>Loja</th><th>Estado</th><th>Plano</th><th>Produtos</th><th>Pedidos</th><th>Faturamento</th><th>Ação</th></tr></thead>
+                        <tbody id="corpoTabelaVendedoresAdmin"></tbody>
+                    </table>
+                </div>
+                <div class="tabela-scroll">
+                    <h3 style="color:var(--cor-esmeralda);">🛍️ Aprovação de produtos de vendedores</h3>
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;">
+                        <thead><tr style="background:var(--cor-esmeralda);color:#fff;"><th>Produto</th><th>Vendedor</th><th>Preço</th><th>Estoque</th><th>Estado</th><th>Ação</th></tr></thead>
+                        <tbody id="corpoTabelaProdutosVendedores"></tbody>
                     </table>
                 </div>
             </div>

@@ -13,21 +13,9 @@ function render(){const nome=vend.nomeLoja||vend.nome||'Minha loja';const u=auth
 async function carregarProdutos(){const s=await getDocs(query(collection(db,'produtos'),where('vendedorId','==',auth.currentUser.id)));produtos=s.docs.map(x=>({id:x.id,...x.data()}));$('vendProdutosCount').textContent=produtos.length;$('vendProdutos').innerHTML=produtos.length?produtos.map(p=>`<div class="vend-item"><div><strong>${escapeHTML(p.nome)}</strong><small>${escapeHTML(p.categoria||'')} · ${money(extrairValorNumerico(p.preco))} · estoque ${p.estoque||0}</small><span>${p.statusAprovacao==='aprovado'&&p.ativo===true?'🟢 Publicado':'🟡 '+escapeHTML(p.statusAprovacao||'aguardando_aprovacao')}</span></div><div><button data-edit="${escapeHTML(p.id)}">✏️ Editar</button> ${p.statusAprovacao==='aprovado'&&p.ativo===true?`<button data-dest="${escapeHTML(p.id)}">⭐ Destacar</button>`:''}</div></div>`).join(''):'<div class="vend-item">Nenhum produto.</div>';}
 async function carregarPedidos(){const box=$('vendPedidos');try{const s=await getDocs(query(collection(db,'vendasVendedor'),where('uidVendedor','==',auth.currentUser.id),limit(50)));box.innerHTML=s.empty?'<div class="vend-item">Nenhum pedido.</div>':s.docs.map(x=>{const p=x.data();return `<div class="vend-item"><div><strong>${escapeHTML(p.codigoRastreio||x.id)}</strong><small>${escapeHTML(p.produtosResumo||'')}</small></div><b>${money(p.valorVendedor)}</b></div>`}).join('')}catch(e){box.textContent='Não foi possível carregar pedidos.';}}
 async function carregarDestaques(){const box=$('vendDestaques');try{const s=await getDocs(query(collection(db,'destaquesSolicitados'),where('uidVendedor','==',auth.currentUser.id),limit(30)));box.innerHTML=s.empty?'<div class="vend-item">Nenhuma solicitação.</div>':s.docs.map(x=>{const d=x.data();return `<div class="vend-item"><div><strong>${escapeHTML(d.nomeProduto||d.produtoId)}</strong><small>${d.dias} dias · ${money(d.valor)}</small></div><span>${escapeHTML(d.status||'pendente')}</span></div>`}).join('')}catch(e){box.textContent='Nenhuma solicitação.';}}
-function normalizarEmailVendedor(value){
-  return String(value || '').trim().toLowerCase();
-}
-
-function validarEmailVendedor(value){
-  const email=normalizarEmailVendedor(value);
-  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email);
-}
-
 async function cadastro(e){
   e.preventDefault();
   const d=Object.fromEntries(new FormData(e.currentTarget));
-  d.email=normalizarEmailVendedor(d.email);
-  if(!validarEmailVendedor(d.email)) return msg('Digite um endereço de e-mail válido, por exemplo: nome@gmail.com.',false);
-  if(String(d.senha||'').length<6) return msg('A palavra-passe deve ter pelo menos 6 caracteres.',false);
   try{
     let u=auth.currentUser;
     if(!u){

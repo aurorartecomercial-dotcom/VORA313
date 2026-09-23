@@ -13,6 +13,9 @@ if (!document.getElementById('loginVendas') || !document.getElementById('conteud
 let todasVendas = [];
 let catalogo = [];
 let graficos = {};
+let vendedoresAdmin = [];
+let vendasVendedorAdmin = [];
+let produtosVendedorAdmin = [];
 
 function chartDisponivel() {
     return typeof Chart !== 'undefined';
@@ -80,6 +83,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     configurarExportacoes();
+
+    document.getElementById('btnAtualizarVendedores')?.addEventListener('click', () => carregarPainelVendedoresAdmin(true));
+    document.addEventListener('click', async (event) => {
+        const btn = event.target.closest('[data-admin-vendedor-action]');
+        if (btn) {
+            await acaoVendedorAdmin(btn.dataset.id, btn.dataset.adminVendedorAction);
+            return;
+        }
+        const prodBtn = event.target.closest('[data-admin-produto-action]');
+        if (prodBtn) await acaoProdutoVendedorAdmin(prodBtn.dataset.id, prodBtn.dataset.adminProdutoAction);
+    });
 
     // ✅ Fase 4: Botão de backup
     const btnBackup = document.getElementById('btnBackupCompleto');
@@ -178,6 +192,7 @@ function trocarAba(abaId) {
         case 'semanal': renderizarSemanal(); break;
         case 'mensal': renderizarMensal(); break;
         case 'anual': renderizarAnual(); break;
+        case 'vendedores': await carregarPainelVendedoresAdmin(); break;
         case 'produtos': renderizarProdutos(); break;
         case 'contabilidade': renderizarContabilidade(); break;
         case 'pedidos': renderizarPedidos(); break;
@@ -1394,3 +1409,116 @@ ${venda.frete ? `<p><strong>Frete (${venda.bairro}):</strong> ${venda.frete.toFi
         win.document.close();
     } catch(e) { alert('Erro: ' + e.message); }
 };
+
+
+function moedaAdmin(v) {
+    return Number(v || 0).toLocaleString('pt-AO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' Kz';
+}
+
+function statusLabelVendedor(status) {
+    const map = { aprovado: '✅ Aprovado', pendente: '⏳ Pendente', recusado: '❌ Recusado', suspenso: '⏸️ Suspenso' };
+    return map[status] || status || '—';
+}
+
+function statusLabelProduto(status) {
+    const map = { aprovado: '✅ Aprovado', aguardando_aprovacao: '⏳ Aguardando', recusado: '❌ Recusado' };
+    return map[status] || status || '—';
+}
+
+async function carregarPainelVendedoresAdmin() {
+    const tbodyV = document.getElementById('corpoTabelaVendedoresAdmin');
+    const tbodyP = document.getElementById('corpoTabelaProdutosVendedores');
+    const msg = document.getElementById('msgVendedoresAdmin');
+    try {
+        if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
+        const [vs, ps, vvs] = await Promise.all([
+            getDocs(collection(db, 'vendedores')),
+            getDocs(collection(db, 'produtos')),
+            getDocs(collection(db, 'vendas_vendedor'))
+        ]);
+        vendedoresAdmin = vs.docs.map(d => ({ id: d.id, ...d.data() }));
+        produtosVendedorAdmin = ps.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.vendedorId || p.vendedor_id);
+        vendasVendedorAdmin = vvs.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderizarPainelVendedoresAdmin();
+    } catch (e) {
+        console.error('Erro ao carregar painel de vendedores:', e);
+        if (msg) {
+            msg.style.display = 'block';
+            msg.style.background = '#fff3cd';
+            msg.style.color = '#856404';
+            msg.textContent = 'Não foi possível carregar vendedores/produtos: ' + (e.message || e);
+        }
+        if (tbodyV) tbodyV.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;">Sem dados. Verifique as políticas RLS do Supabase.</td></tr>';
+        if (tbodyP) tbodyP.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;">Sem produtos de vendedores.</td></tr>';
+    }
+}
+
+function renderizarPainelVendedoresAdmin() {
+    const tbodyV = document.getElementById('corpoTabelaVendedoresAdmin');
+    const tbodyP = document.getElementById('corpoTabelaProdutosVendedores');
+    const faturamentoTotal = vendasVendedorAdmin.reduce((sum, v) => sum + Number(v.valorVenda ?? v.valorVendedor ?? v.valor_venda ?? v.valor_vendedor ?? 0), 0);
+    setText('admTotalVendedores', vendedoresAdmin.length);
+    setText('admVendedoresAprovados', vendedoresAdmin.filter(v => v.status === 'aprovado' && v.ativo !== false).length);
+    setText('admVendedoresPendentes', vendedoresAdmin.filter(v => v.status === 'pendente').length);
+    setText('admFaturamentoVendedores', moedaAdmin(faturamentoTotal));
+
+    const stats = {};
+    vendasVendedorAdmin.forEach(v => {
+        const id = v.uidVendedor || v.uid_vendedor || v.vendedorId || v.vendedor_id;
+        if (!id) return;
+        if (!stats[id]) stats[id] = { pedidos: 0, faturamento: 0 };
+        stats[id].pedidos++;
+        stats[id].faturamento += Number(v.valorVenda ?? v.valorVendedor ?? v.valor_venda ?? v.valor_vendedor ?? 0);
+    });
+    const produtoCount = {};
+    produtosVendedorAdmin.forEach(p => {
+        const id = p.vendedorId || p.vendedor_id;
+        if (id) produtoCount[id] = (produtoCount[id] || 0) + 1;
+    });
+
+    if (tbodyV) tbodyV.innerHTML = vendedoresAdmin.length ? vendedoresAdmin.map(v => {
+        const st = stats[v.id] || { pedidos: 0, faturamento: 0 };
+        const ativo = v.ativo !== false;
+        let action = '';
+        if (v.status === 'pendente') action = `<button class="btn-admin" data-admin-vendedor-action="aprovar" data-id="${escapeHTML(v.id)}">✅ Aprovar</button> <button class="btn-admin" style="background:#b42318" data-admin-vendedor-action="recusar" data-id="${escapeHTML(v.id)}">❌ Recusar</button>`;
+        else if (v.status === 'aprovado' && ativo) action = `<button class="btn-admin" style="background:#b42318" data-admin-vendedor-action="suspender" data-id="${escapeHTML(v.id)}">⏸️ Suspender</button>`;
+        else action = `<button class="btn-admin" style="background:#087f5b" data-admin-vendedor-action="reativar" data-id="${escapeHTML(v.id)}">▶️ Reativar</button>`;
+        return `<tr><td style="padding:9px;"><strong>${escapeHTML(v.nome || 'Sem nome')}</strong><br><small>${escapeHTML(v.email || '')}</small></td><td style="padding:9px;">${escapeHTML(v.nomeLoja || v.nome_loja || '—')}</td><td style="padding:9px;">${statusLabelVendedor(v.status)}</td><td style="padding:9px;">${escapeHTML(v.plano || 'basico')}</td><td style="padding:9px;text-align:center;">${produtoCount[v.id] || 0}</td><td style="padding:9px;text-align:center;">${st.pedidos}</td><td style="padding:9px;">${moedaAdmin(st.faturamento)}</td><td style="padding:9px;white-space:nowrap;">${action}</td></tr>`;
+    }).join('') : '<tr><td colspan="8" style="padding:18px;text-align:center;">Nenhum vendedor cadastrado.</td></tr>';
+
+    if (tbodyP) tbodyP.innerHTML = produtosVendedorAdmin.length ? produtosVendedorAdmin.map(p => {
+        const vid = p.vendedorId || p.vendedor_id;
+        const v = vendedoresAdmin.find(x => x.id === vid);
+        const status = p.statusAprovacao || p.status_aprovacao || 'aguardando_aprovacao';
+        let action = status === 'aguardando_aprovacao' ? `<button class="btn-admin" style="background:#087f5b" data-admin-produto-action="aprovar" data-id="${escapeHTML(p.id)}">✅ Aprovar</button> <button class="btn-admin" style="background:#b42318" data-admin-produto-action="recusar" data-id="${escapeHTML(p.id)}">❌ Recusar</button>` : status === 'aprovado' ? `<button class="btn-admin" style="background:#b42318" data-admin-produto-action="recusar" data-id="${escapeHTML(p.id)}">❌ Recusar</button>` : `<button class="btn-admin" style="background:#087f5b" data-admin-produto-action="aprovar" data-id="${escapeHTML(p.id)}">✅ Aprovar</button>`;
+        return `<tr><td style="padding:9px;"><strong>${escapeHTML(p.nome || 'Sem nome')}</strong><br><small>${escapeHTML(p.id)}</small></td><td style="padding:9px;">${escapeHTML(v?.nomeLoja || v?.nome_loja || p.vendedorNome || p.vendedor_nome || '—')}</td><td style="padding:9px;">${escapeHTML(p.preco || '0')} Kz</td><td style="padding:9px;text-align:center;">${Number(p.estoque || 0)}</td><td style="padding:9px;">${statusLabelProduto(status)}</td><td style="padding:9px;white-space:nowrap;">${action}</td></tr>`;
+    }).join('') : '<tr><td colspan="6" style="padding:18px;text-align:center;">Nenhum produto de vendedor.</td></tr>';
+}
+
+async function chamarAcaoAdmin(nome, data) {
+    const fn = httpsCallable(functions, nome);
+    return fn(data);
+}
+
+async function acaoVendedorAdmin(uid, acao) {
+    if (!uid || !acao) return;
+    const labels = { aprovar: 'aprovar', recusar: 'recusar', suspender: 'suspender', reativar: 'reativar' };
+    if (!confirm(`Confirmar ${labels[acao] || acao} este vendedor?`)) return;
+    try {
+        await chamarAcaoAdmin('gerirVendedor', { uid, acao });
+        await carregarPainelVendedoresAdmin();
+    } catch (e) {
+        alert('Não foi possível atualizar o vendedor: ' + (e.message || e));
+    }
+}
+
+async function acaoProdutoVendedorAdmin(produtoId, acao) {
+    if (!produtoId || !acao) return;
+    if (!confirm(`Confirmar ${acao} este produto?`)) return;
+    try {
+        await chamarAcaoAdmin('aprovarProdutoVendedor', { produtoId, acao });
+        await carregarPainelVendedoresAdmin();
+    } catch (e) {
+        alert('Não foi possível atualizar o produto: ' + (e.message || e));
+    }
+}

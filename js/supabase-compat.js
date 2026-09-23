@@ -135,18 +135,7 @@ export async function signInWithEmailAndPassword(_auth, email, password) {
 }
 
 export async function createUserWithEmailAndPassword(_auth, email, password) {
-  const normalizedEmail = String(email || '').trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(normalizedEmail)) {
-    const e = new Error('O endereço de e-mail não tem um formato válido.');
-    e.code = 'auth/invalid-email';
-    throw e;
-  }
-  if (String(password || '').length < 6) {
-    const e = new Error('A palavra-passe deve ter pelo menos 6 caracteres.');
-    e.code = 'auth/weak-password';
-    throw e;
-  }
-  const { data, error } = await supabase.auth.signUp({ email: normalizedEmail, password: String(password) });
+  const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw normalizeAuthError(error);
   if (!data.user) throw new Error('Não foi possível criar a conta.');
   if (!data.session) throw new Error('Conta criada. Confirme o email antes de entrar.');
@@ -237,21 +226,8 @@ export function httpsCallable(_functions, name) {
       throw e;
     }
     if (error) {
-      // Supabase Functions devolve o detalhe do backend no corpo da resposta
-      // quando a Edge Function responde 4xx/5xx. Sem esta leitura o frontend
-      // mostrava apenas "Edge Function returned a non-2xx status code".
-      let backendMessage = '';
-      let backendCode = '';
-      try {
-        const response = error.context;
-        if (response && typeof response.clone === 'function') {
-          const body = await response.clone().json();
-          backendMessage = body?.error?.message || body?.message || '';
-          backendCode = body?.error?.code || body?.code || '';
-        }
-      } catch (_) {}
-      const e = new Error(backendMessage || error.message || `Falha ao executar ${name}`);
-      e.code = backendCode || error.code || 'function_error';
+      const e = new Error(error.message || `Falha ao executar ${name}`);
+      e.code = error.code || 'function_error';
       throw e;
     }
     return { data: result?.data ?? result };
@@ -259,16 +235,8 @@ export function httpsCallable(_functions, name) {
 }
 
 function normalizeAuthError(error) {
-  const raw = String(error?.message || 'Erro de autenticação.');
-  const lower = raw.toLowerCase();
-  let message = raw;
-  let code = error?.code || 'auth/error';
-  if (lower.includes('invalid login credentials')) { message = 'Credenciais inválidas.'; }
-  else if (lower.includes('user already registered') || lower.includes('already registered')) { message = 'Este e-mail já está registado.'; code = 'auth/email-already-in-use'; }
-  else if (lower.includes('invalid email') || lower.includes('email address is invalid') || lower.includes('unable to validate email')) { message = 'O endereço de e-mail não foi aceite pelo serviço de autenticação. Confirme o endereço e a configuração do provedor de e-mail no Supabase.'; code = 'auth/invalid-email'; }
-  else if (lower.includes('password should be at least') || lower.includes('password must be at least')) { message = 'A palavra-passe deve ter pelo menos 6 caracteres.'; code = 'auth/weak-password'; }
-  else if (lower.includes('email rate limit')) { message = 'Muitas tentativas de cadastro. Aguarde alguns minutos e tente novamente.'; code = 'auth/too-many-requests'; }
-  const e = new Error(message);
-  e.code = code;
+  const e = new Error(error?.message || 'Erro de autenticação.');
+  const map = { 'Invalid login credentials': 'Credenciais inválidas.', 'User already registered': 'auth/email-already-in-use' };
+  e.code = map[error?.message] || error?.code || 'auth/error';
   return e;
 }
