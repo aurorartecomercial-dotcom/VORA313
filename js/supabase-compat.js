@@ -226,8 +226,18 @@ export function httpsCallable(_functions, name) {
       throw e;
     }
     if (error) {
-      const e = new Error(error.message || `Falha ao executar ${name}`);
-      e.code = error.code || 'function_error';
+      let message = error.message || `Falha ao executar ${name}`;
+      let code = error.code || 'function_error';
+      try {
+        const ctx = error.context;
+        if (ctx && typeof ctx.clone === 'function') {
+          const body = await ctx.clone().json();
+          if (body?.error?.message) message = body.error.message;
+          if (body?.error?.code) code = body.error.code;
+        }
+      } catch (_) {}
+      const e = new Error(message);
+      e.code = code;
       throw e;
     }
     return { data: result?.data ?? result };

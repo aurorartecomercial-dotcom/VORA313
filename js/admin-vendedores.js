@@ -53,6 +53,8 @@ function render() {
 }
 
 async function carregar() {
+  $('contadorVendedores').textContent = '…';
+  $('listaVendedores').innerHTML = '<div class="loading">A carregar vendedores...</div>';
   // A leitura administrativa passa pelo Edge Function (service_role).
   // Isto evita que uma policy RLS incompleta transforme um painel de admin
   // válido num falso "0 vendedores".
@@ -98,7 +100,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         vendedores = [];
         vendasVendedor = [];
         $('contadorVendedores').textContent = '0';
-        $('listaVendedores').innerHTML = '<div class="empty erro">Não foi possível carregar os vendedores. Verifique se a função API publicada contém listarVendedoresAdmin.</div>';
+        $('resumoVendedores').innerHTML = '';
+        $('listaVendedores').innerHTML = `<div class="empty erro"><strong>Não foi possível carregar os vendedores.</strong><br>${escapeHTML(loadError?.message || 'Erro desconhecido.')}</div>`;
         $('mensagemVendedores').textContent = loadError?.message || 'Erro ao carregar vendedores.';
       }
     } catch (e) {
