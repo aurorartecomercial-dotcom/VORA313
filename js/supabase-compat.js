@@ -237,8 +237,21 @@ export function httpsCallable(_functions, name) {
       throw e;
     }
     if (error) {
-      const e = new Error(error.message || `Falha ao executar ${name}`);
-      e.code = error.code || 'function_error';
+      // Supabase Functions devolve o detalhe do backend no corpo da resposta
+      // quando a Edge Function responde 4xx/5xx. Sem esta leitura o frontend
+      // mostrava apenas "Edge Function returned a non-2xx status code".
+      let backendMessage = '';
+      let backendCode = '';
+      try {
+        const response = error.context;
+        if (response && typeof response.clone === 'function') {
+          const body = await response.clone().json();
+          backendMessage = body?.error?.message || body?.message || '';
+          backendCode = body?.error?.code || body?.code || '';
+        }
+      } catch (_) {}
+      const e = new Error(backendMessage || error.message || `Falha ao executar ${name}`);
+      e.code = backendCode || error.code || 'function_error';
       throw e;
     }
     return { data: result?.data ?? result };
