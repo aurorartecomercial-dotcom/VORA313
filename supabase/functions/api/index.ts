@@ -138,6 +138,16 @@ async function atualizarEstadoPedido(req:Request,input:any){
 
 async function handle(req:Request,name:string,input:any){
   switch(name){
+    case 'listarVendedoresAdmin': {
+      await requireAdmin(req);
+      const [{data:vendedores,error:ve},{data:vendas,error:vve}] = await Promise.all([
+        db.from('vendedores').select('id,uid,nome,nome_loja,telefone,email,morada,categoria,descricao,status,ativo,plano,saldo_disponivel,saldo_retido,total_vendas,total_produtos,criado_em,atualizado_em').order('criado_em',{ascending:false}),
+        db.from('vendas_vendedor').select('id,uid_vendedor,pedido_id,valor_venda,valor_vendedor,comissao_vora,status,criado_em').order('criado_em',{ascending:false})
+      ]);
+      if(ve) throw ve;
+      if(vve) throw vve;
+      return { vendedores: (vendedores||[]).map(camelRow), vendas: (vendas||[]).map(camelRow) };
+    }
     case 'criarPedido': return criarPedido(req,input);
     case 'atualizarEstadoPedido': return atualizarEstadoPedido(req,input);
     case 'solicitarVendedor': {const u=await requireUser(req);const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),email:text(input?.email||u.email,'Email',160),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),status:'pendente',ativo:false,plano:'basico',uid:u.id};const {data:old}=await db.from('vendedores').select('status').eq('id',u.id).maybeSingle();if(old?.status==='aprovado'||old?.status==='pendente')return {ok:true,status:old.status};if(old?.status==='suspenso')err('A sua loja está suspensa. Contacte a VORA 313.','failed_precondition');const {error}=await db.from('vendedores').upsert({id:u.id,...d},{onConflict:'id'});if(error)throw error;return {ok:true,status:'pendente'};}

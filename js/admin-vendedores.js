@@ -53,12 +53,13 @@ function render() {
 }
 
 async function carregar() {
-  const [vs, vendas] = await Promise.all([
-    getDocs(collection(db, 'vendedores')),
-    getDocs(collection(db, 'vendas_vendedor'))
-  ]);
-  vendedores = vs.docs.map(d => ({ id: d.id, ...d.data() }));
-  vendasVendedor = vendas.docs.map(d => ({ id: d.id, ...d.data() }));
+  // A leitura administrativa passa pelo Edge Function (service_role).
+  // Isto evita que uma policy RLS incompleta transforme um painel de admin
+  // válido num falso "0 vendedores".
+  const result = await httpsCallable(functions, 'listarVendedoresAdmin')({});
+  const payload = result?.data || {};
+  vendedores = Array.isArray(payload.vendedores) ? payload.vendedores : [];
+  vendasVendedor = Array.isArray(payload.vendas) ? payload.vendas : [];
   render();
 }
 
@@ -88,7 +89,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       const cred = await signInWithEmailAndPassword(auth, $('emailVendedores').value.trim(), $('senhaVendedores').value);
       if (!await validarAdmin(cred.user)) throw new Error('Esta conta não possui acesso administrativo.');
       login.style.display = 'none'; painel.style.display = 'block';
-      await carregar();
+      $('mensagemVendedores').textContent = 'A carregar vendedores...';
+      try {
+        await carregar();
+        $('mensagemVendedores').textContent = '';
+      } catch (loadError) {
+        console.error('Erro ao carregar vendedores:', loadError);
+        vendedores = [];
+        vendasVendedor = [];
+        $('contadorVendedores').textContent = '0';
+        $('listaVendedores').innerHTML = '<div class="empty erro">Não foi possível carregar os vendedores. Verifique se a função API publicada contém listarVendedoresAdmin.</div>';
+        $('mensagemVendedores').textContent = loadError?.message || 'Erro ao carregar vendedores.';
+      }
     } catch (e) {
       try { await signOut(auth); } catch (_) {}
       erro.textContent = e.message || 'Credenciais inválidas.';
