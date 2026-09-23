@@ -7,9 +7,7 @@ import {
     onAuthStateChanged,
     updateProfile
 } from './supabase-compat.js';
-import { 
-    doc, getDoc, setDoc, updateDoc, arrayUnion 
-} from './supabase-compat.js';
+import { doc, getDoc } from './supabase-compat.js';
 import { mostrarToast } from './utils.js';
 
 // Estado do usuário atual
@@ -90,14 +88,7 @@ export function initFidelidade() {
                 const senha = senhaRegInput.value;
                 const userCred = await createUserWithEmailAndPassword(auth, email, senha);
                 await updateProfile(userCred.user, { displayName: nome });
-                // Criar registo no Supabase
-                await setDoc(doc(db, 'clientes', userCred.user.uid), {
-                    nome: nome,
-                    email: email,
-                    pontos: 0,
-                    historico: [],
-                    criadoEm: new Date()
-                });
+                // O trigger on_auth_user_created cria o registo em public.clientes.
                 modalLogin.style.display = 'none';
                 mostrarToast('✅ Conta criada com sucesso!', 'sucesso');
             } catch (e) {
@@ -165,14 +156,9 @@ async function carregarDadosUsuario(uid) {
             // Salvar no localStorage para acesso rápido
             localStorage.setItem('aurora_pontos', String(pontosAtuais));
         } else {
-            // Criar documento se não existir (caso de login antigo)
-            await setDoc(docRef, {
-                nome: auth.currentUser.displayName || 'Cliente',
-                email: auth.currentUser.email,
-                pontos: 0,
-                historico: [],
-                criadoEm: new Date()
-            });
+            // O trigger do Supabase normalmente cria este registo no momento
+            // do cadastro. Não fazemos INSERT direto no browser como fallback,
+            // porque pontos/histórico são campos protegidos pelo backend.
             pontosAtuais = 0;
         }
     } catch (e) {
@@ -198,69 +184,15 @@ function atualizarUI() {
     }
 }
 
-// Função para adicionar pontos após uma compra
-export async function adicionarPontos(valorTotal) {
-    if (!usuarioAtual) return; // Não adiciona se não logado
-
-    const pontosGanhos = Math.floor(valorTotal / 1000); // 1 ponto por 1000 Kz
-    if (pontosGanhos <= 0) return;
-
-    try {
-        const docRef = doc(db, 'clientes', usuarioAtual.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const dados = docSnap.data();
-            const novosPontos = (dados.pontos || 0) + pontosGanhos;
-            await updateDoc(docRef, {
-                pontos: novosPontos,
-                historico: arrayUnion({
-                    data: new Date(),
-                    tipo: 'ganho',
-                    pontos: pontosGanhos,
-                    descricao: 'Compra'
-                })
-            });
-            pontosAtuais = novosPontos;
-            localStorage.setItem('aurora_pontos', String(novosPontos));
-            atualizarUI();
-            mostrarToast(`+${pontosGanhos} pontos ganhos!`, 'sucesso');
-        }
-    } catch (e) {
-        console.error('Erro ao adicionar pontos:', e);
-    }
+// Pontos de fidelidade são atribuídos pelo backend quando o pedido passa para "pago".
+// Estas funções ficam apenas por compatibilidade com código antigo e não escrevem
+// pontos diretamente no navegador.
+export async function adicionarPontos() {
+    console.warn('[VORA 313] Os pontos são atribuídos pelo backend após confirmação do pagamento.');
+    return false;
 }
 
-// Função para resgatar pontos (desconto)
-export async function resgatarPontos(pontosParaResgatar) {
-    if (!usuarioAtual) return false;
-    if (pontosParaResgatar > pontosAtuais) {
-        mostrarToast('Pontos insuficientes.', 'info');
-        return false;
-    }
-
-    try {
-        const docRef = doc(db, 'clientes', usuarioAtual.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const dados = docSnap.data();
-            const novosPontos = (dados.pontos || 0) - pontosParaResgatar;
-            await updateDoc(docRef, {
-                pontos: novosPontos,
-                historico: arrayUnion({
-                    data: new Date(),
-                    tipo: 'resgate',
-                    pontos: -pontosParaResgatar,
-                    descricao: 'Resgate de cupom'
-                })
-            });
-            pontosAtuais = novosPontos;
-            localStorage.setItem('aurora_pontos', String(novosPontos));
-            atualizarUI();
-            mostrarToast('✅ Pontos resgatados!', 'sucesso');
-            return true;
-        }
-    } catch (e) {
-        console.error('Erro ao resgatar pontos:', e);
-        return false;
-    }
+export async function resgatarPontos() {
+    console.warn('[VORA 313] O resgate de pontos ainda não possui uma regra de cupom configurada.');
+    return false;
 }

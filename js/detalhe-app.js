@@ -2,7 +2,7 @@ import { adicionarProdutoCarrinho } from './carrinho.js';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js';
 import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, obterAvaliacao } from './avaliacoes.js';
-import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, urlSegura } from './utils.js';
+import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, urlSegura, extrairValorNumerico } from './utils.js';
 import { registrarVista } from './fase3.js';
 
 let catalogoAtual = [];
@@ -12,9 +12,7 @@ let quantidadeSelecionada = 1;
 const normalizar = (valor) => String(valor || '').trim().toLocaleLowerCase();
 
 function precoNumero(produto) {
-    const valor = String(produto?.preco || '').replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.');
-    const numero = Number.parseFloat(valor);
-    return Number.isFinite(numero) ? numero : 0;
+    return extrairValorNumerico(produto?.preco);
 }
 
 function escaparAtributo(valor) {
@@ -274,9 +272,13 @@ async function carregarAvaliacaoAsync(prodId) {
             <div class="avaliar-form"><label for="notaAvaliacao">Sua nota:</label><select id="notaAvaliacao"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option></select><button id="btnAvaliar" class="btn-avaliar">Avaliar</button></div>`;
         document.getElementById('btnAvaliar')?.addEventListener('click', async () => {
             const nota = Number.parseInt(document.getElementById('notaAvaliacao')?.value || '5', 10);
-            await adicionarAvaliacao(prodId, nota);
-            mostrarToast('Avaliação registada!', 'sucesso');
-            carregarAvaliacaoAsync(prodId);
+            try {
+                await adicionarAvaliacao(prodId, nota);
+                mostrarToast('Avaliação registada!', 'sucesso');
+                await carregarAvaliacaoAsync(prodId);
+            } catch (e) {
+                mostrarToast(e?.message || 'Não foi possível registar a avaliação.', 'info');
+            }
         });
     } catch (_) {
         const container = document.getElementById('avaliacaoContainer');

@@ -79,7 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
     senhaInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') btnLogin.click(); });
 
     document.querySelectorAll('.aba-btn').forEach(btn => {
-        btn.addEventListener('click', () => trocarAba(btn.dataset.aba));
+        btn.addEventListener('click', () => trocarAba(btn.dataset.aba).catch(e => console.error('Erro ao trocar aba:', e)));
     });
 
     configurarExportacoes();
@@ -182,7 +182,7 @@ function preencherSelects() {
     }
 }
 
-function trocarAba(abaId) {
+async function trocarAba(abaId) {
     document.querySelectorAll('.aba-btn').forEach(btn => btn.classList.toggle('ativa', btn.dataset.aba === abaId));
     document.querySelectorAll('.aba-conteudo').forEach(div => div.classList.toggle('ativa', div.id === `aba-${abaId}`));
     
@@ -334,7 +334,7 @@ function renderizarCentroOperacoes(vendas) {
 document.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-ops-status]');
     if (!btn) return;
-    trocarAba('pedidos');
+    trocarAba('pedidos').catch(e => console.error('Erro ao abrir pedidos:', e));
     const select = document.getElementById('filtroStatus');
     if (select) { select.value = btn.dataset.opsStatus; renderizarPedidos(); }
 });

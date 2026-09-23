@@ -1,49 +1,74 @@
-import { auth, db } from './config.js';
-import { collection, getDocs, updateDoc, doc } from './supabase-compat.js';
-import { getIdTokenResult, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
+import { auth, db, functions } from './config.js';
+import { collection, getDocs } from './supabase-compat.js';
+import { getIdTokenResult, signInWithEmailAndPassword, signOut, httpsCallable } from './supabase-compat.js';
 import { escapeHTML } from './utils.js';
 
 const $ = id => document.getElementById(id);
 let vendedores = [];
+let vendasVendedor = [];
 
 async function validarAdmin(user) {
   const token = await getIdTokenResult(user, true);
   return token.claims.admin === true;
 }
 
+const money = value => `${Number(value || 0).toLocaleString('pt-AO', { maximumFractionDigits: 2 })} Kz`;
+
 function render() {
   const box = $('listaVendedores');
   const termo = ($('filtroVendedores')?.value || '').trim().toLowerCase();
-  const lista = vendedores.filter(v => `${v.nome || ''} ${v.nomeLoja || ''} ${v.email || ''} ${v.status || ''}`.toLowerCase().includes(termo));
+  const stats = {};
+  vendasVendedor.forEach(v => {
+    const id = v.uidVendedor || v.uid_vendedor;
+    if (!id) return;
+    if (!stats[id]) stats[id] = { pedidos: 0, faturamento: 0, liquido: 0 };
+    stats[id].pedidos += 1;
+    stats[id].faturamento += Number(v.valorVenda ?? v.valor_venda ?? 0);
+    stats[id].liquido += Number(v.valorVendedor ?? v.valor_vendedor ?? 0);
+  });
+  const lista = vendedores.filter(v => `${v.nome || ''} ${v.nomeLoja || v.nome_loja || ''} ${v.email || ''} ${v.status || ''}`.toLowerCase().includes(termo));
   $('contadorVendedores').textContent = String(lista.length);
+  const total = vendedores.length;
+  const aprovados = vendedores.filter(v => v.status === 'aprovado' && v.ativo !== false).length;
+  const pendentes = vendedores.filter(v => v.status === 'pendente').length;
+  const faturamento = Object.values(stats).reduce((s, x) => s + x.faturamento, 0);
+  $('resumoVendedores').innerHTML = `
+    <div class="kpi"><strong>${total}</strong><span>Total</span></div>
+    <div class="kpi"><strong>${aprovados}</strong><span>Aprovados</span></div>
+    <div class="kpi"><strong>${pendentes}</strong><span>Pendentes</span></div>
+    <div class="kpi"><strong>${money(faturamento)}</strong><span>Faturamento vendedor</span></div>`;
   box.innerHTML = lista.length ? lista.map(v => {
     const id = escapeHTML(v.id);
     const nome = escapeHTML(v.nome || 'Sem nome');
-    const loja = escapeHTML(v.nomeLoja || 'Sem loja');
+    const loja = escapeHTML(v.nomeLoja || v.nome_loja || 'Sem loja');
     const email = escapeHTML(v.email || '');
     const status = escapeHTML(v.status || 'pendente');
     const ativo = v.ativo !== false;
+    const st = stats[v.id] || { pedidos: 0, faturamento: 0, liquido: 0 };
     const botoes = v.status === 'aprovado' && ativo
       ? `<button class="btn danger" data-action="suspender" data-id="${id}">Suspender</button>`
       : `<button class="btn success" data-action="aprovar" data-id="${id}">Aprovar/Ativar</button>`;
-    return `<article class="seller-card"><div><strong>${nome}</strong><div class="muted">${loja} · ${email}</div><div class="meta">Status: <b>${status}</b> · ${ativo ? 'Ativo' : 'Inativo'} · Plano: ${escapeHTML(v.plano || 'basico')}</div></div><div class="actions">${botoes}</div></article>`;
+    return `<article class="seller-card"><div><strong>${nome}</strong><div class="muted">${loja} · ${email}</div><div class="meta">Status: <b>${status}</b> · ${ativo ? 'Ativo' : 'Inativo'} · Plano: ${escapeHTML(v.plano || 'basico')}</div><div class="meta">Pedidos: <b>${st.pedidos}</b> · Faturamento: <b>${money(st.faturamento)}</b> · Líquido: <b>${money(st.liquido)}</b></div></div><div class="actions">${botoes}</div></article>`;
   }).join('') : '<div class="empty">Nenhum vendedor encontrado.</div>';
 }
 
 async function carregar() {
-  const snap = await getDocs(collection(db, 'vendedores'));
-  vendedores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const [vs, vendas] = await Promise.all([
+    getDocs(collection(db, 'vendedores')),
+    getDocs(collection(db, 'vendas_vendedor'))
+  ]);
+  vendedores = vs.docs.map(d => ({ id: d.id, ...d.data() }));
+  vendasVendedor = vendas.docs.map(d => ({ id: d.id, ...d.data() }));
   render();
 }
 
-async function alterar(id, aprovado) {
+async function alterar(id, acao) {
   const msg = $('mensagemVendedores');
+  if (!id || !acao) return;
+  if (!confirm(`Confirmar ${acao === 'aprovar' ? 'aprovação' : 'suspensão'} deste vendedor?`)) return;
   try {
-    await updateDoc(doc(db, 'vendedores', id), {
-      status: aprovado ? 'aprovado' : 'suspenso',
-      ativo: aprovado
-    });
-    msg.textContent = aprovado ? 'Vendedor aprovado e ativado.' : 'Vendedor suspenso.';
+    await httpsCallable(functions, 'gerirVendedor')({ uid: id, acao });
+    msg.textContent = acao === 'aprovar' ? 'Vendedor aprovado e ativado.' : 'Vendedor suspenso.';
     await carregar();
   } catch (e) {
     console.error(e);
@@ -74,7 +99,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('btnSairVendedores').addEventListener('click', async () => { await signOut(auth); location.reload(); });
   document.addEventListener('click', e => {
     const b = e.target.closest('[data-action]');
-    if (!b) return;
-    alterar(b.dataset.id, b.dataset.action === 'aprovar');
+    if (b) alterar(b.dataset.id, b.dataset.action === 'aprovar' ? 'aprovar' : 'suspender');
   });
 });

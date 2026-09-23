@@ -14,8 +14,10 @@ Ordem completa:
 6. `006_produtos_admin_fields.sql` — campos adicionais do painel admin
 7. `007_security_hardening.sql` — proteção de campos sensíveis
 8. `008_vora313_schema_repair.sql` — correção idempotente do schema + reload PostgREST
+9. `009_admin_vendedores_vendas.sql` — RLS do painel de vendedores/vendas
+10. `010_security_rls_repair.sql` — grants/RLS finais e proteção do primeiro registo de cliente
 
-Como 001 e 002 já foram executadas no projeto atual, a próxima execução deve começar em 003.
+Se o projeto já tiver 001–009 aplicadas, execute apenas a `010_security_rls_repair.sql`. Se alguma migration anterior faltar, execute-as pela ordem.
 
 ## Edge Function
 

@@ -24,7 +24,26 @@ const COMISSAO_MAX = 30;
 function err(message: string, code = 'bad_request'): never { throw Object.assign(new Error(message), { code }); }
 function text(v: unknown, field: string, max: number, required = true) { const x = typeof v === 'string' ? v.trim() : ''; if (required && !x) err(`${field} é obrigatório.`); if (x.length > max) err(`${field} excede o limite permitido.`); return x; }
 function intPos(v: unknown, field: string, max = 100) { const x = Number(v); if (!Number.isInteger(x) || x < 1 || x > max) err(`${field} é inválido.`); return x; }
-function priceCents(v: unknown) { if (typeof v === 'number' && Number.isFinite(v)) return Math.round(v * 100); const s = String(v ?? '').replace(/[^0-9.,]/g,''); if (!s) return 0; const c=s.lastIndexOf(','), d=s.lastIndexOf('.'); let n=s; if(c>d)n=s.replace(/\./g,'').replace(',','.'); else if(d>c)n=s.replace(/,/g,''); else if(c!==-1)n=s.replace(',','.'); const x=Number(n); return Number.isFinite(x)&&x>0?Math.round(x*100):0; }
+function priceCents(v: unknown) {
+  if (typeof v === 'number' && Number.isFinite(v)) return Math.round(v * 100);
+  let s = String(v ?? '').trim().replace(/[^0-9.,-]/g, '');
+  if (!s) return 0;
+  const negative = s.startsWith('-'); s = s.replace(/-/g, '');
+  const c = s.lastIndexOf(','), d = s.lastIndexOf('.');
+  if (c !== -1 && d !== -1) {
+    if (c > d) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else if (c !== -1) {
+    const casas = s.length - c - 1;
+    s = casas === 3 ? s.replace(/,/g, '') : s.replace(',', '.');
+  } else if (d !== -1) {
+    const casas = s.length - d - 1;
+    if (casas === 3) s = s.replace(/\./g, '');
+  }
+  const x = Number(s);
+  if (!Number.isFinite(x) || x <= 0) return 0;
+  return Math.round((negative ? -x : x) * 100);
+}
 function money(c:number){return Number((c/100).toFixed(2));}
 function code(prefix:string){ return `${prefix}-${crypto.randomUUID().replaceAll('-','').slice(0,20).toUpperCase()}`; }
 function dbRow(input: Record<string,any>) { const out:any={}; for(const [k,v] of Object.entries(input)) { out[k.replace(/[A-Z]/g,m=>'_'+m.toLowerCase())]=v; } return out; }
@@ -52,7 +71,22 @@ async function criarPedido(req:Request, input:any){
   const ids=[...grouped.keys()]; const {data:products,error:pe}=await db.from('produtos').select('*').in('id',ids); if(pe)throw pe;
   if((products||[]).length!==ids.length)err('Um produto do carrinho já não existe.','not_found');
   let subtotal=0; const itens:any[]=[];
-  for(const p of products||[]){const q=grouped.get(p.id)||0;const estoque=Number(p.estoque||0);const pc=priceCents(p.preco);if(!Number.isInteger(estoque)||estoque<q)err(`${p.nome||'Produto'} não possui estoque suficiente.`,'failed_precondition');if(pc<=0)err('Um produto tem preço inválido.','failed_precondition');const percentual=Number(p.monetizacao?.percentualComissao??p.percentual_comissao??COMISSAO_PADRAO);if(!Number.isFinite(percentual)||percentual<0||percentual>COMISSAO_MAX)err(`Comissão inválida para ${p.nome||'produto'}.`,'failed_precondition');const bruto=pc*q;const com=Math.round(bruto*percentual/100);subtotal+=bruto;itens.push({produtoId:p.id,nome:text(p.nome,'Nome do produto',160),quantidade:q,preco:money(pc),observacao:'',vendedorId:p.vendedor_id||'vora313',vendedorNome:p.vendedor_nome||'VORA 313',comissaoPercentual:percentual,valorBruto:money(bruto),comissaoVora:money(com),valorVendedor:money(bruto-com)});}
+  for(const p of products||[]){
+    const q=grouped.get(p.id)||0;
+    if(p.ativo!==true || p.vendedor_ativo!==true || p.status_aprovacao!=='aprovado') err(`${p.nome||'Produto'} não está disponível para compra.`,'failed_precondition');
+    if(p.vendedor_id){
+      const {data:v,error:ve}=await db.from('vendedores').select('status,ativo').eq('id',p.vendedor_id).maybeSingle();
+      if(ve) throw ve;
+      if(!v||v.status!=='aprovado'||v.ativo!==true) err(`${p.nome||'Produto'} não está disponível porque a loja está inativa.`,'failed_precondition');
+    }
+    const estoque=Number(p.estoque||0); const pc=priceCents(p.preco);
+    if(!Number.isInteger(estoque)||estoque<q)err(`${p.nome||'Produto'} não possui estoque suficiente.`,'failed_precondition');
+    if(pc<=0)err('Um produto tem preço inválido.','failed_precondition');
+    const percentual=Number(p.monetizacao?.percentualComissao??p.percentual_comissao??COMISSAO_PADRAO);
+    if(!Number.isFinite(percentual)||percentual<0||percentual>COMISSAO_MAX)err(`Comissão inválida para ${p.nome||'produto'}.`,'failed_precondition');
+    const bruto=pc*q; const com=Math.round(bruto*percentual/100); subtotal+=bruto;
+    itens.push({produtoId:p.id,nome:text(p.nome,'Nome do produto',160),quantidade:q,preco:money(pc),observacao:'',vendedorId:p.vendedor_id||'vora313',vendedorNome:p.vendedor_nome||'VORA 313',comissaoPercentual:percentual,valorBruto:money(bruto),comissaoVora:money(com),valorVendedor:money(bruto-com)});
+  }
   const codigoCupom=text(input.cupom,'Cupom',60,false).toUpperCase();let desconto=0;let cupomAplicado:any=null;
   if(codigoCupom){const {data:cupom}=await db.from('cupons').select('*').eq('codigo',codigoCupom).maybeSingle();if(!cupom||cupom.ativo!==true)err('Cupom inválido.','failed_precondition');if(cupom.uid_cliente&&cupom.uid_cliente!==user.id)err('Cupom indisponível.','failed_precondition');if(cupom.validade&&new Date(cupom.validade)<new Date())err('Cupom expirado.','failed_precondition');if(Number.isFinite(cupom.max_usos)&&Number(cupom.usos||0)>=Number(cupom.max_usos))err('Cupom atingiu o limite de uso.','failed_precondition');desconto=Math.round(subtotal*Number(cupom.percentual)/100);cupomAplicado={codigo:codigoCupom,percentual:Number(cupom.percentual)};}
   const frete=FRETES[cliente.bairro]*100;const total=subtotal-desconto+frete;const comissao=itens.reduce((s,i)=>s+Math.round(Number(i.comissaoVora||0)*100),0);const receita=comissao+frete;const valorVend=subtotal-comissao;const id=crypto.randomUUID();const rastreio=code('VORA');const fatura=code('FR');const now=new Date();
@@ -69,16 +103,37 @@ async function atualizarEstadoPedido(req:Request,input:any){
   if(p.status!=='pago'&&novo==='pago'){
     if(p.expira_em&&new Date(p.expira_em)<new Date())err('Este pedido expirou. Crie um novo pedido.','failed_precondition');
     const {data:items}=await db.from('venda_itens').select('*').eq('venda_id',p.id);const its=items?.length?items:p.itens||[];
-    for(const item of its){const pid=item.produto_id||item.produtoId;const q=Number(item.quantidade||0);const {data:prod}=await db.from('produtos').select('estoque').eq('id',pid).maybeSingle();if(!prod||Number(prod.estoque)<q)err(`Estoque insuficiente para ${item.nome}.`,'failed_precondition');const {error}=await db.from('produtos').update({estoque:Number(prod.estoque)-q,atualizado_em:new Date().toISOString()}).eq('id',pid);if(error)throw error;}
-    if(p.cupom_aplicado?.codigo){const {data:c}=await db.from('cupons').select('*').eq('codigo',p.cupom_aplicado.codigo).maybeSingle();if(!c)err('O cupom do pedido não está mais disponível.','failed_precondition');await db.from('cupons').update({usos:Number(c.usos||0)+1,atualizado_em:new Date().toISOString()}).eq('id',c.id);}
+    for(const item of its){
+      const pid=item.produto_id||item.produtoId; const q=Number(item.quantidade||0);
+      const {data:prod,error:pe}=await db.from('produtos').select('estoque').eq('id',pid).maybeSingle();
+      if(pe) throw pe;
+      if(!prod||Number(prod.estoque)<q)err(`Estoque insuficiente para ${item.nome}.`,'failed_precondition');
+      // A condição de estoque torna o decremento seguro contra duas confirmações
+      // administrativas concorrentes que tenham lido o mesmo stock.
+      const {data:updated,error}=await db.from('produtos').update({estoque:Number(prod.estoque)-q,atualizado_em:new Date().toISOString()}).eq('id',pid).gte('estoque',q).select('id').maybeSingle();
+      if(error) throw error;
+      if(!updated) err(`Estoque insuficiente para ${item.nome}.`,'failed_precondition');
+    }
+    if(p.cupom_aplicado?.codigo){const {data:c}=await db.from('cupons').select('*').eq('codigo',p.cupom_aplicado.codigo).maybeSingle();if(!c)err('O cupom do pedido não está mais disponível.','failed_precondition');const {error:cue}=await db.from('cupons').update({usos:Number(c.usos||0)+1,atualizado_em:new Date().toISOString()}).eq('id',c.id); if(cue) throw cue;}
     const {error:ce}=await db.from('comissoes').upsert({id:p.id,pedido_id:p.id,codigo_rastreio:p.codigo_rastreio,numero_fatura:p.numero_fatura,uid_cliente:p.uid_cliente,modelo:'comissao_por_venda',valor_venda_produtos:Number(p.subtotal||0),comissao_vora:Number(p.monetizacao?.comissaoProdutos||0),receita_frete_vora:Number(p.frete||0),receita_total_vora:Number(p.monetizacao?.receitaVora||0),status:'gerada'},{onConflict:'pedido_id'});if(ce)throw ce;
     const by=new Map<string,any>();for(const item of its){const vid=item.vendedor_id||item.vendedorId||'vora313';if(vid==='vora313')continue;const x=by.get(vid)||{valorVenda:0,comissao:0,valorVendedor:0,produtos:[]};x.valorVenda+=Number(item.valor_bruto??item.valorBruto??0);x.comissao+=Number(item.comissao_vora??item.comissaoVora??0);x.valorVendedor+=Number(item.valor_vendedor??item.valorVendedor??0);x.produtos.push(`${item.nome} (x${item.quantidade})`);by.set(vid,x);}
-    for(const [vid,x] of by){const {data:v}=await db.from('vendedores').select('saldo_disponivel,total_vendas').eq('id',vid).maybeSingle();if(!v)continue;await db.from('movimentos_vendedores').insert({uid_vendedor:vid,pedido_id:p.id,codigo_rastreio:p.codigo_rastreio,tipo:'venda_paga',valor_venda:x.valorVenda,comissao_vora:x.comissao,valor_vendedor:x.valorVendedor,status:'disponivel'});await db.from('vendas_vendedor').upsert({id:`${vid}_${p.id}`,uid_vendedor:vid,pedido_id:p.id,codigo_rastreio:p.codigo_rastreio,status:'pago',valor_venda:x.valorVenda,comissao_vora:x.comissao,valor_vendedor:x.valorVendedor,produtos_resumo:x.produtos.join(', ')},{onConflict:'id'});await db.from('vendedores').update({saldo_disponivel:Number(v.saldo_disponivel||0)+x.valorVendedor,total_vendas:Number(v.total_vendas||0)+1,atualizado_em:new Date().toISOString()}).eq('id',vid);}
-    const pontos=Math.floor(Number(p.valor_total||0)/1000);if(pontos>0){const {data:c}=await db.from('clientes').select('pontos,historico').eq('id',p.uid_cliente).maybeSingle();if(c)await db.from('clientes').update({pontos:Number(c.pontos||0)+pontos,historico:[...(Array.isArray(c.historico)?c.historico:[]),{data:new Date().toISOString(),tipo:'ganho',pontos,descricao:`Compra ${p.numero_fatura||p.codigo_rastreio}`}],atualizado_em:new Date().toISOString()}).eq('id',p.uid_cliente);}
+    for(const [vid,x] of by){
+      const {data:v,error:ve}=await db.from('vendedores').select('saldo_disponivel,total_vendas,status,ativo').eq('id',vid).maybeSingle();
+      if(ve) throw ve;
+      if(!v) continue;
+      if(v.status!=='aprovado'||v.ativo!==true) continue;
+      const {error:me}=await db.from('movimentos_vendedores').insert({uid_vendedor:vid,pedido_id:p.id,codigo_rastreio:p.codigo_rastreio,tipo:'venda_paga',valor_venda:x.valorVenda,comissao_vora:x.comissao,valor_vendedor:x.valorVendedor,status:'disponivel'});
+      if(me) throw me;
+      const {error:vev}=await db.from('vendas_vendedor').upsert({id:`${vid}_${p.id}`,uid_vendedor:vid,pedido_id:p.id,codigo_rastreio:p.codigo_rastreio,status:'pago',valor_venda:x.valorVenda,comissao_vora:x.comissao,valor_vendedor:x.valorVendedor,produtos_resumo:x.produtos.join(', ')},{onConflict:'id'});
+      if(vev) throw vev;
+      const {error:vu}=await db.from('vendedores').update({saldo_disponivel:Number(v.saldo_disponivel||0)+x.valorVendedor,total_vendas:Number(v.total_vendas||0)+1,atualizado_em:new Date().toISOString()}).eq('id',vid);
+      if(vu) throw vu;
+    }
+    const pontos=Math.floor(Number(p.valor_total||0)/1000);if(pontos>0){const {data:c,error:cex}=await db.from('clientes').select('pontos,historico').eq('id',p.uid_cliente).maybeSingle();if(cex) throw cex;if(c){const {error:cup}=await db.from('clientes').update({pontos:Number(c.pontos||0)+pontos,historico:[...(Array.isArray(c.historico)?c.historico:[]),{data:new Date().toISOString(),tipo:'ganho',pontos,descricao:`Compra ${p.numero_fatura||p.codigo_rastreio}`}],atualizado_em:new Date().toISOString()}).eq('id',p.uid_cliente);if(cup) throw cup;}}
     p.monetizacao={...(p.monetizacao||{}),comissaoGerada:true,comissaoGeradaEm:new Date().toISOString()};
   }
   if(novo==='cancelado'&&p.status!=='aguardando_pagamento')err('Um pedido pago/em preparação não pode ser cancelado por este fluxo.','failed_precondition');
-  const {error:ue}=await db.from('vendas').update({status:novo,pagamento:{...(p.pagamento||{}),status:novo==='pago'?'confirmado':(p.pagamento?.status||'pendente')},monetizacao:p.monetizacao,atualizado_em:new Date().toISOString()}).eq('id',p.id);if(ue)throw ue;await db.from('rastreios_publicos').upsert({codigo,status:novo,atualizado_em:new Date().toISOString()},{onConflict:'codigo'});return {codigoRastreio:codigo,status:novo};
+  const {error:ue}=await db.from('vendas').update({status:novo,pagamento:{...(p.pagamento||{}),status:novo==='pago'?'confirmado':(p.pagamento?.status||'pendente')},monetizacao:p.monetizacao,atualizado_em:new Date().toISOString()}).eq('id',p.id);if(ue)throw ue;const {error:re}=await db.from('rastreios_publicos').upsert({codigo,status:novo,atualizado_em:new Date().toISOString()},{onConflict:'codigo'});if(re)throw re;return {codigoRastreio:codigo,status:novo};
 }
 
 async function handle(req:Request,name:string,input:any){
@@ -98,7 +153,23 @@ async function handle(req:Request,name:string,input:any){
     case 'processarDestaque': {await requireAdmin(req);const id=text(input?.requestId,'Solicitação',128),acao=text(input?.acao,'Ação',20);const {data:d}=await db.from('destaques_solicitados').select('*').eq('id',id).maybeSingle();if(!d)err('Solicitação não encontrada.','not_found');if(!['aguardando_pagamento','pendente'].includes(d.status))err('Esta solicitação já foi processada.','failed_precondition');if(acao==='recusar'){await db.from('destaques_solicitados').update({status:'recusado',atualizado_em:new Date().toISOString()}).eq('id',id);return {ok:true};}if(acao!=='aprovar')err('Ação inválida.');const inicio=new Date(),fim=new Date(inicio.getTime()+Number(d.dias)*86400000);const {error}=await db.from('destaques_solicitados').update({status:'ativo',inicio:inicio.toISOString(),fim:fim.toISOString(),atualizado_em:inicio.toISOString()}).eq('id',id);if(error)throw error;const {data:p}=await db.from('produtos').select('monetizacao').eq('id',d.produto_id).maybeSingle();await db.from('produtos').update({monetizacao:{...(p?.monetizacao||{}),destaque:true,destaqueInicio:inicio.toISOString(),destaqueFim:fim.toISOString(),destaqueSolicitacaoId:id},atualizado_em:inicio.toISOString()}).eq('id',d.produto_id);return {ok:true,fim:fim.toISOString()};}
     case 'definirPlanoVendedor': {await requireAdmin(req);const uid=text(input?.uid,'Vendedor',128),plano=text(input?.plano,'Plano',20).toLowerCase();if(!['basico','profissional','premium'].includes(plano))err('Plano inválido.');const {error}=await db.from('vendedores').update({plano,atualizado_em:new Date().toISOString()}).eq('id',uid);if(error)throw error;return {ok:true,plano};}
     case 'processarLevantamento': {await requireAdmin(req);const id=text(input?.levantamentoId,'Levantamento',128),acao=text(input?.acao,'Ação',20);const {data:l}=await db.from('levantamentos').select('*').eq('id',id).maybeSingle();if(!l)err('Levantamento não encontrado.','not_found');if(l.status!=='pendente')err('Levantamento já processado.','failed_precondition');const {data:v}=await db.from('vendedores').select('*').eq('id',l.uid_vendedor).maybeSingle();if(!v)err('Vendedor não encontrado.','not_found');const now=new Date().toISOString();if(acao==='aprovar'){await db.from('vendedores').update({saldo_retido:Math.max(0,Number(v.saldo_retido||0)-Number(l.valor)),atualizado_em:now}).eq('id',l.uid_vendedor);await db.from('levantamentos').update({status:'pago',processado_em:now,atualizado_em:now}).eq('id',id);}else if(acao==='recusar'){await db.from('vendedores').update({saldo_retido:Math.max(0,Number(v.saldo_retido||0)-Number(l.valor)),saldo_disponivel:Number(v.saldo_disponivel||0)+Number(l.valor),atualizado_em:now}).eq('id',l.uid_vendedor);await db.from('levantamentos').update({status:'recusado',processado_em:now,atualizado_em:now}).eq('id',id);}else err('Ação inválida.');return {ok:true};}
-    case 'adicionarAvaliacao': {const u=await requireUser(req);const produtoId=text(input?.produtoId,'Produto',128);const nota=Number(input?.nota);if(!Number.isInteger(nota)||nota<1||nota>5)err('Nota inválida.');const id=`${u.id}_${produtoId}`;const {error}=await db.from('avaliacoes').upsert({id,produto_id:produtoId,uid_cliente:u.id,nota,data:new Date().toISOString()},{onConflict:'id'});if(error)throw error;return {ok:true};}
+    case 'adicionarAvaliacao': {
+      const u=await requireUser(req);
+      if((u as any).is_anonymous===true) err('Entre na sua conta para avaliar um produto.','unauthenticated');
+      const produtoId=text(input?.produtoId,'Produto',128); const nota=Number(input?.nota);
+      if(!Number.isInteger(nota)||nota<1||nota>5)err('Nota inválida.');
+      const {data:produto,error:pe}=await db.from('produtos').select('id').eq('id',produtoId).maybeSingle(); if(pe) throw pe; if(!produto) err('Produto não encontrado.','not_found');
+      const {data:itens,error:ie}=await db.from('venda_itens').select('venda_id').eq('produto_id',produtoId);
+      if(ie) throw ie;
+      const vendaIds=(itens||[]).map((x:any)=>x.venda_id).filter(Boolean);
+      if(!vendaIds.length) err('Só é possível avaliar produtos que foram comprados.','failed_precondition');
+      const {data:vendas,error:ve}=await db.from('vendas').select('id').eq('uid_cliente',u.id).eq('status','entregue').in('id',vendaIds);
+      if(ve) throw ve;
+      if(!(vendas||[]).length) err('A avaliação fica disponível depois da entrega do pedido.','failed_precondition');
+      const id=`${u.id}_${produtoId}`;
+      const {error}=await db.from('avaliacoes').upsert({id,produto_id:produtoId,uid_cliente:u.id,nota,data:new Date().toISOString()},{onConflict:'id'});
+      if(error)throw error; return {ok:true};
+    }
     case 'criarPagamentoMulticaixa': case 'consultarPagamentoMulticaixa': case 'criarPagamentoCartao': case 'consultarPagamentoCartao': err(`Integração de pagamento "${name}" ainda não está configurada no backend Supabase.`,'not_configured');
     default: err(`Função "${name}" não existe no backend Supabase.`,'not_found');
   }
