@@ -62,36 +62,47 @@ export function htmlEditorialSeguro(valor) {
  * - Simples: "1500" → 1500
  */
 export function extrairValorNumerico(precoString) {
-    if (precoString === null || precoString === undefined || precoString === '') return 0;
-    if (typeof precoString === 'number') return Number.isFinite(precoString) ? precoString : 0;
+    if (!precoString) return 0;
 
-    let valor = String(precoString).trim().replace(/[^0-9.,-]/g, '');
+    // Remove tudo que não é número, ponto ou vírgula
+    let valor = precoString.replace(/[^0-9.,]/g, '');
+
     if (!valor) return 0;
 
-    const negativos = valor.startsWith('-');
-    valor = valor.replace(/-/g, '');
+    // Detecta o último separador (vírgula ou ponto)
     const ultimaVirgula = valor.lastIndexOf(',');
     const ultimoPonto = valor.lastIndexOf('.');
 
-    if (ultimaVirgula !== -1 && ultimoPonto !== -1) {
-        // O último separador é o decimal: 1.234,56 ou 1,234.56.
-        if (ultimaVirgula > ultimoPonto) valor = valor.replace(/\./g, '').replace(',', '.');
-        else valor = valor.replace(/,/g, '');
-    } else if (ultimaVirgula !== -1) {
-        const casas = valor.length - ultimaVirgula - 1;
-        // Em pt-AO, 12.500/12,500 é normalmente doze mil e quinhentos;
-        // duas casas após o separador representam decimal.
-        if (casas === 3 && valor.slice(0, ultimaVirgula).length >= 1) valor = valor.replace(/,/g, '');
-        else valor = valor.replace(',', '.');
-    } else if (ultimoPonto !== -1) {
-        const casas = valor.length - ultimoPonto - 1;
-        if (casas === 3 && valor.slice(0, ultimoPonto).length >= 1) valor = valor.replace(/\./g, '');
-        // Com 1, 2 ou 4+ casas, tratamos o ponto como decimal.
+    if (ultimaVirgula > ultimoPonto) {
+        // Formato angolano/brasileiro: "1.234,56"
+        // Remove pontos (milhares) e troca vírgula por ponto (decimal)
+        valor = valor.replace(/\./g, '').replace(',', '.');
+    } else if (ultimoPonto > ultimaVirgula) {
+        // Formato americano: "1,234.56"
+        // Remove vírgulas (milhares) e mantém ponto (decimal)
+        valor = valor.replace(/,/g, '');
+    } else {
+        // Apenas um separador, ou nenhum
+        if (ultimaVirgula !== -1 && ultimoPonto === -1) {
+            // Apenas vírgula: pode ser decimal (12,50) ou milhar (12,000)
+            // Se tem mais de uma vírgula, é milhar (1,000,000)
+            if (valor.split(',').length > 2) {
+                valor = valor.replace(/,/g, '');
+            } else {
+                // Assume decimal
+                valor = valor.replace(',', '.');
+            }
+        } else if (ultimoPonto !== -1 && ultimaVirgula === -1) {
+            // Apenas ponto: pode ser decimal (12.50) ou milhar (12.000)
+            // Se tem mais de um ponto, é milhar (12.000.000)
+            if (valor.split('.').length > 2) {
+                valor = valor.replace(/\./g, '');
+            }
+            // Se tem apenas um ponto, já é decimal
+        }
     }
 
-    const numero = Number(valor);
-    if (!Number.isFinite(numero)) return 0;
-    return negativos ? -numero : numero;
+    return parseFloat(valor) || 0;
 }
 
 export function formatarMoeda(valor) {

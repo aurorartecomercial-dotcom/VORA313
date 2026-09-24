@@ -1,6 +1,6 @@
-import { auth, db, functions } from './config.js';
-import { collection, getDocs, query, where } from './supabase-compat.js';
-import { httpsCallable } from './supabase-compat.js';
+import { auth, db } from './config.js';
+import { signInAnonymously } from './supabase-compat.js';
+import { collection, getDocs, query, setDoc, doc, where } from './supabase-compat.js';
 
 export async function obterAvaliacao(prodId) {
   const q = query(collection(db, 'avaliacoes'), where('produtoId', '==', String(prodId)));
@@ -20,10 +20,13 @@ export async function obterAvaliacao(prodId) {
 export async function adicionarAvaliacao(prodId, nota) {
   const valor = Number(nota);
   if (!Number.isInteger(valor) || valor < 1 || valor > 5) throw new Error('Nota inválida.');
-  const usuario = auth.currentUser;
-  if (!usuario || usuario.is_anonymous) {
-    throw new Error('Entre na sua conta para avaliar um produto.');
-  }
-  const enviar = httpsCallable(functions, 'adicionarAvaliacao');
-  await enviar({ produtoId: String(prodId), nota: valor });
+  const usuario = auth.currentUser || (await signInAnonymously(auth)).user;
+  // Um documento estável impede avaliações ilimitadas do mesmo utilizador.
+  const id = `${usuario.uid}_${String(prodId)}`;
+  await setDoc(doc(db, 'avaliacoes', id), {
+    produtoId: String(prodId),
+    uidCliente: usuario.uid,
+    nota: valor,
+    data: new Date().toISOString()
+  });
 }

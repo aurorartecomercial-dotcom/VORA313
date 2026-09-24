@@ -2,7 +2,7 @@
 import { auth, db, functions } from './config.js';
 import { collection, getDocs } from './supabase-compat.js';
 import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
-import { escapeHTML, extrairValorNumerico } from './utils.js';
+import { escapeHTML } from './utils.js';
 import { httpsCallable } from './supabase-compat.js';
 
 export const MONETIZACAO = Object.freeze({
@@ -38,7 +38,14 @@ const money = value => new Intl.NumberFormat('pt-AO', { maximumFractionDigits: 2
 const el = id => document.getElementById(id);
 let inicializado = false;
 
-function numero(valor) { return extrairValorNumerico(valor); }
+function numero(valor) {
+  if (typeof valor === 'number') return Number.isFinite(valor) ? valor : 0;
+  const texto = String(valor ?? '').replace(/[^0-9,.-]/g, '').trim();
+  if (!texto) return 0;
+  const normalizado = texto.includes(',') ? texto.replace(/\./g, '').replace(',', '.') : texto.replace(/,/g, '');
+  const n = Number(normalizado);
+  return Number.isFinite(n) ? n : 0;
+}
 
 function estadoVenda(venda) {
   return String(venda?.status || venda?.estado || '').toLowerCase();
