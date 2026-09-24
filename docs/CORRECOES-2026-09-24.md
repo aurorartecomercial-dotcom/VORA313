@@ -9,6 +9,7 @@
 | Cadastro de vendedor | Um utilizador já autenticado via a loja via o seu e-mail bloqueado sem explicação. Quando a confirmação de e-mail estava ativa, a candidatura era enviada sem sessão. | A interface explica a conta associada, oferece **Usar outro e-mail** e orienta a confirmar o e-mail e entrar antes de enviar a candidatura. |
 | Aprovação de vendedores | A Edge Function pode estar ausente, desatualizada ou devolver erro; nesse caso o botão não conseguia aprovar a candidatura. | O painel usa `gerirVendedor` e, se ela falhar, tenta a atualização direta permitida pelas políticas RLS do administrador, incluindo a disponibilidade dos produtos da loja. |
 | Painel de vendas | `await` era usado dentro de `trocarAba`, que não era uma função assíncrona. O módulo inteiro deixava de carregar. | `trocarAba` agora é `async`; o erro `Unexpected reserved word` deixa de ocorrer. |
+| Recuperação de senha do vendedor | O link de recuperação usava `perfil.html`, que não possui o formulário de definição de senha. | O e-mail passa a voltar para `vendedor.html`, que reconhece o link de recuperação e mostra um formulário seguro para criar a nova senha. |
 
 ## Publicação necessária
 
@@ -20,7 +21,14 @@ supabase functions deploy api
 
 No Supabase SQL Editor, confirme que as migrations `009_admin_vendedores_vendas.sql` e `010_production_safety.sql` já foram executadas. Elas mantêm o RLS ativo e dão ao administrador acesso às listas de vendedores e produtos pendentes.
 
-Depois da publicação, faça uma atualização forte no navegador (`Ctrl+F5`). O service worker foi versionado para `v45`, portanto os ficheiros antigos serão substituídos assim que a nova versão for obtida.
+Depois da publicação, faça uma atualização forte no navegador (`Ctrl+F5`). O service worker foi versionado para `v46`, portanto os ficheiros antigos serão substituídos assim que a nova versão for obtida.
+
+Em **Authentication → URL Configuration** no Supabase, guarde estas URLs (ajuste apenas se o endereço público do site for diferente):
+
+```text
+Site URL: https://aurorartecomercial-dotcom.github.io/VORA313/
+Redirect URL: https://aurorartecomercial-dotcom.github.io/VORA313/vendedor.html
+```
 
 ## Verificação após publicar
 

@@ -3,6 +3,7 @@
 ## 1. Supabase
 
 - Authentication → Email/Password ativo.
+- Em Authentication → URL Configuration, defina **Site URL** como `https://aurorartecomercial-dotcom.github.io/VORA313/` e inclua `https://aurorartecomercial-dotcom.github.io/VORA313/vendedor.html` em **Redirect URLs**. Isto permite que a recuperação de senha do vendedor abra o formulário correto, inclusive no telefone.
 - Se o checkout continuar a permitir sessão anónima, ative Anonymous Sign-ins.
 - Execute `supabase/migrations/003_firebase_uid_bridge.sql`, `004_migration_support.sql` e `005_supabase_frontend_support.sql` depois das migrations 001 e 002 já aplicadas.
 - Execute a migration `008_vora313_schema_repair.sql` depois das migrations anteriores.
