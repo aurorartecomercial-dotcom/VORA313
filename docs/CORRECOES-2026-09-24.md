@@ -7,7 +7,7 @@
 | Página inicial e detalhe | A página inicial usava `vora313_catalogo_cache_v3`, enquanto categoria e detalhe procuravam `vora313_catalogo_cache`. Um cartão podia ter um ID que a página de detalhe não conhecia. | As três páginas passam a usar `carregarCatalogo()` e a chave v4. O catálogo-base de `produtos.json` é combinado aos produtos públicos do Supabase. |
 | Produtos na página inicial | O Supabase público tinha menos produtos migrados do que o catálogo-base. | A loja mantém os produtos-base visíveis durante a migração, sem esconder os produtos aprovados do Supabase. |
 | Cadastro de vendedor | Um utilizador já autenticado via a loja via o seu e-mail bloqueado sem explicação. Quando a confirmação de e-mail estava ativa, a candidatura era enviada sem sessão. | A interface explica a conta associada, oferece **Usar outro e-mail** e orienta a confirmar o e-mail e entrar antes de enviar a candidatura. |
-| Aprovação de vendedores | A página administrativa simples alterava o registo diretamente e não atualizava os produtos da loja. | A aprovação agora usa a ação segura `gerirVendedor` da Edge Function. |
+| Aprovação de vendedores | A Edge Function pode estar ausente, desatualizada ou devolver erro; nesse caso o botão não conseguia aprovar a candidatura. | O painel usa `gerirVendedor` e, se ela falhar, tenta a atualização direta permitida pelas políticas RLS do administrador, incluindo a disponibilidade dos produtos da loja. |
 | Painel de vendas | `await` era usado dentro de `trocarAba`, que não era uma função assíncrona. O módulo inteiro deixava de carregar. | `trocarAba` agora é `async`; o erro `Unexpected reserved word` deixa de ocorrer. |
 
 ## Publicação necessária
@@ -20,7 +20,7 @@ supabase functions deploy api
 
 No Supabase SQL Editor, confirme que as migrations `009_admin_vendedores_vendas.sql` e `010_production_safety.sql` já foram executadas. Elas mantêm o RLS ativo e dão ao administrador acesso às listas de vendedores e produtos pendentes.
 
-Depois da publicação, faça uma atualização forte no navegador (`Ctrl+F5`). O service worker foi versionado para `v43`, portanto os ficheiros antigos serão substituídos assim que a nova versão for obtida.
+Depois da publicação, faça uma atualização forte no navegador (`Ctrl+F5`). O service worker foi versionado para `v45`, portanto os ficheiros antigos serão substituídos assim que a nova versão for obtida.
 
 ## Verificação após publicar
 
@@ -36,6 +36,10 @@ order by criado_em desc;
 ```
 
 5. Entre em `admin-vendedores.html` ou no separador **Vendedores** de `admin-vendas.html`, aprove a candidatura e confirme que o estado muda para `aprovado`.
+
+## Aprovação de recuperação pelo SQL Editor
+
+O script `supabase/APROVAR_VENDEDOR_VORA313E.sql` aprova somente a candidatura de `vora313e@gmail.com`. Como o SQL Editor não envia o JWT do administrador, o script usa a identidade `service_role` apenas durante a transação; ela desaparece no `COMMIT` e não altera as permissões permanentes do projeto.
 
 ## Nota sobre o catálogo-base
 
