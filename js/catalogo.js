@@ -20,6 +20,54 @@ function normalizarProduto(snapshotDoc) {
   return { ...produto, id: String(produto.id || snapshotDoc.id) };
 }
 
+function normalizarProdutoLocal(produto) {
+  return { ...produto, id: String(produto?.id || '') };
+}
+
+function cacheValido(cache) {
+  return Array.isArray(cache?.data)
+    && cache.data.length > 0
+    && Number.isFinite(Number(cache.timestamp))
+    && Date.now() - Number(cache.timestamp) < CONFIG.CACHE_TTL;
+}
+
+async function carregarCatalogoBase() {
+  const resposta = await fetch('produtos.json', { cache: 'no-store' });
+  if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
+  const dados = await resposta.json();
+  if (!Array.isArray(dados)) throw new Error('produtos.json não contém uma lista de produtos.');
+  return dados.map(normalizarProdutoLocal);
+}
+
+async function carregarCatalogoSupabase() {
+  const snapshot = await getDocs(collection(db, 'produtos'));
+  return snapshot.docs.map(normalizarProduto);
+}
+
+function combinarCatalogos(produtosBase, produtosSupabase) {
+  // Os produtos-base mantêm a loja disponível durante a migração. Um produto
+  // com o mesmo ID no Supabase substitui a sua versão local.
+  const porId = new Map();
+  produtosBase.forEach((produto) => porId.set(String(produto.id), produto));
+  produtosSupabase.forEach((produto) => porId.set(String(produto.id), produto));
+  return [...porId.values()];
+}
+
+async function buscarCatalogoAtual() {
+  const [base, remoto] = await Promise.allSettled([
+    carregarCatalogoBase(),
+    carregarCatalogoSupabase()
+  ]);
+
+  const produtosBase = base.status === 'fulfilled' ? base.value : [];
+  const produtosSupabase = remoto.status === 'fulfilled' ? remoto.value : [];
+  if (!produtosBase.length && remoto.status === 'rejected') throw remoto.reason;
+  if (!produtosBase.length && !produtosSupabase.length) throw new Error('Nenhum produto foi encontrado.');
+
+  const produtos = combinarCatalogos(produtosBase, produtosSupabase).filter(produtoPublico);
+  return ordenarProdutosMonetizados(await aplicarResumoAvaliacoes(produtos));
+}
+
 async function aplicarResumoAvaliacoes(produtos) {
   try {
     const resumo = await getDocs(collection(db, 'produtoAvaliacoesResumo'));
@@ -53,28 +101,24 @@ export async function carregarCatalogo(opcoes = {}) {
   catalogoPromise = (async () => {
     try {
       const cache = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || 'null');
-      if (Array.isArray(cache?.data) && cache.data.length) {
+      if (cacheValido(cache)) {
         cacheMemoria = ordenarProdutosMonetizados(cache.data.filter(produtoPublico));
         atualizarDoSupabase();
         return cacheMemoria;
       }
     } catch (_) {}
     try {
-      const snapshot = await getDocs(collection(db, 'produtos'));
-      const produtos = snapshot.docs.map(normalizarProduto).filter(produtoPublico);
-      cacheMemoria = ordenarProdutosMonetizados(await aplicarResumoAvaliacoes(produtos));
+      cacheMemoria = await buscarCatalogoAtual();
       salvarCache(cacheMemoria);
       return cacheMemoria;
     } catch (error) {
-      console.warn('Falha ao buscar catálogo no Supabase:', error);
+      console.warn('Falha ao buscar catálogo:', error);
       // Fallback local: a loja continua a apresentar o catálogo-base mesmo
       // quando o Supabase está temporariamente indisponível.
       try {
-        const resposta = await fetch('produtos.json', { cache: 'no-store' });
-        if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
-        const locais = await resposta.json();
-        if (Array.isArray(locais) && locais.length) {
-          cacheMemoria = ordenarProdutosMonetizados(locais.map(p => ({ ...p, id: String(p.id) })).filter(produtoPublico));
+        const locais = await carregarCatalogoBase();
+        if (locais.length) {
+          cacheMemoria = ordenarProdutosMonetizados(locais.filter(produtoPublico));
           salvarCache(cacheMemoria);
           return cacheMemoria;
         }
@@ -93,9 +137,7 @@ function salvarCache(produtos) {
 
 async function atualizarDoSupabase() {
   try {
-    const snapshot = await getDocs(collection(db, 'produtos'));
-    const produtos = snapshot.docs.map(normalizarProduto).filter(produtoPublico);
-    cacheMemoria = ordenarProdutosMonetizados(await aplicarResumoAvaliacoes(produtos));
+    cacheMemoria = await buscarCatalogoAtual();
     salvarCache(cacheMemoria);
     window.dispatchEvent(new CustomEvent('vora313:catalogo-atualizado', { detail: { total: cacheMemoria.length } }));
   } catch (_) {}

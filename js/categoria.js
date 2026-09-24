@@ -19,20 +19,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     document.getElementById('tituloCategoria').textContent = `📦 ${nomeCategoria}`;
     document.getElementById('paginaTitulo').textContent = `${nomeCategoria} - VORA 313`;
 
-    // ✅ Tenta carregar do cache local primeiro
-    let catalogo = [];
-    const cachedStr = localStorage.getItem('vora313_catalogo_cache');
-    if (cachedStr) {
-        try {
-            const cache = JSON.parse(cachedStr);
-            if (cache.data && cache.data.length > 0) catalogo = cache.data;
-        } catch (e) {}
-    }
-
-    // Se não tem cache, busca do Supabase
-    if (catalogo.length === 0) {
-        catalogo = await carregarCatalogo();
-    }
+    // A categoria usa a mesma fonte e os mesmos IDs da página inicial e do
+    // detalhe. Antes, ela lia uma chave de cache antiga e criava um catálogo
+    // diferente do catálogo da página inicial.
+    const catalogo = await carregarCatalogo();
 
     document.getElementById('carregandoCategoria').style.display = 'none';
 

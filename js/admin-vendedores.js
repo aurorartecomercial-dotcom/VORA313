@@ -1,6 +1,6 @@
-import { auth, db } from './config.js';
-import { collection, getDocs, updateDoc, doc } from './supabase-compat.js';
-import { getIdTokenResult, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
+import { auth, db, functions } from './config.js';
+import { collection, getDocs } from './supabase-compat.js';
+import { getIdTokenResult, signInWithEmailAndPassword, signOut, httpsCallable } from './supabase-compat.js';
 import { escapeHTML } from './utils.js';
 
 const $ = id => document.getElementById(id);
@@ -39,9 +39,9 @@ async function carregar() {
 async function alterar(id, aprovado) {
   const msg = $('mensagemVendedores');
   try {
-    await updateDoc(doc(db, 'vendedores', id), {
-      status: aprovado ? 'aprovado' : 'suspenso',
-      ativo: aprovado
+    await httpsCallable(functions, 'gerirVendedor')({
+      uid: id,
+      acao: aprovado ? 'aprovar' : 'suspender'
     });
     msg.textContent = aprovado ? 'Vendedor aprovado e ativado.' : 'Vendedor suspenso.';
     await carregar();

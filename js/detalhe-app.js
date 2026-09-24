@@ -28,12 +28,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     if (!idProduto) return mostrarErro('Nenhum ID de produto foi informado.');
 
-    try {
-        const cache = JSON.parse(localStorage.getItem('vora313_catalogo_cache') || 'null');
-        if (Array.isArray(cache?.data) && cache.data.length) catalogoAtual = cache.data.filter(p => p?.ativo !== false && p?.vendedorAtivo !== false && (!p?.statusAprovacao || p.statusAprovacao === 'aprovado'));
-    } catch (_) {}
-
-    if (!catalogoAtual.length) catalogoAtual = await carregarCatalogo();
+    // Nunca procurar o produto num cache legado: os cartões da página inicial
+    // e os detalhes têm de vir da mesma lista, com o mesmo identificador.
+    catalogoAtual = await carregarCatalogo();
     if (!catalogoAtual.length) return mostrarErro('Erro ao carregar catálogo.');
 
     produtoAtual = catalogoAtual.find(p => String(p.id) === String(idProduto));

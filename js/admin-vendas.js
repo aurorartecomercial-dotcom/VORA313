@@ -182,7 +182,7 @@ function preencherSelects() {
     }
 }
 
-function trocarAba(abaId) {
+async function trocarAba(abaId) {
     document.querySelectorAll('.aba-btn').forEach(btn => btn.classList.toggle('ativa', btn.dataset.aba === abaId));
     document.querySelectorAll('.aba-conteudo').forEach(div => div.classList.toggle('ativa', div.id === `aba-${abaId}`));
     

@@ -24,7 +24,9 @@ function compatUser(user) {
 }
 
 export const CONFIG = {
-  CACHE_KEY: 'vora313_catalogo_cache_v3',
+  // A versão faz com que os navegadores descartem o cache antigo, que usava
+  // uma fonte diferente nas páginas de início, categoria e detalhe.
+  CACHE_KEY: 'vora313_catalogo_cache_v4',
   CACHE_TTL: 30 * 60 * 1000,
   NUMERO_WHATSAPP: '244933677628',
   MARCA: 'VORA 313',
