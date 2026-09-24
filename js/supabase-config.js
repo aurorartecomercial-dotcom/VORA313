@@ -1,5 +1,5 @@
-// Configuração pública do frontend VORA 313.
-// A anon/publishable key é própria para o browser quando o RLS está correto.
+﻿// ConfiguraÃ§Ã£o pÃºblica do frontend VORA 313.
+// A anon/publishable key Ã© prÃ³pria para o browser quando o RLS estÃ¡ correto.
 // NUNCA coloque a service_role key aqui.
 export const SUPABASE_CONFIG = {
   url: 'https://xeuthybpiphiejfvjrtu.supabase.co',
@@ -7,3 +7,4 @@ export const SUPABASE_CONFIG = {
   storageBucket: 'vora-public',
   functionsName: 'api'
 };
+
