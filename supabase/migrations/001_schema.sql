@@ -57,6 +57,7 @@ create table public.produtos (
   nome text not null,
   categoria text not null,
   preco text not null,
+  preco_valor numeric(14,2),
   preco_antigo text,
   desconto text,
   parcelas text,
@@ -115,6 +116,7 @@ create table public.vendas (
   monetizacao jsonb not null default '{}'::jsonb,
   data_hora text,
   expira_em timestamptz,
+  idempotency_key text,
   criado_em timestamptz not null default now(),
   atualizado_em timestamptz not null default now()
 );
@@ -232,9 +234,11 @@ create table public.fidelidade_movimentos (
 create index idx_produtos_categoria on public.produtos(categoria);
 create index idx_produtos_vendedor on public.produtos(vendedor_id);
 create index idx_produtos_publicado on public.produtos(ativo, vendedor_ativo, status_aprovacao);
+create index idx_produtos_preco_valor on public.produtos(preco_valor);
 create index idx_vendas_cliente on public.vendas(uid_cliente);
 create index idx_vendas_status on public.vendas(status);
 create index idx_vendas_criado on public.vendas(criado_em desc);
+create unique index uq_vendas_cliente_idempotency on public.vendas(uid_cliente, idempotency_key) where idempotency_key is not null;
 create index idx_venda_itens_venda on public.venda_itens(venda_id);
 create index idx_venda_itens_vendedor on public.venda_itens(vendedor_id);
 create index idx_cupons_cliente_ativo on public.cupons(uid_cliente, ativo);
@@ -322,9 +326,6 @@ for select to authenticated using (id = auth.uid() or public.is_admin());
 create policy vendedores_update_self_or_admin on public.vendedores
 for update to authenticated using (id = auth.uid() or public.is_admin())
 with check (id = auth.uid() or public.is_admin());
-
-create policy vendedores_insert_self on public.vendedores
-for insert to authenticated with check (id = auth.uid());
 
 -- Pedidos
 create policy vendas_select_owner_or_admin on public.vendas

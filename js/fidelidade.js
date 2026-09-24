@@ -7,9 +7,7 @@ import {
     onAuthStateChanged,
     updateProfile
 } from './supabase-compat.js';
-import { 
-    doc, getDoc, setDoc, updateDoc, arrayUnion 
-} from './supabase-compat.js';
+import { doc, getDoc } from './supabase-compat.js';
 import { mostrarToast } from './utils.js';
 
 // Estado do usuário atual
@@ -89,17 +87,9 @@ export function initFidelidade() {
                 const email = emailRegInput.value;
                 const senha = senhaRegInput.value;
                 const userCred = await createUserWithEmailAndPassword(auth, email, senha);
-                await updateProfile(userCred.user, { displayName: nome });
-                // Criar registo no Supabase
-                await setDoc(doc(db, 'clientes', userCred.user.uid), {
-                    nome: nome,
-                    email: email,
-                    pontos: 0,
-                    historico: [],
-                    criadoEm: new Date()
-                });
+                if (userCred.session) await updateProfile(userCred.user, { displayName: nome });
                 modalLogin.style.display = 'none';
-                mostrarToast('✅ Conta criada com sucesso!', 'sucesso');
+                mostrarToast(userCred.session ? '✅ Conta criada com sucesso!' : '✅ Conta criada. Confirme o email para entrar.', 'sucesso');
             } catch (e) {
                 erroRegistro.textContent = e.message;
                 erroRegistro.style.display = 'block';
@@ -164,17 +154,7 @@ async function carregarDadosUsuario(uid) {
             pontosAtuais = dados.pontos || 0;
             // Salvar no localStorage para acesso rápido
             localStorage.setItem('aurora_pontos', String(pontosAtuais));
-        } else {
-            // Criar documento se não existir (caso de login antigo)
-            await setDoc(docRef, {
-                nome: auth.currentUser.displayName || 'Cliente',
-                email: auth.currentUser.email,
-                pontos: 0,
-                historico: [],
-                criadoEm: new Date()
-            });
-            pontosAtuais = 0;
-        }
+        } else pontosAtuais = 0;
     } catch (e) {
         console.error('Erro ao carregar dados do usuário:', e);
         pontosAtuais = parseInt(localStorage.getItem('aurora_pontos') || '0');
@@ -190,77 +170,25 @@ function atualizarUI() {
         badge.style.display = 'inline-block';
     }
     if (btnEntrar) {
-        if (usuarioAtual) {
-            btnEntrar.innerHTML = `<small>Olá, ${usuarioAtual.displayName || 'Cliente'}</small> Conta`;
-        } else {
-            btnEntrar.innerHTML = `<small>Olá, faça seu login</small> Conta`;
-        }
+        const pequeno = document.createElement('small');
+        pequeno.textContent = usuarioAtual ? `Olá, ${usuarioAtual.displayName || 'Cliente'}` : 'Olá, faça seu login';
+        btnEntrar.replaceChildren(pequeno, document.createTextNode(' Conta'));
     }
 }
 
 // Função para adicionar pontos após uma compra
 export async function adicionarPontos(valorTotal) {
-    if (!usuarioAtual) return; // Não adiciona se não logado
-
-    const pontosGanhos = Math.floor(valorTotal / 1000); // 1 ponto por 1000 Kz
-    if (pontosGanhos <= 0) return;
-
-    try {
-        const docRef = doc(db, 'clientes', usuarioAtual.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const dados = docSnap.data();
-            const novosPontos = (dados.pontos || 0) + pontosGanhos;
-            await updateDoc(docRef, {
-                pontos: novosPontos,
-                historico: arrayUnion({
-                    data: new Date(),
-                    tipo: 'ganho',
-                    pontos: pontosGanhos,
-                    descricao: 'Compra'
-                })
-            });
-            pontosAtuais = novosPontos;
-            localStorage.setItem('aurora_pontos', String(novosPontos));
-            atualizarUI();
-            mostrarToast(`+${pontosGanhos} pontos ganhos!`, 'sucesso');
-        }
-    } catch (e) {
-        console.error('Erro ao adicionar pontos:', e);
+    // Pontos são creditados somente quando o backend confirma o pagamento.
+    // Esta função antiga permanece sem escrita para não mostrar saldo fictício.
+    if (usuarioAtual) {
+        await carregarDadosUsuario(usuarioAtual.uid);
+        atualizarUI();
     }
+    return false;
 }
 
 // Função para resgatar pontos (desconto)
 export async function resgatarPontos(pontosParaResgatar) {
-    if (!usuarioAtual) return false;
-    if (pontosParaResgatar > pontosAtuais) {
-        mostrarToast('Pontos insuficientes.', 'info');
-        return false;
-    }
-
-    try {
-        const docRef = doc(db, 'clientes', usuarioAtual.uid);
-        const docSnap = await getDoc(docRef);
-        if (docSnap.exists()) {
-            const dados = docSnap.data();
-            const novosPontos = (dados.pontos || 0) - pontosParaResgatar;
-            await updateDoc(docRef, {
-                pontos: novosPontos,
-                historico: arrayUnion({
-                    data: new Date(),
-                    tipo: 'resgate',
-                    pontos: -pontosParaResgatar,
-                    descricao: 'Resgate de cupom'
-                })
-            });
-            pontosAtuais = novosPontos;
-            localStorage.setItem('aurora_pontos', String(novosPontos));
-            atualizarUI();
-            mostrarToast('✅ Pontos resgatados!', 'sucesso');
-            return true;
-        }
-    } catch (e) {
-        console.error('Erro ao resgatar pontos:', e);
-        return false;
-    }
+    mostrarToast('O resgate será ativado quando estiver ligado a um cupom validado pelo servidor.', 'info');
+    return false;
 }

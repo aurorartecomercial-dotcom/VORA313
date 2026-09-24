@@ -61,11 +61,24 @@ export function htmlEditorialSeguro(valor) {
  * - Americano: "$12,500.00" → 12500.00
  * - Simples: "1500" → 1500
  */
+export function valorMonetarioKz(precoString) {
+    if (precoString === null || precoString === undefined) return null;
+    if (typeof precoString === 'number') return Number.isFinite(precoString) && precoString > 0 ? precoString : null;
+
+    const valor = String(precoString).trim().replace(/\s|kz/gi, '');
+    if (!/^(?:\d{1,3}(?:\.\d{3})*(?:,\d{1,2})?|\d+(?:,\d{1,2})?)$/.test(valor)) return null;
+    const numero = Number(valor.replace(/\./g, '').replace(',', '.'));
+    return Number.isFinite(numero) && numero > 0 ? numero : null;
+}
+
 export function extrairValorNumerico(precoString) {
     if (!precoString) return 0;
 
+    const valorKz = valorMonetarioKz(precoString);
+    if (valorKz !== null) return valorKz;
+
     // Remove tudo que não é número, ponto ou vírgula
-    let valor = precoString.replace(/[^0-9.,]/g, '');
+    let valor = String(precoString).replace(/[^0-9.,]/g, '');
 
     if (!valor) return 0;
 

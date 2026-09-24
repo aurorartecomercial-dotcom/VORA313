@@ -20,6 +20,28 @@ function normalizarProduto(snapshotDoc) {
   return { ...produto, id: String(produto.id || snapshotDoc.id) };
 }
 
+async function aplicarResumoAvaliacoes(produtos) {
+  try {
+    const resumo = await getDocs(collection(db, 'produtoAvaliacoesResumo'));
+    const porProduto = new Map(resumo.docs.map((doc) => {
+      const dados = doc.data();
+      return [String(dados.produtoId || doc.id), dados];
+    }));
+    return produtos.map((produto) => {
+      const dados = porProduto.get(String(produto.id));
+      return {
+        ...produto,
+        avaliacaoMedia: Number(dados?.media || 0),
+        avaliacaoTotal: Number(dados?.total || 0),
+        resumoAvaliacoesCarregado: true
+      };
+    });
+  } catch (_) {
+    // A página continua funcional caso a view ainda não tenha sido publicada.
+    return produtos;
+  }
+}
+
 export async function carregarCatalogo(opcoes = {}) {
   const force = opcoes?.force === true;
   if (force) {
@@ -39,7 +61,8 @@ export async function carregarCatalogo(opcoes = {}) {
     } catch (_) {}
     try {
       const snapshot = await getDocs(collection(db, 'produtos'));
-      cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto).filter(produtoPublico));
+      const produtos = snapshot.docs.map(normalizarProduto).filter(produtoPublico);
+      cacheMemoria = ordenarProdutosMonetizados(await aplicarResumoAvaliacoes(produtos));
       salvarCache(cacheMemoria);
       return cacheMemoria;
     } catch (error) {
@@ -71,7 +94,8 @@ function salvarCache(produtos) {
 async function atualizarDoSupabase() {
   try {
     const snapshot = await getDocs(collection(db, 'produtos'));
-    cacheMemoria = ordenarProdutosMonetizados(snapshot.docs.map(normalizarProduto).filter(produtoPublico));
+    const produtos = snapshot.docs.map(normalizarProduto).filter(produtoPublico);
+    cacheMemoria = ordenarProdutosMonetizados(await aplicarResumoAvaliacoes(produtos));
     salvarCache(cacheMemoria);
     window.dispatchEvent(new CustomEvent('vora313:catalogo-atualizado', { detail: { total: cacheMemoria.length } }));
   } catch (_) {}
@@ -172,10 +196,16 @@ export function criarCardProduto(produto) {
   acoes.append(adicionar, partilhar);
   card.append(acoes);
 
-  obterAvaliacao(prod.id).then((dados) => {
-    if (dados.media > 0) avaliacao.textContent = `★ ${dados.media.toFixed(1)} · ${dados.total}`;
-    else avaliacao.textContent = '☆ Ainda sem avaliações';
-  }).catch(() => { avaliacao.textContent = '☆ Ainda sem avaliações'; });
+  if (prod.resumoAvaliacoesCarregado) {
+    avaliacao.textContent = prod.avaliacaoMedia > 0
+      ? `★ ${prod.avaliacaoMedia.toFixed(1)} · ${prod.avaliacaoTotal}`
+      : '☆ Ainda sem avaliações';
+  } else {
+    obterAvaliacao(prod.id).then((dados) => {
+      if (dados.media > 0) avaliacao.textContent = `★ ${dados.media.toFixed(1)} · ${dados.total}`;
+      else avaliacao.textContent = '☆ Ainda sem avaliações';
+    }).catch(() => { avaliacao.textContent = '☆ Ainda sem avaliações'; });
+  }
 
   return card;
 }
@@ -195,10 +225,10 @@ export function filtrarEOrdenar(produtos, categoria, busca, min, max, ordenacao,
       const dias = Number.parseInt(dataFiltro, 10);
       if (!Number.isNaN(dias) && !Number.isNaN(data.getTime())) matchData = Date.now() - data.getTime() <= dias * 86400000;
     }
-    return matchCategoria && matchBusca && preco >= min && preco <= max && matchData;
+    const avaliacao = Number(prod.avaliacaoMedia || 0);
+    const matchAvaliacao = minAvaliacao <= 0 || avaliacao >= minAvaliacao;
+    return matchCategoria && matchBusca && preco >= min && preco <= max && matchData && matchAvaliacao;
   });
-  // A média é carregada assincronamente; não fingir que este filtro funciona.
-  if (minAvaliacao > 0) console.warn('O filtro de avaliação exige um campo agregado no produto.');
   const porData = (value) => value?.seconds ? value.seconds : new Date(value || 0).getTime() || 0;
   switch (ordenacao) {
     case 'preco-asc': filtrados.sort((a, b) => extrairValorNumerico(a.preco) - extrairValorNumerico(b.preco)); break;

@@ -8,6 +8,7 @@ const TABLES = Object.freeze({
   movimentosVendedores: 'movimentos_vendedores',
   rastreiosPublicos: 'rastreios_publicos',
   vendaItens: 'venda_itens',
+  produtoAvaliacoesResumo: 'produto_avaliacoes_resumo',
   firebaseLegacyDocuments: 'firebase_legacy_documents'
 });
 
@@ -138,8 +139,9 @@ export async function createUserWithEmailAndPassword(_auth, email, password) {
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw normalizeAuthError(error);
   if (!data.user) throw new Error('Não foi possível criar a conta.');
-  if (!data.session) throw new Error('Conta criada. Confirme o email antes de entrar.');
-  auth.currentUser = data.user;
+  // Com confirmação de email ativa o Supabase não devolve sessão ainda; isso é
+  // sucesso, não erro. A interface mostra a orientação de confirmação.
+  if (data.session) auth.currentUser = data.user;
   return { user: data.user, session: data.session };
 }
 

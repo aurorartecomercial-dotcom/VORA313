@@ -2,7 +2,7 @@ import { auth, db, storage } from './config.js';
 import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from './supabase-compat.js';
 import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword } from './supabase-compat.js';
 import { getDownloadURL, ref, uploadBytes } from './supabase-compat.js';
-import { escapeHTML, extrairValorNumerico, mostrarToast, IMAGEM_FALLBACK, urlSegura } from './utils.js';
+import { escapeHTML, extrairValorNumerico, valorMonetarioKz, mostrarToast, IMAGEM_FALLBACK, urlSegura } from './utils.js';
 
 let produtos = [];
 let editandoId = null;
@@ -379,6 +379,11 @@ function iniciarAdmin() {
             alert('Preencha Nome, Categoria, Preço e Preço de Custo obrigatoriamente.');
             return;
         }
+        const precoNumerico = valorMonetarioKz(precoValor);
+        if (precoNumerico === null) {
+            alert('Preço inválido. Use o formato 1.500,00 Kz.');
+            return;
+        }
 
         const imagensArray = imagens.value.split(',').map(s => s.trim()).filter(s => s && !s.includes('placeholder'));
         const imagensFinal = imagensArray.length > 0 ? imagensArray : [IMAGEM_FALLBACK];
@@ -389,6 +394,7 @@ function iniciarAdmin() {
             nome: nome.value.trim(),
             categoria: categoria.value,
             preco: precoValor,
+            precoValor: precoNumerico,
             precoAntigo: precoAntigo.value.trim() || '',
             custo: custo.value.trim(),
             desconto: desconto.value.trim() || '',

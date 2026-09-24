@@ -19,6 +19,19 @@ let selectBairro;
 let inputObservacao;
 let btnSalvarCliente;
 let cupomAplicado = '';
+const CHECKOUT_IDEMPOTENCY_KEY = 'vora313_checkout_idempotency';
+
+function invalidarTentativaCheckout() {
+  localStorage.removeItem(CHECKOUT_IDEMPOTENCY_KEY);
+}
+
+function obterChavePedido() {
+  const existente = localStorage.getItem(CHECKOUT_IDEMPOTENCY_KEY);
+  if (existente && /^[a-zA-Z0-9_-]{16,128}$/.test(existente)) return existente;
+  const nova = crypto.randomUUID ? crypto.randomUUID() : `vora_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+  localStorage.setItem(CHECKOUT_IDEMPOTENCY_KEY, nova);
+  return nova;
+}
 
 export function initCarrinho() {
   listaProdutosHTML = document.getElementById('itensCarrinhoLoja');
@@ -68,6 +81,7 @@ export function initCarrinho() {
     const alterar = event.target.closest('button[data-index][data-mudanca]');
     if (remover) {
       carrinho.splice(Number(remover.dataset.remover), 1);
+      invalidarTentativaCheckout();
       atualizarCarrinho();
     } else if (alterar) {
       alterarQuantidade(Number(alterar.dataset.index), Number(alterar.dataset.mudanca));
@@ -219,6 +233,7 @@ function alterarQuantidade(index, mudanca) {
   if (!item || !Number.isInteger(mudanca)) return;
   item.quantidade += mudanca;
   if (item.quantidade <= 0) carrinho.splice(index, 1);
+  invalidarTentativaCheckout();
   atualizarCarrinho();
 }
 
@@ -240,6 +255,7 @@ export function adicionarProdutoCarrinho(produto, observacao = '') {
     quantidade: 1,
     observacao: String(observacao || '').slice(0, 500)
   });
+  invalidarTentativaCheckout();
   atualizarCarrinho();
   mostrarToast('Produto adicionado!', 'sucesso');
 }
@@ -249,6 +265,7 @@ export function aplicarCupom(valor) {
   if (!codigo) return mostrarToast('Digite o código do cupom.', 'info');
   if (!/^[A-Z0-9_-]{3,60}$/.test(codigo)) return mostrarToast('Formato de cupom inválido.', 'info');
   cupomAplicado = codigo;
+  invalidarTentativaCheckout();
   mostrarToast('Cupom será validado com segurança ao finalizar o pedido.', 'info');
 }
 
@@ -309,9 +326,11 @@ async function finalizarPedido() {
     const resposta = await criarPedido({
       itens: carrinho.map(({ produtoId, quantidade }) => ({ produtoId, quantidade })),
       cliente,
-      cupom: cupomAplicado
+      cupom: cupomAplicado,
+      idempotencyKey: obterChavePedido()
     });
     fecharModalCliente();
+    invalidarTentativaCheckout();
     limparCarrinho();
     abrirModalPagamento(resposta.data);
   } catch (error) {
@@ -351,6 +370,7 @@ function abrirModalPagamento(pedido) {
 function limparCarrinho() {
   carrinho = [];
   cupomAplicado = '';
+  invalidarTentativaCheckout();
   localStorage.removeItem('carrinho_aurora');
   atualizarCarrinho();
   fecharCarrinho();
