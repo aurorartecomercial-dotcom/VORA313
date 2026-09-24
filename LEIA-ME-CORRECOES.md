@@ -31,3 +31,9 @@ supabase functions deploy api
 3. Abra `admin-vendedores.html` ou o separador **Vendedores** no painel de vendas; a candidatura deve aparecer como pendente para aprovação.
 
 Não atribuí stock fictício aos 28 produtos-base. Para concluir o checkout desses itens, importe para o Supabase as quantidades reais de stock.
+
+## Recuperar a conta já criada
+
+Se uma conta aparecer em **Authentication > Users**, mas não aparecer em `public.vendedores` (o caso atual de `vora313@gmail.com`), execute o ficheiro [RECUPERAR-CANDIDATURA-VORA313.sql](RECUPERAR-CANDIDATURA-VORA313.sql) no **SQL Editor** do mesmo projeto Supabase. Ele cria apenas uma candidatura com estado `pendente`; a aprovação continua a ser feita pelo administrador.
+
+Se o login disser “credenciais inválidas”, a conta existe mas a palavra-passe digitada não corresponde à que foi usada no registo. Use **Recuperar palavra-passe** na página de vendedores. Não crie uma segunda conta com o mesmo e-mail.
