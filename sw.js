@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vora313-cache-v46-recuperacao-vendedor';
+const CACHE_NAME = 'vora313-cache-v47-vendedores-catalogo';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html',
   './style.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',

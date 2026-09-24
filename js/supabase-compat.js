@@ -246,8 +246,14 @@ export function httpsCallable(_functions, name) {
 }
 
 function normalizeAuthError(error) {
-  const e = new Error(error?.message || 'Erro de autenticação.');
+  const original = error?.message || 'Erro de autenticação.';
+  const limiteEmail = error?.code === 'over_email_send_rate_limit'
+    || /email rate limit|email.*rate.*limit|too many.*email/i.test(original);
+  const mensagem = limiteEmail
+    ? 'Limite de e-mails do Supabase atingido. A confirmação e a recuperação usam o mesmo limite de 2 e-mails por hora. Aguarde uma hora ou configure SMTP próprio no Supabase.'
+    : original;
+  const e = new Error(mensagem);
   const map = { 'Invalid login credentials': 'Credenciais inválidas.', 'User already registered': 'auth/email-already-in-use' };
-  e.code = map[error?.message] || error?.code || 'auth/error';
+  e.code = limiteEmail ? 'auth/email-rate-limit' : (map[error?.message] || error?.code || 'auth/error');
   return e;
 }

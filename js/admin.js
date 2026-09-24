@@ -1,4 +1,4 @@
-import { auth, db, storage } from './config.js';
+import { auth, db, storage, CONFIG } from './config.js';
 import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from './supabase-compat.js';
 import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword } from './supabase-compat.js';
 import { getDownloadURL, ref, uploadBytes } from './supabase-compat.js';
@@ -9,6 +9,10 @@ let editandoId = null;
 let adminInicializado = false;
 let filtroProdutosAdmin = '';
 let filtroEstoqueAdmin = 'todos';
+
+function invalidarCatalogoPublico() {
+    localStorage.setItem(`${CONFIG.CACHE_KEY}:revision`, String(Date.now()));
+}
 
 // ✅ FALLBACK PARA NAVEGADORES ANTIGOS
 function gerarId() {
@@ -292,6 +296,68 @@ function iniciarAdmin() {
         }
     }
 
+    async function importarCatalogoBase() {
+        const botao = document.getElementById('btnImportarCatalogoBase');
+        if (!confirm('Importar apenas os produtos de produtos.json que ainda não existem no Supabase? Produtos já existentes não serão alterados.')) return;
+        if (botao) { botao.disabled = true; botao.textContent = '⏳ A importar...'; }
+        try {
+            const resposta = await fetch('produtos.json', { cache: 'no-store' });
+            if (!resposta.ok) throw new Error(`Não foi possível ler produtos.json (HTTP ${resposta.status}).`);
+            const catalogoBase = await resposta.json();
+            if (!Array.isArray(catalogoBase)) throw new Error('produtos.json não contém uma lista de produtos.');
+
+            const idsExistentes = new Set(produtos.map(p => String(p.id || p._firestoreId)));
+            let importados = 0;
+            let ignorados = 0;
+            for (const origem of catalogoBase) {
+                const id = String(origem?.id || '').trim();
+                const preco = String(origem?.preco || '').trim();
+                if (!id || !origem?.nome || !origem?.categoria || valorMonetarioKz(preco) === null) {
+                    ignorados++;
+                    continue;
+                }
+                if (idsExistentes.has(id)) {
+                    ignorados++;
+                    continue;
+                }
+                const estoqueOrigem = Number(origem?.estoque);
+                const produtoBase = {
+                    id,
+                    ordem: Number.isInteger(Number(origem?.ordem)) ? Number(origem.ordem) : 999999,
+                    nome: String(origem.nome).trim(),
+                    categoria: String(origem.categoria).trim(),
+                    preco,
+                    precoValor: valorMonetarioKz(preco),
+                    precoAntigo: String(origem.precoAntigo || '').trim(),
+                    custo: String(origem.custo || '').trim(),
+                    desconto: String(origem.desconto || '').trim(),
+                    parcelas: String(origem.parcelas || '').trim(),
+                    freteGratis: origem.freteGratis === true,
+                    descricao: String(origem.descricao || '').trim(),
+                    imagens: Array.isArray(origem.imagens) ? origem.imagens.slice(0, 8) : [],
+                    tag: String(origem.tag || origem.categoria).trim(),
+                    estoque: Number.isInteger(estoqueOrigem) && estoqueOrigem >= 0 ? estoqueOrigem : 0,
+                    marca: String(origem.marca || '').trim(),
+                    sku: String(origem.sku || '').trim(),
+                    ativo: true,
+                    vendedorAtivo: true,
+                    statusAprovacao: 'aprovado'
+                };
+                await setDoc(doc(db, 'produtos', id), produtoBase);
+                idsExistentes.add(id);
+                importados++;
+            }
+            if (importados) invalidarCatalogoPublico();
+            await carregarProdutos();
+            mostrarMensagem(`${importados} produto(s) importado(s). ${ignorados} ignorado(s). Os produtos sem stock no ficheiro foram importados com estoque 0; informe o stock real antes de vender.`, 'sucesso');
+        } catch (e) {
+            console.error('Erro ao importar catálogo-base:', e);
+            mostrarMensagem(`Não foi possível importar o catálogo: ${e.message || e}`, 'info');
+        } finally {
+            if (botao) { botao.disabled = false; botao.textContent = '⬇️ Importar catálogo do site'; }
+        }
+    }
+
     function mostrarMensagem(texto, tipo = 'info') {
         statusMsg.style.display = 'block';
         statusMsg.textContent = texto;
@@ -375,8 +441,8 @@ function iniciarAdmin() {
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         const precoValor = preco.value.trim();
-        if (!nome.value.trim() || !categoria.value || !precoValor || !custo.value.trim()) {
-            alert('Preencha Nome, Categoria, Preço e Preço de Custo obrigatoriamente.');
+        if (!nome.value.trim() || !categoria.value || !precoValor) {
+            alert('Preencha Nome, Categoria e Preço obrigatoriamente.');
             return;
         }
         const precoNumerico = valorMonetarioKz(precoValor);
@@ -424,6 +490,7 @@ function iniciarAdmin() {
                 await setDoc(doc(db, 'produtos', novoProduto.id), novoProduto);
                 mostrarMensagem('Produto adicionado!', 'sucesso');
             }
+            invalidarCatalogoPublico();
             resetForm();
             await carregarProdutos();
         } catch (e) {
@@ -469,6 +536,7 @@ function iniciarAdmin() {
         if (!confirm('Tem certeza que deseja excluir este produto?')) return;
         try {
             await deleteDoc(doc(db, 'produtos', id));
+            invalidarCatalogoPublico();
             produtos = produtos.filter(p => p._firestoreId !== id);
             if (editandoId === id) resetForm();
             renderizarLista();
@@ -515,6 +583,8 @@ function iniciarAdmin() {
     }
 
     document.getElementById('btnRecarregar').addEventListener('click', () => { carregarProdutos(); mostrarMensagem('Lista recarregada.', 'info'); });
+
+    document.getElementById('btnImportarCatalogoBase')?.addEventListener('click', importarCatalogoBase);
 
     filtroProdutosInput?.addEventListener('input', () => { filtroProdutosAdmin = filtroProdutosInput.value; renderizarLista(); });
     filtroEstoqueInput?.addEventListener('change', () => { filtroEstoqueAdmin = filtroEstoqueInput.value; renderizarLista(); });

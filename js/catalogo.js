@@ -24,9 +24,14 @@ function normalizarProdutoLocal(produto) {
   return { ...produto, id: String(produto?.id || '') };
 }
 
+function revisaoCatalogo() {
+  return localStorage.getItem(`${CONFIG.CACHE_KEY}:revision`) || '0';
+}
+
 function cacheValido(cache) {
   return Array.isArray(cache?.data)
     && cache.data.length > 0
+    && String(cache?.revision || '') === revisaoCatalogo()
     && Number.isFinite(Number(cache.timestamp))
     && Date.now() - Number(cache.timestamp) < CONFIG.CACHE_TTL;
 }
@@ -132,8 +137,16 @@ export async function carregarCatalogo(opcoes = {}) {
 }
 
 function salvarCache(produtos) {
-  localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({ data: produtos, timestamp: Date.now() }));
+  localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({ data: produtos, revision: revisaoCatalogo(), timestamp: Date.now() }));
 }
+
+window.addEventListener('storage', (event) => {
+  if (event.key === `${CONFIG.CACHE_KEY}:revision`) {
+    cacheMemoria = null;
+    catalogoPromise = null;
+    atualizarDoSupabase();
+  }
+});
 
 async function atualizarDoSupabase() {
   try {

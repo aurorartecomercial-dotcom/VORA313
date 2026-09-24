@@ -95,7 +95,7 @@
                 <div class="admin-pro-actions">
                     <a class="btn-admin" href="admin-vendas.html" style="text-decoration:none;">🛒 Pedidos</a>
                     <a class="btn-admin" href="monetizacao.html" style="text-decoration:none;">💰 Monetização</a>
-                    <a class="btn-admin" href="admin-vendedores.html" style="text-decoration:none;display:inline-block">🏪 Vendedores</a><button class="btn-admin" type="button" id="btnNovoProdutoRapido">➕ Novo produto</button>
+                    <a class="btn-admin" href="admin-vendedores.html" style="text-decoration:none;display:inline-block">🏪 Vendedores</a><button class="btn-admin" type="button" id="btnNovoProdutoRapido">➕ Novo produto</button><button class="btn-admin" type="button" id="btnImportarCatalogoBase" style="background:#0d6b57;color:#fff;">⬇️ Importar catálogo do site</button>
                     <button class="btn-admin" type="button" id="btnSairAdmin" style="background:#333;color:#fff;">🚪 Sair</button>
                 </div>
             </div>
@@ -162,8 +162,8 @@
                         <label>Preço Antigo (opcional, ex: KZ 15.000,00)</label>
                         <input type="text" id="precoAntigo" />
 
-                        <label>Preço de Custo (Kz) *</label>
-                        <input type="text" id="custo" placeholder="Ex: KZ 8.000,00" required />
+                        <label>Preço de Custo (Kz) — opcional</label>
+                        <input type="text" id="custo" placeholder="Ex: KZ 8.000,00" />
 
                         <label>Desconto (opcional, ex: 17%)</label>
                         <input type="text" id="desconto" placeholder="Ex: 17%" />
@@ -268,6 +268,6 @@ Garantia: 12 meses"></textarea>
         </div>
     </div>
 
-    <script type="module" src="js/admin.js?v=20260922-admin-final"></script>
+    <script type="module" src="js/admin.js?v=20260924-catalog-import"></script>
 </body>
 </html>

@@ -1,5 +1,5 @@
 import { auth, db, functions } from './config.js';
-import { collection, getDocs } from './supabase-compat.js';
+import { collection, doc, getDocs, query, updateDoc, where } from './supabase-compat.js';
 import { getIdTokenResult, signInWithEmailAndPassword, signOut, httpsCallable } from './supabase-compat.js';
 import { escapeHTML } from './utils.js';
 
@@ -38,16 +38,36 @@ async function carregar() {
 
 async function alterar(id, aprovado) {
   const msg = $('mensagemVendedores');
+  const acao = aprovado ? 'aprovar' : 'suspender';
   try {
     await httpsCallable(functions, 'gerirVendedor')({
       uid: id,
-      acao: aprovado ? 'aprovar' : 'suspender'
+      acao
     });
     msg.textContent = aprovado ? 'Vendedor aprovado e ativado.' : 'Vendedor suspenso.';
     await carregar();
   } catch (e) {
-    console.error(e);
-    msg.textContent = `Não foi possível atualizar: ${e.message || e}`;
+    try {
+      // A policy RLS aceita esta ação somente de uma conta que tenha role admin.
+      const ativo = aprovado;
+      await updateDoc(doc(db, 'vendedores', id), {
+        status: aprovado ? 'aprovado' : 'suspenso',
+        ativo,
+        atualizadoEm: new Date().toISOString()
+      });
+      const produtosSnap = await getDocs(query(collection(db, 'produtos'), where('vendedorId', '==', id)));
+      await Promise.all(produtosSnap.docs.map(p => updateDoc(doc(db, 'produtos', p.id), {
+        vendedorAtivo: ativo,
+        atualizadoEm: new Date().toISOString()
+      })));
+      msg.textContent = aprovado
+        ? 'Vendedor aprovado e ativado. A Edge Function falhou, mas a aprovação administrativa foi concluída.'
+        : 'Vendedor suspenso. A Edge Function falhou, mas a atualização administrativa foi concluída.';
+      await carregar();
+    } catch (fallbackError) {
+      console.error(e, fallbackError);
+      msg.textContent = `Não foi possível atualizar: ${fallbackError.message || fallbackError}`;
+    }
   }
 }
 
