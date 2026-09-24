@@ -228,7 +228,16 @@ export function httpsCallable(_functions, name) {
       throw e;
     }
     if (error) {
-      const e = new Error(error.message || `Falha ao executar ${name}`);
+      // O SDK devolve a frase genérica “non-2xx” para erros da Edge Function.
+      // Quando houver uma resposta JSON, mostramos a causa real enviada pelo
+      // backend (por exemplo, permissão, migration ou configuração ausente).
+      let mensagem = error.message || `Falha ao executar ${name}`;
+      try {
+        const resposta = error.context;
+        const corpo = resposta?.clone ? await resposta.clone().json() : null;
+        mensagem = corpo?.error?.message || corpo?.message || mensagem;
+      } catch (_) {}
+      const e = new Error(mensagem);
       e.code = error.code || 'function_error';
       throw e;
     }

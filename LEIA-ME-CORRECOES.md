@@ -37,3 +37,7 @@ Não atribuí stock fictício aos 28 produtos-base. Para concluir o checkout des
 Se uma conta aparecer em **Authentication > Users**, mas não aparecer em `public.vendedores` (o caso atual de `vora313@gmail.com`), execute o ficheiro [RECUPERAR-CANDIDATURA-VORA313.sql](RECUPERAR-CANDIDATURA-VORA313.sql) no **SQL Editor** do mesmo projeto Supabase. Ele cria apenas uma candidatura com estado `pendente`; a aprovação continua a ser feita pelo administrador.
 
 Se o login disser “credenciais inválidas”, a conta existe mas a palavra-passe digitada não corresponde à que foi usada no registo. Use **Recuperar palavra-passe** na página de vendedores. Não crie uma segunda conta com o mesmo e-mail.
+
+## Aprovação de emergência
+
+Se o botão **Aprovar** devolver erro da Edge Function, confirme o e-mail e execute [APROVAR-VENDEDOR-VORA313E.sql](APROVAR-VENDEDOR-VORA313E.sql) no SQL Editor. A próxima versão do painel também inclui uma alternativa protegida por RLS para concluir a aprovação quando a Edge Function estiver indisponível; ainda assim, publique `api` para os restantes fluxos administrativos.

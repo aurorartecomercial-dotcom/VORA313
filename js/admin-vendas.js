@@ -1,5 +1,5 @@
 import { auth, db, functions } from './config.js';
-import { collection, getDocs, query, where } from './supabase-compat.js';
+import { collection, getDocs, query, where, doc, updateDoc } from './supabase-compat.js';
 import { getIdTokenResult, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
 import { httpsCallable } from './supabase-compat.js';
 import { extrairValorNumerico, escapeHTML } from './utils.js';
@@ -1500,6 +1500,20 @@ async function chamarAcaoAdmin(nome, data) {
     return fn(data);
 }
 
+function estadoVendedorDaAcao(acao) {
+    const aprovado = acao === 'aprovar' || acao === 'reativar';
+    const status = aprovado ? 'aprovado' : (acao === 'recusar' ? 'recusado' : 'suspenso');
+    return { status, ativo: aprovado };
+}
+
+async function atualizarVendedorComRls(uid, acao) {
+    const { status, ativo } = estadoVendedorDaAcao(acao);
+    const atualizadoEm = new Date().toISOString();
+    await updateDoc(doc(db, 'vendedores', uid), { status, ativo, atualizadoEm });
+    const produtosDaLoja = produtosVendedorAdmin.filter((produto) => String(produto.vendedorId || produto.vendedor_id) === String(uid));
+    await Promise.all(produtosDaLoja.map((produto) => updateDoc(doc(db, 'produtos', produto.id), { vendedorAtivo: ativo, atualizadoEm })));
+}
+
 async function acaoVendedorAdmin(uid, acao) {
     if (!uid || !acao) return;
     const labels = { aprovar: 'aprovar', recusar: 'recusar', suspender: 'suspender', reativar: 'reativar' };
@@ -1508,7 +1522,27 @@ async function acaoVendedorAdmin(uid, acao) {
         await chamarAcaoAdmin('gerirVendedor', { uid, acao });
         await carregarPainelVendedoresAdmin();
     } catch (e) {
-        alert('Não foi possível atualizar o vendedor: ' + (e.message || e));
+        try {
+            // Alternativa para quando a Edge Function ainda não foi publicada.
+            // A operação continua restrita à política RLS is_admin().
+            await atualizarVendedorComRls(uid, acao);
+            const msg = document.getElementById('msgVendedoresAdmin');
+            if (msg) {
+                msg.style.display = 'block';
+                msg.style.background = '#e8f7ee';
+                msg.style.color = '#17643e';
+                msg.textContent = 'Vendedor atualizado. A Edge Function falhou, mas a aprovação foi concluída pelas permissões de administrador.';
+            }
+            await carregarPainelVendedoresAdmin();
+            if (msg) {
+                msg.style.display = 'block';
+                msg.style.background = '#e8f7ee';
+                msg.style.color = '#17643e';
+                msg.textContent = 'Vendedor atualizado. A Edge Function falhou, mas a aprovação foi concluída pelas permissões de administrador.';
+            }
+        } catch (fallbackError) {
+            alert(`Não foi possível atualizar o vendedor. Edge Function: ${e.message || e}. Atualização administrativa: ${fallbackError.message || fallbackError}`);
+        }
     }
 }
 
@@ -1519,6 +1553,22 @@ async function acaoProdutoVendedorAdmin(produtoId, acao) {
         await chamarAcaoAdmin('aprovarProdutoVendedor', { produtoId, acao });
         await carregarPainelVendedoresAdmin();
     } catch (e) {
-        alert('Não foi possível atualizar o produto: ' + (e.message || e));
+        try {
+            const produto = produtosVendedorAdmin.find((item) => String(item.id) === String(produtoId));
+            const vendedorId = produto?.vendedorId || produto?.vendedor_id;
+            const vendedor = vendedoresAdmin.find((item) => String(item.id) === String(vendedorId));
+            if (acao === 'aprovar' && (!vendedor || vendedor.status !== 'aprovado' || vendedor.ativo === false)) {
+                throw new Error('O vendedor precisa estar aprovado e ativo antes de aprovar um produto.');
+            }
+            await updateDoc(doc(db, 'produtos', produtoId), {
+                statusAprovacao: acao === 'aprovar' ? 'aprovado' : 'recusado',
+                ativo: acao === 'aprovar',
+                vendedorAtivo: acao === 'aprovar' ? true : vendedor?.ativo !== false,
+                atualizadoEm: new Date().toISOString()
+            });
+            await carregarPainelVendedoresAdmin();
+        } catch (fallbackError) {
+            alert(`Não foi possível atualizar o produto. Edge Function: ${e.message || e}. Atualização administrativa: ${fallbackError.message || fallbackError}`);
+        }
     }
 }
