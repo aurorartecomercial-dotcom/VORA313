@@ -1,5 +1,5 @@
-import { auth, db, functions } from './config.js';
-import { collection, doc, getDocs, query, updateDoc, where } from './supabase-compat.js';
+import { auth, db, functions, supabase } from './config.js';
+import { collection, getDocs } from './supabase-compat.js';
 import { getIdTokenResult, signInWithEmailAndPassword, signOut, httpsCallable } from './supabase-compat.js';
 import { escapeHTML } from './utils.js';
 
@@ -50,16 +50,21 @@ async function alterar(id, aprovado) {
     try {
       // A policy RLS aceita esta ação somente de uma conta que tenha role admin.
       const ativo = aprovado;
-      await updateDoc(doc(db, 'vendedores', id), {
+      const atualizadoEm = new Date().toISOString();
+      // Atualize somente as colunas existentes. updateDoc reaproveita campos
+      // legados do registo e pode enviá-los ao PostgREST por engano.
+      const { error: vendedorError } = await supabase.from('vendedores').update({
         status: aprovado ? 'aprovado' : 'suspenso',
         ativo,
-        atualizadoEm: new Date().toISOString()
-      });
-      const produtosSnap = await getDocs(query(collection(db, 'produtos'), where('vendedorId', '==', id)));
-      await Promise.all(produtosSnap.docs.map(p => updateDoc(doc(db, 'produtos', p.id), {
-        vendedorAtivo: ativo,
-        atualizadoEm: new Date().toISOString()
-      })));
+        atualizado_em: atualizadoEm
+      }).eq('id', id);
+      if (vendedorError) throw vendedorError;
+
+      const { error: produtosError } = await supabase.from('produtos').update({
+        vendedor_ativo: ativo,
+        atualizado_em: atualizadoEm
+      }).eq('vendedor_id', id);
+      if (produtosError) throw produtosError;
       msg.textContent = aprovado
         ? 'Vendedor aprovado e ativado. A Edge Function falhou, mas a aprovação administrativa foi concluída.'
         : 'Vendedor suspenso. A Edge Function falhou, mas a atualização administrativa foi concluída.';

@@ -1,5 +1,5 @@
-import { auth, db, functions } from './config.js';
-import { collection, getDocs, query, where, doc, updateDoc } from './supabase-compat.js';
+import { auth, db, functions, supabase } from './config.js';
+import { collection, getDocs, query, where } from './supabase-compat.js';
 import { getIdTokenResult, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
 import { httpsCallable } from './supabase-compat.js';
 import { extrairValorNumerico, escapeHTML } from './utils.js';
@@ -1509,9 +1509,20 @@ function estadoVendedorDaAcao(acao) {
 async function atualizarVendedorComRls(uid, acao) {
     const { status, ativo } = estadoVendedorDaAcao(acao);
     const atualizadoEm = new Date().toISOString();
-    await updateDoc(doc(db, 'vendedores', uid), { status, ativo, atualizadoEm });
-    const produtosDaLoja = produtosVendedorAdmin.filter((produto) => String(produto.vendedorId || produto.vendedor_id) === String(uid));
-    await Promise.all(produtosDaLoja.map((produto) => updateDoc(doc(db, 'produtos', produto.id), { vendedorAtivo: ativo, atualizadoEm })));
+    // Não use updateDoc aqui: ele junta todos os campos legados do produto antes
+    // de gravar. Um campo antigo como "camisetaPreta" seria convertido para
+    // "_camiseta_preta", que não existe na tabela produtos.
+    const { error: vendedorError } = await supabase
+        .from('vendedores')
+        .update({ status, ativo, atualizado_em: atualizadoEm })
+        .eq('id', uid);
+    if (vendedorError) throw vendedorError;
+
+    const { error: produtosError } = await supabase
+        .from('produtos')
+        .update({ vendedor_ativo: ativo, atualizado_em: atualizadoEm })
+        .eq('vendedor_id', uid);
+    if (produtosError) throw produtosError;
 }
 
 async function acaoVendedorAdmin(uid, acao) {
@@ -1555,17 +1566,21 @@ async function acaoProdutoVendedorAdmin(produtoId, acao) {
     } catch (e) {
         try {
             const produto = produtosVendedorAdmin.find((item) => String(item.id) === String(produtoId));
+            if (!produto) throw new Error('Produto não encontrado no painel. Atualize a lista e tente novamente.');
             const vendedorId = produto?.vendedorId || produto?.vendedor_id;
             const vendedor = vendedoresAdmin.find((item) => String(item.id) === String(vendedorId));
             if (acao === 'aprovar' && (!vendedor || vendedor.status !== 'aprovado' || vendedor.ativo === false)) {
                 throw new Error('O vendedor precisa estar aprovado e ativo antes de aprovar um produto.');
             }
-            await updateDoc(doc(db, 'produtos', produtoId), {
-                statusAprovacao: acao === 'aprovar' ? 'aprovado' : 'recusado',
+            // Envia um patch com os nomes reais das colunas SQL. Assim, dados
+            // legados que acompanham o produto nunca são reenviados ao Supabase.
+            const { error } = await supabase.from('produtos').update({
+                status_aprovacao: acao === 'aprovar' ? 'aprovado' : 'recusado',
                 ativo: acao === 'aprovar',
-                vendedorAtivo: acao === 'aprovar' ? true : vendedor?.ativo !== false,
-                atualizadoEm: new Date().toISOString()
-            });
+                vendedor_ativo: acao === 'aprovar' ? true : vendedor?.ativo !== false,
+                atualizado_em: new Date().toISOString()
+            }).eq('id', produtoId);
+            if (error) throw error;
             await carregarPainelVendedoresAdmin();
         } catch (fallbackError) {
             alert(`Não foi possível atualizar o produto. Edge Function: ${e.message || e}. Atualização administrativa: ${fallbackError.message || fallbackError}`);
