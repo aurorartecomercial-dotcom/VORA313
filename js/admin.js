@@ -287,7 +287,7 @@ function iniciarAdmin() {
     async function carregarProdutos() {
         try {
             const snapshot = await getDocs(collection(db, 'produtos'));
-            produtos = snapshot.docs.map(snapshotDoc => ({ ...snapshotDoc.data(), _firestoreId: snapshotDoc.id }));
+            produtos = snapshot.docs.map(snapshotDoc => ({ ...snapshotDoc.data(), _registroId: snapshotDoc.id }));
             renderizarLista();
         } catch (e) {
             console.error('Erro ao carregar produtos do Supabase:', e);
@@ -306,7 +306,7 @@ function iniciarAdmin() {
             const catalogoBase = await resposta.json();
             if (!Array.isArray(catalogoBase)) throw new Error('produtos.json não contém uma lista de produtos.');
 
-            const idsExistentes = new Set(produtos.map(p => String(p.id || p._firestoreId)));
+            const idsExistentes = new Set(produtos.map(p => String(p.id || p._registroId)));
             let importados = 0;
             let ignorados = 0;
             for (const origem of catalogoBase) {
@@ -399,15 +399,15 @@ function iniciarAdmin() {
             const classeEstoque = estoqueAtual <= 0 ? 'out' : estoqueAtual <= 5 ? 'low' : 'ok';
             const textoEstoque = estoqueAtual <= 0 ? 'Esgotado' : `${estoqueAtual} em estoque`;
             return `
-                <div class="produto-item" data-id="${escapeHTML(prod.id || prod._firestoreId)}">
+                <div class="produto-item" data-id="${escapeHTML(prod.id || prod._registroId)}">
                     <div style="min-width:0;flex:1;">
                         <strong>${escapeHTML(prod.nome || 'Produto')}</strong>
                         <small style="color:#888;display:block;margin-top:3px;">${escapeHTML(prod.categoria || 'Sem categoria')} | ${escapeHTML(prod.preco || '')} | ${escapeHTML(prod.marca || '')}${prod.sku ? ` | SKU: ${escapeHTML(prod.sku)}` : ''}</small>
                         <small class="admin-pro-stock ${classeEstoque}" style="display:block;margin-top:5px;">${textoEstoque}</small>
                     </div>
                     <div class="acoes">
-                        <button class="btn-admin" data-editar="${escapeHTML(prod._firestoreId)}">✏️ Editar</button>
-                        <button class="btn-admin btn-admin-excluir" data-excluir="${escapeHTML(prod._firestoreId)}">🗑️ Excluir</button>
+                        <button class="btn-admin" data-editar="${escapeHTML(prod._registroId)}">✏️ Editar</button>
+                        <button class="btn-admin btn-admin-excluir" data-excluir="${escapeHTML(prod._registroId)}">🗑️ Excluir</button>
                     </div>
                 </div>`;
         }).join('');
@@ -500,9 +500,9 @@ function iniciarAdmin() {
     });
 
     window.editarProduto = function(id) {
-        const prod = produtos.find(p => p._firestoreId === id);
+        const prod = produtos.find(p => p._registroId === id);
         if (!prod) return;
-        editandoId = prod._firestoreId;
+        editandoId = prod._registroId;
         prodId.value = prod.id;
         nome.value = prod.nome;
         categoria.value = prod.categoria;
@@ -537,7 +537,7 @@ function iniciarAdmin() {
         try {
             await deleteDoc(doc(db, 'produtos', id));
             invalidarCatalogoPublico();
-            produtos = produtos.filter(p => p._firestoreId !== id);
+            produtos = produtos.filter(p => p._registroId !== id);
             if (editandoId === id) resetForm();
             renderizarLista();
             mostrarMensagem('Produto excluído.', 'sucesso');

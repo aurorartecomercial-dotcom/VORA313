@@ -50,43 +50,6 @@
   <section class="loja-painel" id="sobreLoja"><div class="loja-painel-top"><h2>🏪 Sobre a loja</h2></div><p id="sobreTexto" style="margin:0;color:#5e6d67;line-height:1.6">Esta loja está a preparar a sua apresentação.</p><div id="sobreDetalhes" class="loja-sobre-grid"></div></section>
   <section class="loja-painel" id="avaliacoesLoja"><div class="loja-painel-top"><div><h2>⭐ Avaliações da loja</h2><small>Experiências de clientes verificadas</small></div><strong id="notaLoja" class="loja-rating-grande">—</strong></div><div id="avaliacoesConteudo" class="loja-review-grid"><article><strong>Ainda não há avaliações verificadas.</strong><p>As avaliações aparecerão aqui após compras concluídas através da VORA 313.</p></article></div></section>
 </main>
-<!-- Script legado mantido apenas como referência. A loja pública usa js/loja-publica.js.
-import { db } from './js/config.js';
-import { collection, getDocs, query, where } from './js/supabase-compat.js';
-import { criarCardProduto } from './js/catalogo.js';
-const params=new URLSearchParams(location.search), id=params.get('id'), demo=params.get('demo')==='1';
-const $=x=>document.getElementById(x);
-const demoProdutos=[
- {id:'demo-1',nome:'Smartphone VORA X Pro 256GB',preco:'245.000 Kz',precoAntigo:'275.000 Kz',desconto:'11% OFF',categoria:'Tecnologia',tag:'Mais vendido',imagens:['oferta-4-smartphones.png'],estoque:8,freteGratis:true,vendedorNome:'Kwanza Tech',ativo:true,monetizacao:{destaque:true}},
- {id:'demo-2',nome:'Relógio Smart Premium',preco:'58.500 Kz',precoAntigo:'70.000 Kz',desconto:'16% OFF',categoria:'Acessórios',imagens:['oferta-6-semana.png'],estoque:4,vendedorNome:'Kwanza Tech',ativo:true,monetizacao:{destaque:true}},
- {id:'demo-3',nome:'Fones Bluetooth Pro ANC',preco:'42.900 Kz',categoria:'Tecnologia',imagens:['oferta-1-tecnologia.png'],estoque:12,vendedorNome:'Kwanza Tech',ativo:true},
- {id:'demo-4',nome:'Kit Beleza Premium',preco:'35.000 Kz',categoria:'Beleza',imagens:['oferta-5-beleza.png'],estoque:7,vendedorNome:'Kwanza Tech',ativo:true},
- {id:'demo-5',nome:'Console Gamer + 2 Comandos',preco:'310.000 Kz',categoria:'Games',imagens:['oferta-3-games.png'],estoque:3,vendedorNome:'Kwanza Tech',ativo:true},
- {id:'demo-6',nome:'Kit Casa Inteligente',preco:'89.900 Kz',categoria:'Casa',imagens:['oferta-7-casa.png'],estoque:9,vendedorNome:'Kwanza Tech',ativo:true}
-];
-function destaqueAtivo(p){return p?.monetizacao?.destaque===true;}
-function renderLista(lista,box){box.innerHTML='';if(!lista.length){box.innerHTML='<div class="loja-vazia"><strong>Nenhum produto encontrado.</strong><span>Tente outro termo de pesquisa ou categoria.</span></div>';return;}lista.forEach(p=>{const c=criarCardProduto(p);if(c)box.append(c);});}
-function prepararCategorias(produtos){const box=$('categoriasLoja');const cats=['Todos',...new Set(produtos.map(p=>p.categoria).filter(Boolean))];box.innerHTML=cats.map((c,i)=>`<button type="button" class="loja-categoria ${i===0?'ativo':''}" data-cat="${c.replace(/"/g,'&quot;')}">${c}</button>`).join('');return 'Todos';}
-async function run(){
- if(!demo)return;
- let produtos=[];
- if(demo){
-   produtos=demoProdutos; $('demoNote').style.display='block'; $('nome').textContent='Kwanza Tech'; $('desc').textContent='Tecnologia, acessórios e produtos selecionados para si.'; $('totalProdutos').textContent=produtos.length; $('totalDestaques').textContent=produtos.filter(destaqueAtivo).length; $('estado').textContent='6 produtos'; $('sobreTexto').textContent='A Kwanza Tech é uma loja exemplo da VORA 313, criada para mostrar como ficará a vitrine de um vendedor: apresentação, produtos patrocinados, pesquisa, categorias, avaliações e contacto.';
- } else {
-   if(!id){location.href='loja.html?demo=1';return;}
-   try{const snap=await getDocs(query(collection(db,'produtos'),where('vendedorId','==',id)));produtos=snap.docs.map(x=>({id:x.id,...x.data()})).filter(p=>p?.ativo!==false&&p?.vendedorAtivo!==false&&(!p?.statusAprovacao||p.statusAprovacao==='aprovado'));if(!produtos.length){$('produtos').innerHTML='<div class="loja-vazia"><strong>Esta loja ainda não tem produtos publicados.</strong><span>Quando houver produtos aprovados, eles aparecerão aqui.</span></div>';return;}const nome=String(produtos.find(p=>p.vendedorNome)?.vendedorNome||'Loja VORA 313');$('nome').textContent=nome;$('desc').textContent=`Encontre ${produtos.length} ${produtos.length===1?'produto':'produtos'} publicados na VORA 313.`;$('totalProdutos').textContent=produtos.length;$('totalDestaques').textContent=produtos.filter(destaqueAtivo).length;$('estado').textContent=`${produtos.length} produtos`;const telef=produtos.find(p=>p.vendedorTelefone||p.telefoneVendedor)?.vendedorTelefone||produtos.find(p=>p.telefoneVendedor)?.telefoneVendedor||'';if(telef){const a=$('whatsappLoja');a.href=`https://wa.me/${String(telef).replace(/[^0-9]/g,'')}`;a.style.display='inline-flex';}}catch(e){console.error(e);$('estado').textContent='Erro';$('produtos').innerHTML='<div class="loja-vazia"><strong>Não foi possível carregar a loja.</strong><span>Tente novamente dentro de alguns instantes.</span></div>';return;}
- }
- produtos.sort((a,b)=>(destaqueAtivo(b)-destaqueAtivo(a))||Number(a.ordem||0)-Number(b.ordem||0));
- renderLista(produtos.filter(destaqueAtivo),$('destaquesLoja'));
- if(!produtos.some(destaqueAtivo)){$('destaquesLoja').innerHTML='<div class="loja-vazia"><strong>Ainda não há produtos em destaque.</strong><span>O vendedor poderá patrocinar produtos para aparecerem nesta área.</span></div>';}
- let categoria='Todos';
- prepararCategorias(produtos);
- const filtrar=()=>{const termo=($('buscaLoja').value||'').toLowerCase().trim();const lista=produtos.filter(p=>(categoria==='Todos'||p.categoria===categoria)&&(!termo||String(p.nome||'').toLowerCase().includes(termo)));renderLista(lista,$('produtos'));$('estado').textContent=`${lista.length} ${lista.length===1?'produto':'produtos'}`;};
- $('buscaLoja').addEventListener('input',filtrar);$('categoriasLoja').addEventListener('click',e=>{const b=e.target.closest('.loja-categoria');if(!b)return;categoria=b.dataset.cat;$('categoriasLoja').querySelectorAll('.loja-categoria').forEach(x=>x.classList.toggle('ativo',x===b));filtrar();});
- filtrar();
-}
-run();
--->
-<script type="module" src="js/loja-publica.js?v=5"></script>
+<script type="module" src="js/loja-publica.js?v=7"></script>
 </body>
 </html>

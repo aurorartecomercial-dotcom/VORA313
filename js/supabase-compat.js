@@ -3,6 +3,7 @@
 import { supabase, auth, db, storage, functions } from './config.js';
 
 const TABLES = Object.freeze({
+  lojasPublicas: 'lojas_publicas',
   vendasVendedor: 'vendas_vendedor',
   destaquesSolicitados: 'destaques_solicitados',
   movimentosVendedores: 'movimentos_vendedores',

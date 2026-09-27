@@ -1560,8 +1560,11 @@ async function acaoVendedorAdmin(uid, acao) {
 async function acaoProdutoVendedorAdmin(produtoId, acao) {
     if (!produtoId || !acao) return;
     if (!confirm(`Confirmar ${acao} este produto?`)) return;
+    const motivoRecusa = acao === 'recusar'
+        ? String(prompt('Motivo da recusa para o vendedor (opcional):') || '').trim()
+        : '';
     try {
-        await chamarAcaoAdmin('aprovarProdutoVendedor', { produtoId, acao });
+        await chamarAcaoAdmin('aprovarProdutoVendedor', { produtoId, acao, motivoRecusa });
         await carregarPainelVendedoresAdmin();
     } catch (e) {
         try {
@@ -1578,6 +1581,7 @@ async function acaoProdutoVendedorAdmin(produtoId, acao) {
                 status_aprovacao: acao === 'aprovar' ? 'aprovado' : 'recusado',
                 ativo: acao === 'aprovar',
                 vendedor_ativo: acao === 'aprovar' ? true : vendedor?.ativo !== false,
+                motivo_recusa: acao === 'aprovar' ? null : motivoRecusa,
                 atualizado_em: new Date().toISOString()
             }).eq('id', produtoId);
             if (error) throw error;

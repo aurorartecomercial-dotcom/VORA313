@@ -1,4 +1,4 @@
-import { db, CONFIG } from './config.js';
+import { db, CONFIG, supabase } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where } from './supabase-compat.js';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js';
 import { escapeHTML, urlSegura } from './utils.js';
@@ -7,6 +7,7 @@ const params = new URLSearchParams(location.search);
 const vendedorId = params.get('id');
 const $ = (id) => document.getElementById(id);
 let produtosDaLoja = [];
+let avaliacaoDaLoja = { media: 0, total: 0 };
 let tentativaExtraAgendada = false;
 const PRODUTOS_DEMO = [
   { id: 'demo-1', nome: 'Smartphone VORA X Pro 256GB', preco: '245.000 Kz', categoria: 'Tecnologia', imagens: ['oferta-4-smartphones.png'], estoque: 8, freteGratis: true, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
@@ -83,6 +84,43 @@ function linkInstagram(valor) {
   return utilizador ? 'https://instagram.com/' + utilizador : '';
 }
 
+async function carregarAvaliacaoDaLoja() {
+  avaliacaoDaLoja = { media: 0, total: 0 };
+  const ids = produtosDaLoja.map((produto) => String(produto.id || '')).filter(Boolean);
+  if (!ids.length) return;
+  const { data, error } = await supabase
+    .from('produto_avaliacoes_resumo')
+    .select('produto_id,media,total')
+    .in('produto_id', ids);
+  if (error) return;
+  const resumo = data || [];
+  const total = resumo.reduce((soma, item) => soma + Number(item.total || 0), 0);
+  const somaNotas = resumo.reduce((soma, item) => soma + Number(item.media || 0) * Number(item.total || 0), 0);
+  avaliacaoDaLoja = { media: total ? somaNotas / total : 0, total };
+}
+
+function configurarPartilha(nomeLoja, descricao) {
+  const acoes = document.querySelector('.loja-acoes');
+  if (!acoes || $('btnPartilharLoja')) return;
+  const botao = document.createElement('button');
+  botao.id = 'btnPartilharLoja';
+  botao.type = 'button';
+  botao.textContent = '↗ Partilhar loja';
+  botao.style.cssText = 'border:0;border-radius:999px;padding:10px 16px;background:#fff;color:#075946;font:inherit;font-weight:800;cursor:pointer';
+  botao.addEventListener('click', async () => {
+    const dados = { title: nomeLoja, text: descricao, url: location.href };
+    try {
+      if (navigator.share) { await navigator.share(dados); return; }
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(location.href);
+        botao.textContent = '✓ Link copiado';
+        setTimeout(() => { botao.textContent = '↗ Partilhar loja'; }, 2200);
+      }
+    } catch (_) {}
+  });
+  acoes.append(botao);
+}
+
 function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ainda não tem produtos publicados.') {
   const grid = $(alvo);
   if (!grid) return;
@@ -141,6 +179,7 @@ function preencherPerfil(vendedor, produtos) {
   texto('lojaFaixaIcone', destaque ? '✨' : '🏪');
   mostrarLogo(perfil.logoUrl);
   aplicarCapa(perfil.capaUrl);
+  configurarPartilha(nomeLoja, vendedor?.descricao || 'Conheça esta loja na VORA 313.');
 
   const whatsapp = $('whatsappLoja');
   if (whatsapp) {
@@ -165,9 +204,11 @@ function preencherPerfil(vendedor, produtos) {
     sobre.innerHTML = dados.map((item) => '<article class="loja-sobre-dado"><strong>' + escapeHTML(item[0]) + '</strong><span>' + (item[0] === '📷 Instagram' ? item[1] : escapeHTML(item[1])) + '</span></article>').join('');
   }
 
-  texto('notaLoja', '—');
+  texto('notaLoja', avaliacaoDaLoja.total ? `${avaliacaoDaLoja.media.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : '—');
   const avaliacoes = $('avaliacoesConteudo');
-  if (avaliacoes) avaliacoes.innerHTML = '<div class="loja-vazia">Esta loja ainda não recebeu avaliações verificadas.</div>';
+  if (avaliacoes) avaliacoes.innerHTML = avaliacaoDaLoja.total
+    ? `<article><div class="review-stars">★★★★★</div><strong>${escapeHTML(avaliacaoDaLoja.media.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))} de 5</strong><p>${escapeHTML(`${avaliacaoDaLoja.total} avaliação${avaliacaoDaLoja.total === 1 ? '' : 'ões'} verificada${avaliacaoDaLoja.total === 1 ? '' : 's'} em produtos desta loja.`)}</p></article>`
+    : '<div class="loja-vazia">Esta loja ainda não recebeu avaliações verificadas.</div>';
 }
 
 function carregarDemo() {
@@ -193,7 +234,7 @@ async function carregarLojaReal() {
   // produtos já públicos. Cada origem é lida separadamente e o catálogo local
   // serve como último recurso quando a ligação estiver instável.
   const [resultadoVendedor, resultadoProdutos] = await Promise.allSettled([
-    getDoc(doc(db, 'vendedores', vendedorId)),
+    getDoc(doc(db, 'lojasPublicas', vendedorId)),
     getDocs(query(collection(db, 'produtos'), where('vendedorId', '==', vendedorId)))
   ]);
 
@@ -214,6 +255,7 @@ async function carregarLojaReal() {
     const estado = String(produto.statusAprovacao || '').toLowerCase();
     return produto.ativo !== false && produto.vendedorAtivo !== false && (!estado || estado === 'aprovado' || estado === 'published');
   });
+  await carregarAvaliacaoDaLoja();
 
   if ((!vendedorSnap || !vendedorSnap.exists()) && !produtosDaLoja.length) {
     texto('nome', 'Loja indisponível');

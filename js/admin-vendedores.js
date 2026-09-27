@@ -1,105 +1,119 @@
 import { auth, db, functions, supabase } from './config.js';
-import { collection, getDocs } from './supabase-compat.js';
-import { getIdTokenResult, signInWithEmailAndPassword, signOut, httpsCallable } from './supabase-compat.js';
+import { collection, getDocs, getIdTokenResult, signInWithEmailAndPassword, signOut, httpsCallable } from './supabase-compat.js';
 import { escapeHTML } from './utils.js';
 
-const $ = id => document.getElementById(id);
+const $ = (id) => document.getElementById(id);
 let vendedores = [];
+let produtos = [];
+let vendas = [];
+
+function estadoClasse(estado) { return estado === 'aprovado' ? 'approved' : ['recusado', 'suspenso'].includes(estado) ? 'refused' : ''; }
+function estadoNome(estado) { return ({ pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado', suspenso: 'Suspenso' })[estado] || estado || '—'; }
+function moeda(valor) { return `${Number(valor || 0).toLocaleString('pt-AO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Kz`; }
+
+function mostrarMensagem(texto, ok = true) {
+  const box = $('mensagemVendedores');
+  box.textContent = texto;
+  box.className = `adm-message ${ok ? 'ok' : 'err'}`;
+}
 
 async function validarAdmin(user) {
   const token = await getIdTokenResult(user, true);
   return token.claims.admin === true;
 }
 
-function render() {
-  const box = $('listaVendedores');
-  const termo = ($('filtroVendedores')?.value || '').trim().toLowerCase();
-  const lista = vendedores.filter(v => `${v.nome || ''} ${v.nomeLoja || ''} ${v.email || ''} ${v.status || ''}`.toLowerCase().includes(termo));
-  $('contadorVendedores').textContent = String(lista.length);
-  box.innerHTML = lista.length ? lista.map(v => {
-    const id = escapeHTML(v.id);
-    const nome = escapeHTML(v.nome || 'Sem nome');
-    const loja = escapeHTML(v.nomeLoja || 'Sem loja');
-    const email = escapeHTML(v.email || '');
-    const status = escapeHTML(v.status || 'pendente');
-    const ativo = v.ativo !== false;
-    const botoes = v.status === 'aprovado' && ativo
-      ? `<button class="btn danger" data-action="suspender" data-id="${id}">Suspender</button>`
-      : `<button class="btn success" data-action="aprovar" data-id="${id}">Aprovar/Ativar</button>`;
-    return `<article class="seller-card"><div><strong>${nome}</strong><div class="muted">${loja} · ${email}</div><div class="meta">Status: <b>${status}</b> · ${ativo ? 'Ativo' : 'Inativo'} · Plano: ${escapeHTML(v.plano || 'basico')}</div></div><div class="actions">${botoes}</div></article>`;
-  }).join('') : '<div class="empty">Nenhum vendedor encontrado.</div>';
-}
-
 async function carregar() {
-  const snap = await getDocs(collection(db, 'vendedores'));
-  vendedores = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  render();
+  const [vendedoresSnap, produtosSnap, vendasSnap] = await Promise.all([
+    getDocs(collection(db, 'vendedores')),
+    getDocs(collection(db, 'produtos')),
+    getDocs(collection(db, 'vendasVendedor'))
+  ]);
+  vendedores = vendedoresSnap.docs.map((item) => ({ id: item.id, ...item.data() }));
+  produtos = produtosSnap.docs.map((item) => ({ id: item.id, ...item.data() })).filter((item) => item.vendedorId || item.vendedor_id);
+  vendas = vendasSnap.docs.map((item) => ({ id: item.id, ...item.data() }));
+  renderizar();
 }
 
-async function alterar(id, aprovado) {
-  const msg = $('mensagemVendedores');
-  const acao = aprovado ? 'aprovar' : 'suspender';
-  try {
-    await httpsCallable(functions, 'gerirVendedor')({
-      uid: id,
-      acao
-    });
-    msg.textContent = aprovado ? 'Vendedor aprovado e ativado.' : 'Vendedor suspenso.';
-    await carregar();
-  } catch (e) {
-    try {
-      // A policy RLS aceita esta ação somente de uma conta que tenha role admin.
-      const ativo = aprovado;
-      const atualizadoEm = new Date().toISOString();
-      // Atualize somente as colunas existentes. updateDoc reaproveita campos
-      // legados do registo e pode enviá-los ao PostgREST por engano.
-      const { error: vendedorError } = await supabase.from('vendedores').update({
-        status: aprovado ? 'aprovado' : 'suspenso',
-        ativo,
-        atualizado_em: atualizadoEm
-      }).eq('id', id);
-      if (vendedorError) throw vendedorError;
+function renderizar() {
+  const termo = String($('filtroVendedores').value || '').trim().toLowerCase();
+  const statusFiltro = $('statusVendedores').value || 'todos';
+  const lista = vendedores.filter((vendedor) => {
+    const texto = `${vendedor.nome || ''} ${vendedor.nomeLoja || ''} ${vendedor.email || ''}`.toLowerCase();
+    return (!termo || texto.includes(termo)) && (statusFiltro === 'todos' || vendedor.status === statusFiltro);
+  });
+  const pendentesProdutos = produtos.filter((produto) => (produto.statusAprovacao || produto.status_aprovacao) === 'aguardando_aprovacao').length;
+  $('kpiTotalVendedores').textContent = vendedores.length;
+  $('kpiPendentesVendedores').textContent = vendedores.filter((vendedor) => vendedor.status === 'pendente').length;
+  $('kpiAprovadosVendedores').textContent = vendedores.filter((vendedor) => vendedor.status === 'aprovado' && vendedor.ativo !== false).length;
+  $('kpiProdutosPendentes').textContent = pendentesProdutos;
+  const produtosPorVendedor = produtos.reduce((mapa, produto) => { const id = produto.vendedorId || produto.vendedor_id; mapa[id] = (mapa[id] || 0) + 1; return mapa; }, {});
+  const vendasPorVendedor = vendas.reduce((mapa, venda) => { const id = venda.uidVendedor || venda.uid_vendedor; if (!id) return mapa; const atual = mapa[id] || { pedidos: 0, valor: 0 }; atual.pedidos += 1; atual.valor += Number(venda.valorVenda ?? venda.valor_venda ?? venda.valorVendedor ?? venda.valor_vendedor ?? 0); mapa[id] = atual; return mapa; }, {});
+  const box = $('listaVendedores');
+  if (!lista.length) { box.innerHTML = '<tr><td class="adm-empty" colspan="7">Nenhum vendedor encontrado para este filtro.</td></tr>'; return; }
+  box.innerHTML = lista.map((vendedor) => {
+    const dadosVendas = vendasPorVendedor[vendedor.id] || { pedidos: 0, valor: 0 };
+    const estado = vendedor.status || 'pendente';
+    let acoes = '';
+    if (estado === 'pendente') acoes = `<button class="adm-btn" data-acao="aprovar" data-id="${escapeHTML(vendedor.id)}">Aprovar</button><button class="adm-btn danger" data-acao="recusar" data-id="${escapeHTML(vendedor.id)}">Recusar</button>`;
+    else if (estado === 'aprovado' && vendedor.ativo !== false) acoes = `<button class="adm-btn warn" data-acao="suspender" data-id="${escapeHTML(vendedor.id)}">Suspender</button>`;
+    else acoes = `<button class="adm-btn" data-acao="reativar" data-id="${escapeHTML(vendedor.id)}">Reativar</button>`;
+    const loja = estado === 'aprovado' && vendedor.ativo !== false ? `<a class="adm-btn alt" target="_blank" rel="noopener" href="loja.html?id=${encodeURIComponent(vendedor.id)}">Ver loja</a>` : '';
+    return `<tr><td><strong>${escapeHTML(vendedor.nome || 'Sem nome')}</strong><small>${escapeHTML(vendedor.nomeLoja || 'Sem loja')}</small></td><td>${escapeHTML(vendedor.email || '—')}<small>${escapeHTML(vendedor.telefone || '')}</small></td><td><span class="adm-badge ${estadoClasse(estado)}">${escapeHTML(estadoNome(estado))}</span>${vendedor.motivoRecusa ? `<small>Motivo: ${escapeHTML(vendedor.motivoRecusa)}</small>` : ''}</td><td>${produtosPorVendedor[vendedor.id] || 0}</td><td>${dadosVendas.pedidos}</td><td>${escapeHTML(moeda(dadosVendas.valor))}</td><td><div class="adm-actions">${loja}<button class="adm-btn alt" data-detalhe="produtos" data-id="${escapeHTML(vendedor.id)}">Produtos</button><button class="adm-btn alt" data-detalhe="vendas" data-id="${escapeHTML(vendedor.id)}">Vendas</button>${acoes}</div></td></tr>`;
+  }).join('');
+}
 
-      const { error: produtosError } = await supabase.from('produtos').update({
-        vendedor_ativo: ativo,
-        atualizado_em: atualizadoEm
-      }).eq('vendedor_id', id);
-      if (produtosError) throw produtosError;
-      msg.textContent = aprovado
-        ? 'Vendedor aprovado e ativado. A Edge Function falhou, mas a aprovação administrativa foi concluída.'
-        : 'Vendedor suspenso. A Edge Function falhou, mas a atualização administrativa foi concluída.';
-      await carregar();
-    } catch (fallbackError) {
-      console.error(e, fallbackError);
-      msg.textContent = `Não foi possível atualizar: ${fallbackError.message || fallbackError}`;
-    }
+function mostrarDetalheVendedor(id, tipo) {
+  const vendedor = vendedores.find((item) => String(item.id) === String(id));
+  const alvo = $('detalheVendedor');
+  if (!vendedor || !alvo) return;
+  const eProdutos = (produto) => String(produto.vendedorId || produto.vendedor_id || '') === String(id);
+  const eVenda = (venda) => String(venda.uidVendedor || venda.uid_vendedor || '') === String(id);
+  if (tipo === 'produtos') {
+    const lista = produtos.filter(eProdutos);
+    alvo.innerHTML = `<strong>Produtos de ${escapeHTML(vendedor.nomeLoja || vendedor.nome || 'vendedor')}</strong><br>${lista.length ? lista.map((produto) => `${escapeHTML(produto.nome || 'Produto')} · ${escapeHTML(produto.statusAprovacao || produto.status_aprovacao || 'sem estado')} · ${escapeHTML(moeda(produto.precoValor ?? produto.preco_valor ?? 0))}`).join('<br>') : 'Nenhum produto registado.'}`;
+  } else {
+    const lista = vendas.filter(eVenda);
+    alvo.innerHTML = `<strong>Vendas de ${escapeHTML(vendedor.nomeLoja || vendedor.nome || 'vendedor')}</strong><br>${lista.length ? lista.map((venda) => `${escapeHTML(venda.codigoRastreio || venda.codigo_rastreio || venda.id)} · ${escapeHTML(venda.status || 'sem estado')} · ${escapeHTML(moeda(venda.valorVenda ?? venda.valor_venda ?? venda.valorVendedor ?? venda.valor_vendedor ?? 0))}`).join('<br>') : 'Nenhuma venda registada.'}`;
   }
+  alvo.hidden = false;
+}
+
+async function alterarVendedor(id, acao) {
+  const verbo = { aprovar: 'aprovar', recusar: 'recusar', suspender: 'suspender', reativar: 'reativar' }[acao] || acao;
+  if (!confirm(`Confirmar ${verbo} este vendedor?`)) return;
+  const motivo = acao === 'recusar' ? String(prompt('Motivo da recusa (opcional):') || '').trim() : '';
+  try {
+    await httpsCallable(functions, 'gerirVendedor')({ uid: id, acao, motivoRecusa: motivo });
+    mostrarMensagem('Vendedor atualizado com sucesso.');
+  } catch (erroEdge) {
+    try {
+      const status = acao === 'aprovar' || acao === 'reativar' ? 'aprovado' : acao === 'recusar' ? 'recusado' : 'suspenso';
+      const ativo = status === 'aprovado';
+      const { error } = await supabase.from('vendedores').update({ status, ativo, motivo_recusa: motivo || null, atualizado_em: new Date().toISOString() }).eq('id', id);
+      if (error) throw error;
+      const { error: produtosErro } = await supabase.from('produtos').update({ vendedor_ativo: ativo, atualizado_em: new Date().toISOString() }).eq('vendedor_id', id);
+      if (produtosErro) throw produtosErro;
+      mostrarMensagem('Vendedor atualizado pelo acesso administrativo de contingência.');
+    } catch (erro) { throw new Error(`Edge Function: ${erroEdge.message || erroEdge}. Atualização administrativa: ${erro.message || erro}`); }
+  }
+  await carregar();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  const login = $('loginVendedores');
-  const painel = $('painelVendedores');
   try { await signOut(auth); } catch (_) {}
-
   $('btnLoginVendedores').addEventListener('click', async () => {
-    const erro = $('erroLoginVendedores');
-    erro.textContent = '';
+    $('erroLoginVendedores').textContent = '';
     try {
-      const cred = await signInWithEmailAndPassword(auth, $('emailVendedores').value.trim(), $('senhaVendedores').value);
-      if (!await validarAdmin(cred.user)) throw new Error('Esta conta não possui acesso administrativo.');
-      login.style.display = 'none'; painel.style.display = 'block';
+      const credencial = await signInWithEmailAndPassword(auth, $('emailVendedores').value.trim(), $('senhaVendedores').value);
+      if (!await validarAdmin(credencial.user)) throw new Error('Esta conta não possui acesso administrativo.');
+      $('loginVendedores').hidden = true; $('painelVendedores').hidden = false;
       await carregar();
-    } catch (e) {
-      try { await signOut(auth); } catch (_) {}
-      erro.textContent = e.message || 'Credenciais inválidas.';
-    }
+    } catch (erro) { try { await signOut(auth); } catch (_) {} $('erroLoginVendedores').textContent = erro.message || 'Não foi possível entrar.'; }
   });
-  $('senhaVendedores').addEventListener('keydown', e => { if (e.key === 'Enter') $('btnLoginVendedores').click(); });
-  $('filtroVendedores').addEventListener('input', render);
+  $('senhaVendedores').addEventListener('keydown', (evento) => { if (evento.key === 'Enter') $('btnLoginVendedores').click(); });
+  $('btnAtualizarVendedores').addEventListener('click', () => carregar().catch((erro) => mostrarMensagem(erro.message || erro, false)));
   $('btnSairVendedores').addEventListener('click', async () => { await signOut(auth); location.reload(); });
-  document.addEventListener('click', e => {
-    const b = e.target.closest('[data-action]');
-    if (!b) return;
-    alterar(b.dataset.id, b.dataset.action === 'aprovar');
-  });
+  $('filtroVendedores').addEventListener('input', renderizar);
+  $('statusVendedores').addEventListener('change', renderizar);
+  document.addEventListener('click', (evento) => { const botao = evento.target.closest('[data-acao]'); const detalhe = evento.target.closest('[data-detalhe]'); if (botao) alterarVendedor(botao.dataset.id, botao.dataset.acao).catch((erro) => mostrarMensagem(erro.message || erro, false)); if (detalhe) mostrarDetalheVendedor(detalhe.dataset.id, detalhe.dataset.detalhe); });
 });
