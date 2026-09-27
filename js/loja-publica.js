@@ -1,12 +1,28 @@
-import { db } from './config.js';
+import { db, CONFIG } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where } from './supabase-compat.js';
-import { criarCardProduto } from './catalogo.js';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js';
 import { escapeHTML, urlSegura } from './utils.js';
 
 const params = new URLSearchParams(location.search);
 const vendedorId = params.get('id');
 const $ = (id) => document.getElementById(id);
 let produtosDaLoja = [];
+let tentativaExtraAgendada = false;
+const PRODUTOS_DEMO = [
+  { id: 'demo-1', nome: 'Smartphone VORA X Pro 256GB', preco: '245.000 Kz', categoria: 'Tecnologia', imagens: ['oferta-4-smartphones.png'], estoque: 8, freteGratis: true, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
+  { id: 'demo-2', nome: 'Relógio Smart Premium', preco: '58.500 Kz', categoria: 'Acessórios', imagens: ['oferta-6-semana.png'], estoque: 4, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
+  { id: 'demo-3', nome: 'Fones Bluetooth Pro ANC', preco: '42.900 Kz', categoria: 'Tecnologia', imagens: ['oferta-1-tecnologia.png'], estoque: 12, vendedorNome: 'Kwanza Tech', ativo: true }
+];
+
+function produtosDoCache() {
+  try {
+    const cache = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || 'null');
+    const lista = Array.isArray(cache?.data) ? cache.data : [];
+    return lista.filter((produto) => String(produto?.vendedorId || '') === String(vendedorId || ''));
+  } catch (_) {
+    return [];
+  }
+}
 
 function texto(id, valor) {
   const elemento = $(id);
@@ -22,6 +38,24 @@ function emDestaque(produto) {
   if (monetizacao.destaque !== true && produto?.destaque !== true) return false;
   const fim = monetizacao.destaqueFim;
   return !fim || Number.isNaN(new Date(fim).getTime()) || new Date(fim).getTime() > Date.now();
+}
+
+function criarCartaoSeguro(produto) {
+  try {
+    return criarCardProduto(produto);
+  } catch (erro) {
+    // Um erro visual de um único cartão nunca deve esconder a loja inteira.
+    console.warn('Cartão completo indisponível; a usar cartão simples.', erro);
+    const artigo = document.createElement('article');
+    artigo.className = 'produto-card loja-cartao-seguro';
+    const link = document.createElement('a');
+    link.className = 'produto-card-link';
+    link.href = 'detalhe.html?id=' + encodeURIComponent(produto?.id || '');
+    const imagem = imagemSegura(produto?.imagens?.[0]);
+    link.innerHTML = (imagem ? '<div class="produto-imagem"><img src="' + escapeHTML(imagem) + '" alt="" loading="lazy"></div>' : '') + '<div class="produto-info"><span class="categoria-tag">' + escapeHTML(produto?.categoria || 'Produto') + '</span><h3>' + escapeHTML(produto?.nome || 'Produto') + '</h3><div class="produto-preco-linha"><span class="preco">' + escapeHTML(produto?.preco || '') + '</span></div></div>';
+    artigo.append(link);
+    return artigo;
+  }
 }
 
 function mostrarLogo(url) {
@@ -58,7 +92,7 @@ function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ai
   }
   // criarCardProduto devolve um HTMLElement, não uma string. Usar append evita
   // que o navegador mostre "[object HTMLElement]" no lugar do produto.
-  grid.replaceChildren(...lista.map(criarCardProduto).filter(Boolean));
+  grid.replaceChildren(...lista.map(criarCartaoSeguro).filter(Boolean));
 }
 
 function configurarFiltros() {
@@ -136,34 +170,90 @@ function preencherPerfil(vendedor, produtos) {
   if (avaliacoes) avaliacoes.innerHTML = '<div class="loja-vazia">Esta loja ainda não recebeu avaliações verificadas.</div>';
 }
 
+function carregarDemo() {
+  produtosDaLoja = PRODUTOS_DEMO;
+  const nota = $('demoNote');
+  if (nota) nota.style.display = 'block';
+  preencherPerfil({
+    nomeLoja: 'Kwanza Tech',
+    categoria: 'Tecnologia',
+    morada: 'Luanda, Angola',
+    descricao: 'Loja de demonstração da VORA 313 para mostrar a vitrine de um vendedor.',
+    perfilPublico: { horario: 'Seg–Sáb, 08:00–18:00', destaque: 'Tecnologia e acessórios selecionados' }
+  }, produtosDaLoja);
+  renderizarProdutos(produtosDaLoja.filter(emDestaque), 'destaquesLoja', 'A loja ainda não selecionou produtos em destaque.');
+  renderizarProdutos(produtosDaLoja);
+  configurarFiltros();
+}
+
 async function carregarLojaReal() {
-  if (!vendedorId || params.get('demo') === '1') return;
-  const [vendedorSnap, produtosSnap] = await Promise.all([
+  if (params.get('demo') === '1') return carregarDemo();
+  if (!vendedorId) return;
+  // No telemóvel uma falha temporária no pedido do perfil não deve esconder os
+  // produtos já públicos. Cada origem é lida separadamente e o catálogo local
+  // serve como último recurso quando a ligação estiver instável.
+  const [resultadoVendedor, resultadoProdutos] = await Promise.allSettled([
     getDoc(doc(db, 'vendedores', vendedorId)),
     getDocs(query(collection(db, 'produtos'), where('vendedorId', '==', vendedorId)))
   ]);
 
-  if (!vendedorSnap.exists()) {
+  const vendedorSnap = resultadoVendedor.status === 'fulfilled' ? resultadoVendedor.value : null;
+  const produtosSnap = resultadoProdutos.status === 'fulfilled' ? resultadoProdutos.value : null;
+  let produtosRemotos = produtosSnap ? produtosSnap.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() })) : [];
+  // Alguns navegadores móveis podem falhar na consulta filtrada logo após uma
+  // atualização de sessão/cache. Como alternativa, usa o catálogo público já
+  // preparado pela aplicação e separa apenas os produtos desta loja.
+  if (!produtosRemotos.length) {
+    try {
+      const catalogo = await carregarCatalogo();
+      produtosRemotos = catalogo.filter((produto) => String(produto?.vendedorId || '') === String(vendedorId));
+    } catch (_) {}
+  }
+  const produtosBase = produtosRemotos.length ? produtosRemotos : produtosDoCache();
+  produtosDaLoja = produtosBase.filter((produto) => {
+    const estado = String(produto.statusAprovacao || '').toLowerCase();
+    return produto.ativo !== false && produto.vendedorAtivo !== false && (!estado || estado === 'aprovado' || estado === 'published');
+  });
+
+  if ((!vendedorSnap || !vendedorSnap.exists()) && !produtosDaLoja.length) {
     texto('nome', 'Loja indisponível');
     texto('desc', 'Esta loja não está disponível publicamente neste momento.');
+    texto('estado', 'Sem produtos publicados');
+    texto('estadoDestaques', 'Escolhas da loja');
+    renderizarProdutos([], 'destaquesLoja', 'Esta loja ainda não tem produtos em destaque.');
     renderizarProdutos([]);
     return;
   }
 
-  const vendedor = vendedorSnap.data();
-  produtosDaLoja = produtosSnap.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() })).filter((produto) => {
-    const estado = String(produto.statusAprovacao || '').toLowerCase();
-    return produto.ativo !== false && produto.vendedorAtivo !== false && (!estado || estado === 'aprovado' || estado === 'published');
-  });
+  const produtoReferencia = produtosDaLoja[0] || {};
+  const vendedor = vendedorSnap?.exists()
+    ? vendedorSnap.data()
+    : {
+      nomeLoja: produtoReferencia.vendedorNome || 'Loja VORA 313',
+      categoria: produtoReferencia.categoria || 'Loja parceira',
+      telefone: produtoReferencia.vendedorTelefone || produtoReferencia.telefoneVendedor || '',
+      descricao: 'Veja os produtos publicados por esta loja na VORA 313.'
+    };
   preencherPerfil(vendedor, produtosDaLoja);
   renderizarProdutos(produtosDaLoja.filter(emDestaque), 'destaquesLoja', 'A loja ainda não selecionou produtos em destaque.');
   renderizarProdutos(produtosDaLoja);
   configurarFiltros();
+
+  // Tenta uma segunda vez apenas se a loja existe mas nenhum produto chegou.
+  // Isto resolve redes móveis que acordam depois do primeiro pedido, sem criar
+  // uma atualização infinita numa loja realmente vazia.
+  if (!produtosDaLoja.length && !tentativaExtraAgendada) {
+    tentativaExtraAgendada = true;
+    setTimeout(() => carregarLojaReal().catch(() => {}), 2500);
+  }
 }
 
 setTimeout(() => {
   carregarLojaReal().catch((erro) => {
     console.error('Não foi possível carregar a loja pública:', erro);
     texto('desc', 'Não foi possível carregar os dados desta loja agora. Tente novamente em instantes.');
+    texto('estado', 'Tente atualizar a página');
+    renderizarProdutos([], 'destaquesLoja', 'Não foi possível carregar os destaques agora.');
+    renderizarProdutos([], 'produtos', 'Não foi possível carregar os produtos agora. Atualize a página para tentar de novo.');
   });
 }, 0);
