@@ -49,14 +49,16 @@ function linkInstagram(valor) {
   return utilizador ? 'https://instagram.com/' + utilizador : '';
 }
 
-function renderizarProdutos(lista, alvo = 'produtos') {
+function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ainda não tem produtos publicados.') {
   const grid = $(alvo);
   if (!grid) return;
   if (!lista.length) {
-    grid.innerHTML = '<div class="loja-vazia">Esta loja ainda não tem produtos publicados.</div>';
+    grid.innerHTML = '<div class="loja-vazia">' + escapeHTML(textoVazio) + '</div>';
     return;
   }
-  grid.innerHTML = lista.map(criarCardProduto).join('');
+  // criarCardProduto devolve um HTMLElement, não uma string. Usar append evita
+  // que o navegador mostre "[object HTMLElement]" no lugar do produto.
+  grid.replaceChildren(...lista.map(criarCardProduto).filter(Boolean));
 }
 
 function configurarFiltros() {
@@ -154,7 +156,7 @@ async function carregarLojaReal() {
     return produto.ativo !== false && produto.vendedorAtivo !== false && (!estado || estado === 'aprovado' || estado === 'published');
   });
   preencherPerfil(vendedor, produtosDaLoja);
-  renderizarProdutos(produtosDaLoja.filter(emDestaque), 'destaquesLoja');
+  renderizarProdutos(produtosDaLoja.filter(emDestaque), 'destaquesLoja', 'A loja ainda não selecionou produtos em destaque.');
   renderizarProdutos(produtosDaLoja);
   configurarFiltros();
 }
