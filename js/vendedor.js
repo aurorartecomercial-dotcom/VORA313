@@ -61,7 +61,7 @@ function estadoProduto(produto) {
 }
 
 function nomeEstado(estado) {
-  return ({ aprovado: 'Publicado', desativado: 'Desativado', aguardando_aprovacao: 'Em aprovação', recusado: 'Recusado', pendente: 'Pendente', suspenso: 'Suspenso', pago: 'Pago', em_preparacao: 'Em preparação', enviado: 'Enviado', entregue: 'Entregue', cancelado: 'Cancelado', aguardando_pagamento: 'Aguardando pagamento', ativo: 'Ativo' })[estado] || estado || 'Sem estado';
+  return ({ aprovado: 'Publicado', desativado: 'Desativado', aguardando_aprovacao: 'Em aprovação', recusado: 'Recusado', pendente: 'Pendente', suspenso: 'Suspenso', pago: 'Pago', em_preparacao: 'Em preparação', enviado: 'Enviado', entregue: 'Entregue', cancelado: 'Cancelado', aguardando_pagamento: 'Aguardando pagamento', ativo: 'Ativo', retido: 'Retido', disponivel: 'Disponível', reembolsado: 'Reembolsado', em_disputa: 'Em disputa', reembolso_solicitado: 'Reembolso solicitado', devolucao_em_transito: 'Devolução em trânsito', encerrado: 'Encerrado', concluido: 'Concluído' })[estado] || estado || 'Sem estado';
 }
 
 function classeEstado(estado) {
@@ -389,15 +389,59 @@ function renderizarPedidos() {
   $('vendPedidos').innerHTML = lista.length ? lista.map(linhaPedido).join('') : vazio('Não há pedidos para os filtros selecionados.');
 }
 
+function nomeMovimentoFinanceiro(tipo) {
+  return ({
+    venda_pendente: 'Venda confirmada', entrega_confirmada: 'Entrega confirmada', venda_liberada: 'Saldo liberado',
+    compensacao_divida: 'Compensação de saldo', levantamento_solicitado: 'Levantamento solicitado',
+    levantamento_pago: 'Levantamento pago', levantamento_recusado: 'Levantamento recusado',
+    disputa_aberta: 'Valor retido para disputa', disputa_liberada: 'Disputa resolvida a seu favor',
+    reembolso_aprovado: 'Reembolso aprovado', cancelamento_reembolso: 'Cancelamento e estorno'
+  })[tipo] || tipo || 'Movimento financeiro';
+}
+
+function nomeEstadoFinanceiro(estado) {
+  return ({ pendente: 'Pendente de liberação', retido: 'Retido', disponivel: 'Disponível', reembolsado: 'Reembolsado', cancelado: 'Cancelado' })[estado] || nomeEstado(estado);
+}
+
 function renderizarFinancas() {
-  const totalRecebido = movimentos.filter((movimento) => !['recusado', 'cancelado'].includes(String(movimento.status || ''))).reduce((soma, movimento) => soma + Number(movimento.valorVendedor ?? movimento.valor_vendedor ?? 0), 0);
-  setTexto('finSaldoDisponivel', moeda(vendedor.saldoDisponivel));
-  setTexto('finSaldoRetido', moeda(vendedor.saldoRetido));
-  setTexto('finTotalRecebido', moeda(totalRecebido));
+  const saldoDisponivel = Number(vendedor.saldoDisponivel || 0);
+  const saldoPendente = Number(vendedor.saldoPendente || 0);
+  const saldoRetido = Number(vendedor.saldoRetido || 0);
+  const saldoPago = Number(vendedor.saldoPago || 0);
+  const saldoDevedor = Number(vendedor.saldoDevedor || 0);
+  setTexto('finSaldoDisponivel', moeda(saldoDisponivel));
+  setTexto('finSaldoPendente', moeda(saldoPendente));
+  setTexto('finSaldoRetido', moeda(saldoRetido));
+  setTexto('finSaldoPago', moeda(saldoPago));
+
+  const aviso = $('finAviso');
+  if (saldoDevedor > 0) aviso.textContent = `Existe ${moeda(saldoDevedor)} em regularização por reembolso ou disputa. Este valor será compensado antes de um novo levantamento.`;
+  else if (saldoRetido > 0) aviso.textContent = `${moeda(saldoRetido)} está reservado por um levantamento ou por uma análise de pós-venda.`;
+  else aviso.textContent = '';
+
   const mov = [...movimentos].sort((a, b) => dataValor(b.criadoEm || b.criado_em) - dataValor(a.criadoEm || a.criado_em));
-  $('vendMovimentos').innerHTML = mov.length ? mov.slice(0, 12).map((item) => `<div class="seller-row"><div><strong>${escapeHTML(item.codigoRastreio || item.codigo_rastreio || item.tipo || 'Movimento')}</strong><small>${escapeHTML(dataHora(item.criadoEm || item.criado_em))} · ${escapeHTML(item.status || 'disponível')}</small></div><b>${escapeHTML(moeda(item.valorVendedor ?? item.valor_vendedor))}</b></div>`).join('') : vazio('Nenhum movimento financeiro foi registado ainda.');
+  $('vendMovimentos').innerHTML = mov.length ? mov.slice(0, 15).map((item) => {
+    const valor = Number(item.valorVendedor ?? item.valor_vendedor ?? 0);
+    const prefixo = valor > 0 ? '+' : valor < 0 ? '−' : '';
+    const detalhes = item.detalhes && typeof item.detalhes === 'object' ? item.detalhes : {};
+    const nota = detalhes.motivo || detalhes.nota || '';
+    return `<div class="seller-row"><div><strong>${escapeHTML(nomeMovimentoFinanceiro(item.tipo))}</strong><small>${escapeHTML(item.codigoRastreio || item.codigo_rastreio || 'Sem pedido')} · ${escapeHTML(dataHora(item.criadoEm || item.criado_em))}${nota ? ` · ${escapeHTML(nota)}` : ''}</small></div><div><span class="seller-chip ${classeEstado(String(item.status || 'pendente'))}">${escapeHTML(nomeEstado(String(item.status || 'pendente')))}</span><b>${prefixo}${escapeHTML(moeda(Math.abs(valor)))}</b></div></div>`;
+  }).join('') : vazio('Nenhum movimento financeiro foi registado ainda.');
+
+  const pendentes = [...pedidos].filter((pedido) => ['pendente', 'retido'].includes(String(pedido.financeiroStatus || pedido.financeiro_status || 'pendente'))).sort((a, b) => dataValor(a.liberavelEm || a.liberavel_em) - dataValor(b.liberavelEm || b.liberavel_em));
+  $('vendValoresPendentes').innerHTML = pendentes.length ? pendentes.map((pedido) => {
+    const estado = String(pedido.financeiroStatus || pedido.financeiro_status || 'pendente');
+    const liberavel = pedido.liberavelEm || pedido.liberavel_em;
+    const detalhe = estado === 'retido' ? 'Aguarda a decisão da análise.' : liberavel ? `Liberação prevista após ${dataHora(liberavel)}.` : 'Aguarda confirmação de entrega.';
+    return `<div class="seller-row"><div><strong>${escapeHTML(pedido.codigoRastreio || pedido.codigo_rastreio || 'Pedido')}</strong><small>${escapeHTML(pedido.produtosResumo || pedido.produtos_resumo || 'Produtos da loja')} · ${escapeHTML(detalhe)}</small></div><div><span class="seller-chip ${classeEstado(estado)}">${escapeHTML(nomeEstadoFinanceiro(estado))}</span><b>${escapeHTML(moeda(pedido.valorVendedor ?? pedido.valor_vendedor))}</b></div></div>`;
+  }).join('') : vazio('Não há valores pendentes de liberação.');
+
   const lista = [...levantamentos].sort((a, b) => dataValor(b.criadoEm || b.criado_em) - dataValor(a.criadoEm || a.criado_em));
-  $('vendLevantamentos').innerHTML = lista.length ? lista.map((item) => `<div class="seller-row"><div><strong>${escapeHTML(moeda(item.valor))}</strong><small>${escapeHTML(dataHora(item.criadoEm || item.criado_em))}</small></div><span class="seller-chip ${classeEstado(String(item.status || 'pendente'))}">${escapeHTML(nomeEstado(String(item.status || 'pendente')))}</span></div>`).join('') : vazio('Nenhum levantamento foi solicitado.');
+  $('vendLevantamentos').innerHTML = lista.length ? lista.map((item) => {
+    const comprovativo = urlSegura(item.comprovativoUrl || item.comprovativo_url, '');
+    const nota = item.notaAdmin || item.nota_admin;
+    return `<div class="seller-row"><div><strong>${escapeHTML(moeda(item.valor))}</strong><small>${escapeHTML(dataHora(item.criadoEm || item.criado_em))}${nota ? ` · ${escapeHTML(nota)}` : ''}${comprovativo ? ` · <a href="${escapeHTML(comprovativo)}" target="_blank" rel="noopener">Comprovativo</a>` : ''}</small></div><span class="seller-chip ${classeEstado(String(item.status || 'pendente'))}">${escapeHTML(nomeEstado(String(item.status || 'pendente')))}</span></div>`;
+  }).join('') : vazio('Nenhum levantamento foi solicitado.');
 }
 
 function renderizarPromocoes() {
@@ -622,10 +666,15 @@ async function salvarRecebimento(evento) {
 
 async function solicitarLevantamento() {
   if (!lojaAtiva()) return mensagem('A loja precisa estar aprovada para solicitar levantamentos.', false);
+  const campoValor = $('vendValorLevantamento');
+  const bruto = String(campoValor?.value || '').trim().replace(',', '.');
+  const valor = bruto ? Number(bruto) : null;
+  if (bruto && (!Number.isFinite(valor) || valor < 5000)) return mensagem('Informe um valor igual ou superior a 5.000,00 Kz.', false);
   try {
-    const resultado = await call('solicitarLevantamento')({});
+    const resultado = await call('solicitarLevantamento')({ valor });
     const valor = resultado?.data?.valor ?? vendedor.saldoDisponivel;
-    mensagem(`Levantamento solicitado: ${moeda(valor)}. Aguarde a análise da VORA 313.`);
+    if (campoValor) campoValor.value = '';
+    mensagem(`Levantamento solicitado: ${moeda(valor)}. A VORA 313 processará o pedido em até 3 dias úteis.`);
     await carregarCentral();
   } catch (erro) { mensagem(erroTexto(erro), false); }
 }

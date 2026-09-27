@@ -20,6 +20,15 @@ Edite apenas `js/supabase-config.js` e coloque:
 
 Nunca coloque a `service_role` key no frontend.
 
+## Financeiro do marketplace
+
+Depois das migrations já listadas neste documento, execute também
+`011_financeiro_marketplace.sql` e publique novamente a Edge Function `api`.
+Essa etapa separa saldo pendente, retido, disponível e já pago; impede a
+liberação do vendedor antes da entrega e inclui disputas, reembolsos e
+levantamentos auditáveis. Consulte `FINANCEIRO-MARKETPLACE.md` para o fluxo
+operacional antes de ativar pagamentos reais.
+
 ## SQL
 
 Como `001_schema.sql` e `002_auth_trigger.sql` já foram executados no projeto, execute na sequência:

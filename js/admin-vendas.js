@@ -16,6 +16,9 @@ let graficos = {};
 let vendedoresAdmin = [];
 let vendasVendedorAdmin = [];
 let produtosVendedorAdmin = [];
+let levantamentosFinanceiroAdmin = [];
+let comissoesFinanceiroAdmin = [];
+let disputasFinanceiroAdmin = [];
 
 function chartDisponivel() {
     return typeof Chart !== 'undefined';
@@ -85,6 +88,8 @@ document.addEventListener('DOMContentLoaded', () => {
     configurarExportacoes();
 
     document.getElementById('btnAtualizarVendedores')?.addEventListener('click', () => carregarPainelVendedoresAdmin(true));
+    document.getElementById('btnAtualizarFinanceiro')?.addEventListener('click', () => carregarFinanceiroAdmin());
+    document.getElementById('btnLiberarSaldos')?.addEventListener('click', liberarSaldosVencidosAdmin);
     document.addEventListener('click', async (event) => {
         const btn = event.target.closest('[data-admin-vendedor-action]');
         if (btn) {
@@ -92,7 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const prodBtn = event.target.closest('[data-admin-produto-action]');
-        if (prodBtn) await acaoProdutoVendedorAdmin(prodBtn.dataset.id, prodBtn.dataset.adminProdutoAction);
+        if (prodBtn) { await acaoProdutoVendedorAdmin(prodBtn.dataset.id, prodBtn.dataset.adminProdutoAction); return; }
+        const levantamentoBtn = event.target.closest('[data-financeiro-levantamento]');
+        if (levantamentoBtn) { await processarLevantamentoFinanceiro(levantamentoBtn.dataset.id, levantamentoBtn.dataset.financeiroLevantamento); return; }
+        const abrirDisputaBtn = event.target.closest('[data-financeiro-abrir-disputa]');
+        if (abrirDisputaBtn) { await abrirDisputaFinanceiro(abrirDisputaBtn.dataset.financeiroAbrirDisputa); return; }
+        const resolverDisputaBtn = event.target.closest('[data-financeiro-resolver-disputa]');
+        if (resolverDisputaBtn) await resolverDisputaFinanceiro(resolverDisputaBtn.dataset.financeiroResolverDisputa, resolverDisputaBtn.dataset.decisao);
     });
 
     // ✅ Fase 4: Botão de backup
@@ -193,6 +204,7 @@ async function trocarAba(abaId) {
         case 'mensal': renderizarMensal(); break;
         case 'anual': renderizarAnual(); break;
         case 'vendedores': await carregarPainelVendedoresAdmin(); break;
+        case 'financeiro': await carregarFinanceiroAdmin(); break;
         case 'produtos': renderizarProdutos(); break;
         case 'contabilidade': renderizarContabilidade(); break;
         case 'pedidos': renderizarPedidos(); break;
@@ -1498,6 +1510,154 @@ function renderizarPainelVendedoresAdmin() {
 async function chamarAcaoAdmin(nome, data) {
     const fn = httpsCallable(functions, nome);
     return fn(data);
+}
+
+function numeroFinanceiro(valor) {
+    const numero = Number(valor);
+    return Number.isFinite(numero) ? numero : 0;
+}
+
+function textoPosVenda(status) {
+    const labels = {
+        sem_ocorrencia: 'Sem ocorrência', reembolso_solicitado: 'Reembolso solicitado',
+        em_disputa: 'Em disputa', devolucao_em_transito: 'Devolução em trânsito',
+        reembolsado: 'Reembolsado', encerrado: 'Encerrado'
+    };
+    return labels[status] || status || 'Sem ocorrência';
+}
+
+function mensagemFinanceiroAdmin(texto, erro = false) {
+    const box = document.getElementById('msgFinanceiroAdmin');
+    if (!box) return;
+    box.style.display = 'block';
+    box.style.background = erro ? '#fff3cd' : '#e8f7ee';
+    box.style.color = erro ? '#856404' : '#17643e';
+    box.textContent = texto;
+}
+
+async function carregarFinanceiroAdmin() {
+    const msg = document.getElementById('msgFinanceiroAdmin');
+    try {
+        if (msg) { msg.style.display = 'none'; msg.textContent = ''; }
+        const [vendedoresSnap, levantamentosSnap, comissoesSnap, disputasSnap, vendasSnap] = await Promise.all([
+            getDocs(collection(db, 'vendedores')),
+            getDocs(collection(db, 'levantamentos')),
+            getDocs(collection(db, 'comissoes')),
+            getDocs(collection(db, 'disputas_vendas')),
+            getDocs(collection(db, 'vendas'))
+        ]);
+        vendedoresAdmin = vendedoresSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+        levantamentosFinanceiroAdmin = levantamentosSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+        comissoesFinanceiroAdmin = comissoesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+        disputasFinanceiroAdmin = disputasSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+        todasVendas = vendasSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+        renderizarFinanceiroAdmin();
+    } catch (erro) {
+        console.error('Erro ao carregar financeiro do marketplace:', erro);
+        mensagemFinanceiroAdmin(`Não foi possível carregar o financeiro: ${erro.message || erro}`, true);
+    }
+}
+
+function renderizarFinanceiroAdmin() {
+    const saldoPendente = vendedoresAdmin.reduce((total, vendedor) => total + numeroFinanceiro(vendedor.saldoPendente ?? vendedor.saldo_pendente), 0);
+    const saldoRetido = vendedoresAdmin.reduce((total, vendedor) => total + numeroFinanceiro(vendedor.saldoRetido ?? vendedor.saldo_retido), 0);
+    const saldoDisponivel = vendedoresAdmin.reduce((total, vendedor) => total + numeroFinanceiro(vendedor.saldoDisponivel ?? vendedor.saldo_disponivel), 0);
+    const comissaoVora = comissoesFinanceiroAdmin
+        .filter(item => !['estornada', 'cancelada'].includes(String(item.status || '')))
+        .reduce((total, item) => total + numeroFinanceiro(item.comissaoVora ?? item.comissao_vora), 0);
+    setText('admSaldoPendente', moedaAdmin(saldoPendente));
+    setText('admSaldoRetido', moedaAdmin(saldoRetido));
+    setText('admSaldoDisponivel', moedaAdmin(saldoDisponivel));
+    setText('admComissaoVora', moedaAdmin(comissaoVora));
+
+    const saldos = document.getElementById('corpoSaldosVendedores');
+    if (saldos) saldos.innerHTML = vendedoresAdmin.length ? vendedoresAdmin.map(vendedor => {
+        const nome = vendedor.nomeLoja || vendedor.nome_loja || vendedor.nome || 'Vendedor';
+        const divida = numeroFinanceiro(vendedor.saldoDevedor ?? vendedor.saldo_devedor);
+        return `<tr><td style="padding:9px;"><strong>${escapeHTML(nome)}</strong><br><small>${escapeHTML(vendedor.email || '')}</small></td><td style="padding:9px;">${moedaAdmin(numeroFinanceiro(vendedor.saldoPendente ?? vendedor.saldo_pendente))}</td><td style="padding:9px;color:#087f5b;font-weight:700;">${moedaAdmin(numeroFinanceiro(vendedor.saldoDisponivel ?? vendedor.saldo_disponivel))}</td><td style="padding:9px;">${moedaAdmin(numeroFinanceiro(vendedor.saldoRetido ?? vendedor.saldo_retido))}</td><td style="padding:9px;">${moedaAdmin(numeroFinanceiro(vendedor.saldoPago ?? vendedor.saldo_pago))}</td><td style="padding:9px;color:${divida > 0 ? '#b42318' : '#667085'};">${divida > 0 ? moedaAdmin(divida) : '—'}</td></tr>`;
+    }).join('') : '<tr><td colspan="6" style="padding:18px;text-align:center;">Nenhum vendedor cadastrado.</td></tr>';
+
+    const levantamentos = document.getElementById('corpoLevantamentosFinanceiro');
+    const pendentes = levantamentosFinanceiroAdmin.filter(item => item.status === 'pendente').sort((a, b) => parseDataHora(b.criadoEm || b.criado_em)?.getTime() - parseDataHora(a.criadoEm || a.criado_em)?.getTime());
+    if (levantamentos) levantamentos.innerHTML = pendentes.length ? pendentes.map(item => {
+        const vendedor = vendedoresAdmin.find(v => String(v.id) === String(item.uidVendedor || item.uid_vendedor));
+        const recebimento = item.dadosRecebimento || item.dados_recebimento || {};
+        const dados = `${recebimento.metodo || 'Método não informado'} · ${recebimento.titular || 'Sem titular'} · ${recebimento.referencia || 'Sem referência'}`;
+        return `<tr><td style="padding:9px;">${escapeHTML(vendedor?.nomeLoja || vendedor?.nome_loja || vendedor?.nome || 'Vendedor')}</td><td style="padding:9px;font-weight:700;">${moedaAdmin(numeroFinanceiro(item.valor))}</td><td style="padding:9px;font-size:11px;">${escapeHTML(dados)}</td><td style="padding:9px;">${escapeHTML(item.criadoEm || item.criado_em || '—')}</td><td style="padding:9px;white-space:nowrap;"><button class="btn-admin" style="background:#087f5b" data-financeiro-levantamento="aprovar" data-id="${escapeHTML(item.id)}">Marcar pago</button> <button class="btn-admin" style="background:#b42318" data-financeiro-levantamento="recusar" data-id="${escapeHTML(item.id)}">Recusar</button></td></tr>`;
+    }).join('') : '<tr><td colspan="5" style="padding:18px;text-align:center;">Não há levantamentos pendentes.</td></tr>';
+
+    const disputas = document.getElementById('corpoDisputasFinanceiro');
+    if (disputas) disputas.innerHTML = disputasFinanceiroAdmin.length ? disputasFinanceiroAdmin.sort((a, b) => parseDataHora(b.criadoEm || b.criado_em)?.getTime() - parseDataHora(a.criadoEm || a.criado_em)?.getTime()).map(item => {
+        const aberta = ['aberta', 'aguardando_provas'].includes(String(item.status));
+        const acoes = aberta ? `<button class="btn-admin" style="background:#b42318" data-financeiro-resolver-disputa="${escapeHTML(item.id)}" data-decisao="reembolsar">Reembolsar</button> <button class="btn-admin" style="background:#087f5b" data-financeiro-resolver-disputa="${escapeHTML(item.id)}" data-decisao="liberar">Liberar vendedor</button>` : '—';
+        return `<tr><td style="padding:9px;">${escapeHTML(item.codigoRastreio || item.codigo_rastreio || '—')}</td><td style="padding:9px;">${escapeHTML(item.motivo || '—')}</td><td style="padding:9px;">${escapeHTML(item.status || '—')}</td><td style="padding:9px;white-space:nowrap;">${acoes}</td></tr>`;
+    }).join('') : '<tr><td colspan="4" style="padding:18px;text-align:center;">Não há disputas registadas.</td></tr>';
+
+    const posVenda = document.getElementById('corpoPedidosPosVenda');
+    const elegiveis = todasVendas.filter(venda => ['pago', 'em_preparacao', 'enviado', 'entregue'].includes(venda.status));
+    if (posVenda) posVenda.innerHTML = elegiveis.length ? elegiveis.map(venda => {
+        const pos = venda.posVendaStatus || venda.pos_venda_status || 'sem_ocorrencia';
+        const abrir = pos === 'sem_ocorrencia' ? `<button class="btn-admin" style="background:#b26a00" data-financeiro-abrir-disputa="${escapeHTML(venda.codigoRastreio || venda.codigo_rastreio || '')}">Abrir disputa</button>` : '—';
+        return `<tr><td style="padding:9px;">${escapeHTML(venda.codigoRastreio || venda.codigo_rastreio || '—')}</td><td style="padding:9px;">${escapeHTML(venda.nomeCliente || venda.nome_cliente || '—')}</td><td style="padding:9px;">${escapeHTML(statusLabelPedidoFinanceiro(venda.status))}</td><td style="padding:9px;">${escapeHTML(textoPosVenda(pos))}</td><td style="padding:9px;">${moedaAdmin(numeroFinanceiro(venda.valorTotal ?? venda.valor_total))}</td><td style="padding:9px;">${abrir}</td></tr>`;
+    }).join('') : '<tr><td colspan="6" style="padding:18px;text-align:center;">Nenhum pedido elegível para pós-venda.</td></tr>';
+}
+
+function statusLabelPedidoFinanceiro(status) {
+    return ({ pago: 'Pago', em_preparacao: 'Em preparação', enviado: 'Enviado', entregue: 'Entregue' })[status] || status || '—';
+}
+
+async function liberarSaldosVencidosAdmin() {
+    if (!confirm('Liberar todos os saldos cuja entrega e prazo de segurança já foram confirmados?')) return;
+    try {
+        const resposta = await chamarAcaoAdmin('liberarSaldosVencidos', {});
+        const dados = resposta?.data || resposta || {};
+        mensagemFinanceiroAdmin(`${dados.quantidade || 0} saldo(s) liberado(s), total de ${moedaAdmin(numeroFinanceiro(dados.valorLiberado))}.`);
+        await carregarFinanceiroAdmin();
+    } catch (erro) {
+        mensagemFinanceiroAdmin(`Não foi possível liberar os saldos: ${erro.message || erro}`, true);
+    }
+}
+
+async function processarLevantamentoFinanceiro(levantamentoId, acao) {
+    const titulo = acao === 'aprovar' ? 'Confirmar que o pagamento já foi feito?' : 'Recusar este levantamento?';
+    if (!confirm(titulo)) return;
+    const nota = String(prompt('Nota para o vendedor (opcional):') || '').trim();
+    const comprovativoUrl = acao === 'aprovar' ? String(prompt('URL do comprovativo de pagamento (opcional):') || '').trim() : '';
+    try {
+        await chamarAcaoAdmin('processarLevantamento', { levantamentoId, acao, nota, comprovativoUrl });
+        mensagemFinanceiroAdmin(acao === 'aprovar' ? 'Levantamento marcado como pago e registado no extrato.' : 'Levantamento recusado e valor devolvido ao saldo disponível.');
+        await carregarFinanceiroAdmin();
+    } catch (erro) {
+        mensagemFinanceiroAdmin(`Não foi possível processar o levantamento: ${erro.message || erro}`, true);
+    }
+}
+
+async function abrirDisputaFinanceiro(codigoRastreio) {
+    const motivo = String(prompt('Motivo da disputa ou reembolso:') || '').trim();
+    if (!motivo) return;
+    const descricao = String(prompt('Detalhes e prova resumida (opcional):') || '').trim();
+    if (!confirm(`Abrir disputa para o pedido ${codigoRastreio}? O saldo do vendedor será reservado.`)) return;
+    try {
+        await chamarAcaoAdmin('abrirDisputaFinanceira', { codigoRastreio, motivo, descricao });
+        mensagemFinanceiroAdmin('Disputa aberta. O valor do pedido foi reservado até à decisão.');
+        await carregarFinanceiroAdmin();
+    } catch (erro) {
+        mensagemFinanceiroAdmin(`Não foi possível abrir a disputa: ${erro.message || erro}`, true);
+    }
+}
+
+async function resolverDisputaFinanceiro(disputaId, decisao) {
+    const mensagem = decisao === 'reembolsar'
+        ? 'Confirmar reembolso ao cliente? Esta decisão reduz o valor devido ao vendedor.'
+        : 'Confirmar decisão favorável ao vendedor? O valor voltará ao ciclo de liberação.';
+    if (!confirm(mensagem)) return;
+    try {
+        await chamarAcaoAdmin('resolverDisputaFinanceira', { disputaId, decisao });
+        mensagemFinanceiroAdmin(decisao === 'reembolsar' ? 'Reembolso registado e comissão estornada.' : 'Disputa encerrada a favor do vendedor.');
+        await carregarFinanceiroAdmin();
+    } catch (erro) {
+        mensagemFinanceiroAdmin(`Não foi possível resolver a disputa: ${erro.message || erro}`, true);
+    }
 }
 
 function estadoVendedorDaAcao(acao) {
