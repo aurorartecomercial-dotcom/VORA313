@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
-const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+// Projetos Supabase recentes disponibilizam as chaves seguras num mapa JSON.
+// A chave legada continua apenas como compatibilidade para instalações antigas.
+const SECRET_KEYS = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}');
+const SERVICE_KEY = SECRET_KEYS.default || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+if (!SERVICE_KEY) throw new Error('A chave segura da Edge Function não está disponível.');
 const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 const cors = {

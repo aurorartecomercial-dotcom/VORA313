@@ -53,6 +53,10 @@ A ponte `firebase_uid` é temporária para a importação. O funcionamento norma
 A Edge Function `supabase/functions/api/index.ts` substitui as Cloud Functions usadas pelo frontend.
 
 Depois de configurar o projeto Supabase, publique a função `api` com a Supabase CLI.
+Em projetos Supabase recentes, a função usa automaticamente
+`SUPABASE_SECRET_KEYS.default` para operações administrativas seguras e só
+usa a variável legada como compatibilidade. Não crie nem coloque chaves
+`SUPABASE_*` manualmente no frontend ou na área de Secrets.
 
 ## Pagamentos
 
