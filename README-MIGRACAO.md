@@ -29,6 +29,15 @@ liberação do vendedor antes da entrega e inclui disputas, reembolsos e
 levantamentos auditáveis. Consulte `FINANCEIRO-MARKETPLACE.md` para o fluxo
 operacional antes de ativar pagamentos reais.
 
+## Revisão obrigatória de anúncios de vendedores
+
+Execute `014_revisao_produtos_vendedores.sql` depois das migrations anteriores
+e publique novamente a Edge Function `api`. A fila administrativa passa a
+mostrar imagens, descrição, preço, stock e vendedor antes da decisão. Toda
+aprovação ou recusa exige checklist, gera uma nota e grava uma fotografia do
+anúncio, do administrador e do momento da decisão. Consulte
+`REVISAO-PRODUTOS.md` para a política operacional.
+
 ## SQL
 
 Como `001_schema.sql` e `002_auth_trigger.sql` já foram executados no projeto, execute na sequência:
