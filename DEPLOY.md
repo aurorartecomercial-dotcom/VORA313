@@ -7,7 +7,7 @@
 - Se o checkout continuar a permitir sessão anónima, ative Anonymous Sign-ins.
 - Execute `supabase/migrations/003_firebase_uid_bridge.sql`, `004_migration_support.sql` e `005_supabase_frontend_support.sql` depois das migrations 001 e 002 já aplicadas.
 - Execute a migration `008_vora313_schema_repair.sql` depois das migrations anteriores.
-- Execute também `supabase/migrations/009_admin_vendedores_vendas.sql`, `010_production_safety.sql`, `011_vendedor_cadastro_resiliente.sql`, `012_perfil_publico_loja.sql` e `013_central_vendedor_segura.sql`, nesta ordem. A 011 mantém o fluxo de candidatura e produtos de vendedor funcional mesmo se a Edge Function estiver indisponível; a 012 adiciona logótipo, capa, horário, rede social e apresentação pública da loja; a 013 cria a Central do Vendedor segura, separa os dados públicos da loja numa view própria e adiciona os RPCs de perfil e recebimento.
+- Execute também `supabase/migrations/009_admin_vendedores_vendas.sql`, `010_production_safety.sql`, `011_vendedor_cadastro_resiliente.sql`, `012_perfil_publico_loja.sql`, `013_central_vendedor_segura.sql` e `014_revisao_produtos_vendedores.sql`, nesta ordem. A 011 mantém o fluxo de candidatura e produtos de vendedor funcional mesmo se a Edge Function estiver indisponível; a 012 adiciona logótipo, capa, horário, rede social e apresentação pública da loja; a 013 cria a Central do Vendedor segura, separa os dados públicos da loja numa view própria e adiciona os RPCs de perfil e recebimento; a 014 cria a moderação auditável dos produtos.
 - Publique `supabase/functions/api` usando `supabase functions deploy api`.
 
 ## 2. Frontend
