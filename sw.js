@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vora313-cache-v53-moderacao-produtos';
+const CACHE_NAME = 'vora313-cache-v52-central-vendedor-segura';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html',
   './style.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
@@ -13,7 +13,7 @@ self.addEventListener('fetch', event => {
   const req = event.request;
   const path = new URL(req.url).pathname.toLowerCase();
   // Admin/login must never be served from an old HTML cache.
-  if (path.endsWith('/admin.html') || path.endsWith('/admin-vendedores.html') || path.endsWith('/admin-vendas.html') || path.endsWith('/js/admin.js') || path.endsWith('/js/admin-vendedores.js') || path.endsWith('/js/admin-vendas.js')) {
+  if (path.endsWith('/admin.html') || path.endsWith('/js/admin.js')) {
     event.respondWith(fetch(req, { cache: 'no-store' }).then(res => {
       if (res.ok) { const copy = res.clone(); caches.open(CACHE_NAME).then(c=>c.put(req, copy)); }
       return res;

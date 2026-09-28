@@ -19,7 +19,6 @@ Ordem completa:
 11. `011_vendedor_cadastro_resiliente.sql` — candidatura e produtos de vendedor resilientes
 12. `012_perfil_publico_loja.sql` — dados públicos e visuais da loja
 13. `013_central_vendedor_segura.sql` — Central do Vendedor, view pública segura e RPCs de perfil/recebimento
-14. `014_revisao_produtos_vendedores.sql` — moderação auditável de anúncios de vendedores
 
 Como 001 e 002 já foram executadas no projeto atual, a próxima execução deve começar em 003.
 
