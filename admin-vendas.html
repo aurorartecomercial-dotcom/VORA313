@@ -33,40 +33,8 @@
         .grafico-container canvas { max-height: 250px !important; width: 100% !important; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
-        .revisao-produto-dialog { width: min(980px, calc(100vw - 28px)); max-height: min(860px, calc(100vh - 28px)); padding: 0; border: 0; border-radius: 18px; box-shadow: 0 24px 80px rgba(0,0,0,.32); color: #1f2937; }
-        .revisao-produto-dialog::backdrop { background: rgba(0, 37, 31, .72); }
-        .revisao-produto-cabecalho { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:22px 24px; border-bottom:1px solid #e7ecea; background:#f7fbfa; }
-        .revisao-produto-cabecalho h2 { margin:0; color:var(--cor-esmeralda); font-size:22px; }
-        .revisao-produto-cabecalho p { margin:5px 0 0; color:#667085; font-size:13px; }
-        .revisao-fechar { border:0; background:#e7efed; color:#005a4c; border-radius:8px; padding:8px 11px; font-weight:700; cursor:pointer; }
-        .revisao-produto-corpo { padding:22px 24px 24px; overflow:auto; max-height:calc(min(860px, 100vh - 28px) - 106px); }
-        .revisao-alerta { margin:0 0 18px; border-left:4px solid #d4af37; background:#fff8dc; color:#624b00; border-radius:8px; padding:11px 13px; font-size:13px; line-height:1.45; }
-        .revisao-resumo { display:grid; grid-template-columns:180px 1fr; gap:18px; padding:16px; border:1px solid #e5ebe9; border-radius:14px; background:#fff; }
-        .revisao-capa { width:180px; height:180px; object-fit:cover; border-radius:10px; background:#eef3f2; }
-        .revisao-resumo h3 { margin:0 0 8px; color:#003f35; font-size:21px; }
-        .revisao-meta { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:9px 16px; margin-top:12px; font-size:13px; }
-        .revisao-meta div { padding-top:8px; border-top:1px solid #edf1f0; }
-        .revisao-meta strong { display:block; margin-bottom:2px; color:#69727a; font-size:10px; text-transform:uppercase; letter-spacing:.03em; }
-        .revisao-secao { margin-top:20px; }
-        .revisao-secao h3 { margin:0 0 9px; color:#005a4c; font-size:16px; }
-        .revisao-descricao { white-space:pre-wrap; background:#f8faf9; border:1px solid #e5ebe9; border-radius:10px; padding:13px; line-height:1.5; font-size:14px; min-height:48px; }
-        .revisao-galeria { display:grid; grid-template-columns:repeat(auto-fill,minmax(135px,1fr)); gap:10px; }
-        .revisao-galeria a { display:block; border:1px solid #dce6e3; border-radius:10px; overflow:hidden; background:#f4f6f5; }
-        .revisao-galeria img { width:100%; height:125px; display:block; object-fit:cover; }
-        .revisao-sem-imagem { padding:16px; border:1px dashed #c5d4d0; border-radius:10px; color:#667085; font-size:13px; }
-        .revisao-checklist { display:grid; gap:9px; padding:14px; background:#f7fbfa; border:1px solid #d9e8e3; border-radius:12px; }
-        .revisao-checklist label { display:flex; gap:9px; align-items:flex-start; font-size:13px; line-height:1.35; cursor:pointer; }
-        .revisao-checklist input { margin-top:2px; accent-color:#007b68; }
-        .revisao-nota { width:100%; min-height:72px; box-sizing:border-box; resize:vertical; padding:10px; border:1px solid #cbd9d5; border-radius:9px; font:inherit; }
-        .revisao-acoes { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-top:18px; padding-top:18px; border-top:1px solid #e7ecea; }
-        .produto-miniatura { width:54px; height:54px; object-fit:cover; border-radius:8px; display:block; background:#eef3f2; }
-        .revisao-historico { color:#59666a; font-size:12px; margin-top:8px; }
         @media (max-width: 768px) {
             .grid-2, .grid-3 { grid-template-columns: 1fr; }
-            .revisao-resumo { grid-template-columns:1fr; }
-            .revisao-capa { width:100%; height:210px; }
-            .revisao-meta { grid-template-columns:1fr; }
-            .revisao-produto-cabecalho, .revisao-produto-corpo { padding-left:16px; padding-right:16px; }
         }
     </style>
 
@@ -391,10 +359,9 @@
                     </table>
                 </div>
                 <div class="tabela-scroll">
-                    <h3 style="color:var(--cor-esmeralda);">🛍️ Revisão e aprovação de produtos</h3>
-                    <p style="margin:0 0 12px;color:#667085;font-size:13px;">Abra cada produto para ver imagens, descrição e dados do vendedor. A aprovação só é liberada após a confirmação da revisão.</p>
+                    <h3 style="color:var(--cor-esmeralda);">🛍️ Aprovação de produtos de vendedores</h3>
                     <table style="width:100%;border-collapse:collapse;font-size:13px;">
-                        <thead><tr style="background:var(--cor-esmeralda);color:#fff;"><th>Prévia</th><th>Produto</th><th>Vendedor</th><th>Preço</th><th>Estoque</th><th>Estado</th><th>Revisão</th></tr></thead>
+                        <thead><tr style="background:var(--cor-esmeralda);color:#fff;"><th>Produto</th><th>Vendedor</th><th>Preço</th><th>Estoque</th><th>Estado</th><th>Ação</th></tr></thead>
                         <tbody id="corpoTabelaProdutosVendedores"></tbody>
                     </table>
                 </div>
@@ -506,14 +473,6 @@
         </div>
     </div>
 
-    <dialog id="dialogRevisaoProduto" class="revisao-produto-dialog" aria-labelledby="tituloRevisaoProduto">
-        <div class="revisao-produto-cabecalho">
-            <div><h2 id="tituloRevisaoProduto">Revisar produto</h2><p>Confirme o conteúdo antes de permitir a publicação no marketplace.</p></div>
-            <button type="button" class="revisao-fechar" data-fechar-revisao aria-label="Fechar revisão">Fechar ✕</button>
-        </div>
-        <div id="conteudoRevisaoProduto" class="revisao-produto-corpo"></div>
-    </dialog>
-
-    <script type="module" src="js/admin-vendas.js?v=6"></script>
+    <script type="module" src="js/admin-vendas.js?v=5"></script>
 </body>
 </html>

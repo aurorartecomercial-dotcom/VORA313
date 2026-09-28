@@ -2,7 +2,7 @@ import { auth, db, functions, supabase } from './config.js';
 import { collection, getDocs, query, where } from './supabase-compat.js';
 import { getIdTokenResult, signInWithEmailAndPassword, signOut } from './supabase-compat.js';
 import { httpsCallable } from './supabase-compat.js';
-import { extrairValorNumerico, escapeHTML, IMAGEM_FALLBACK, urlSegura } from './utils.js';
+import { extrairValorNumerico, escapeHTML } from './utils.js';
 import { exportarBackupCompleto } from './fase4.js'; // ✅ Fase 4
 
 if (!document.getElementById('loginVendas') || !document.getElementById('conteudoVendas')) {
@@ -19,7 +19,6 @@ let produtosVendedorAdmin = [];
 let levantamentosFinanceiroAdmin = [];
 let comissoesFinanceiroAdmin = [];
 let disputasFinanceiroAdmin = [];
-let produtoEmRevisaoAdmin = null;
 
 function chartDisponivel() {
     return typeof Chart !== 'undefined';
@@ -98,13 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
         const prodBtn = event.target.closest('[data-admin-produto-action]');
-        if (prodBtn) { abrirRevisaoProdutoAdmin(prodBtn.dataset.id); return; }
-        const revisarBtn = event.target.closest('[data-admin-produto-rever]');
-        if (revisarBtn) { abrirRevisaoProdutoAdmin(revisarBtn.dataset.id); return; }
-        const fecharRevisaoBtn = event.target.closest('[data-fechar-revisao]');
-        if (fecharRevisaoBtn) { document.getElementById('dialogRevisaoProduto')?.close(); return; }
-        const decisaoRevisaoBtn = event.target.closest('[data-decisao-revisao-produto]');
-        if (decisaoRevisaoBtn) { await decidirRevisaoProdutoAdmin(decisaoRevisaoBtn.dataset.decisaoRevisaoProduto); return; }
+        if (prodBtn) { await acaoProdutoVendedorAdmin(prodBtn.dataset.id, prodBtn.dataset.adminProdutoAction); return; }
         const levantamentoBtn = event.target.closest('[data-financeiro-levantamento]');
         if (levantamentoBtn) { await processarLevantamentoFinanceiro(levantamentoBtn.dataset.id, levantamentoBtn.dataset.financeiroLevantamento); return; }
         const abrirDisputaBtn = event.target.closest('[data-financeiro-abrir-disputa]');
@@ -1444,107 +1437,6 @@ function statusLabelProduto(status) {
     return map[status] || status || '—';
 }
 
-function imagensProdutoAdmin(produto) {
-    const origem = produto?.imagens;
-    const imagens = Array.isArray(origem) ? origem : (typeof origem === 'string' ? origem.split(',') : []);
-    return imagens
-        .filter(imagem => typeof imagem === 'string' && imagem.trim())
-        .map(imagem => urlSegura(imagem.trim()))
-        .filter(Boolean)
-        .slice(0, 8);
-}
-
-function imagemPrincipalProdutoAdmin(produto) {
-    return imagensProdutoAdmin(produto)[0] || IMAGEM_FALLBACK;
-}
-
-function detalhesRevisaoProdutoAdmin(produto, vendedor) {
-    const valor = (valor) => escapeHTML(valor || '—');
-    const imagens = imagensProdutoAdmin(produto);
-    const imagemPrincipal = escapeHTML(imagemPrincipalProdutoAdmin(produto));
-    const galeria = imagens.length
-        ? imagens.map((imagem, indice) => `<a href="${escapeHTML(imagem)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir imagem ${indice + 1} em tamanho maior"><img src="${escapeHTML(imagem)}" alt="Imagem ${indice + 1} do produto ${escapeHTML(produto.nome || '')}" loading="lazy"></a>`).join('')
-        : '<div class="revisao-sem-imagem">⚠️ O vendedor não enviou nenhuma imagem. Não aprove até receber imagens reais e adequadas.</div>';
-    const revisadoEm = produto.revisadoEm || produto.revisado_em;
-    const revisadoPor = produto.revisadoPorEmail || produto.revisado_por_email || produto.revisadoPor || produto.revisado_por;
-    const notaAnterior = produto.revisaoNotas || produto.revisao_notas;
-    const status = produto.statusAprovacao || produto.status_aprovacao || 'aguardando_aprovacao';
-    const podeDecidir = Boolean(produto.vendedorId || produto.vendedor_id);
-    const acoes = podeDecidir
-        ? `<div class="revisao-acoes"><button type="button" class="btn-admin" style="background:#b42318" data-decisao-revisao-produto="recusar">❌ Recusar e pedir correção</button><button type="button" id="btnAprovarAposRevisao" class="btn-admin" style="background:#087f5b" data-decisao-revisao-produto="aprovar" disabled>✅ Aprovar publicação</button></div>`
-        : '<p class="revisao-alerta">Este item não está associado a um vendedor e não pode ser decidido nesta fila.</p>';
-    return `
-        <p class="revisao-alerta"><strong>Regra de segurança:</strong> confira todas as imagens, o nome, a descrição e a categoria. Se houver produto proibido, imagem inadequada, falsificação, conteúdo ilegal ou informação enganosa, recuse e explique a correção necessária.</p>
-        <section class="revisao-resumo">
-            <img class="revisao-capa" src="${imagemPrincipal}" alt="Imagem principal de ${valor(produto.nome)}" id="imagemPrincipalRevisao">
-            <div>
-                <h3>${valor(produto.nome || 'Produto sem nome')}</h3>
-                <div>${statusLabelProduto(status)}</div>
-                <div class="revisao-meta">
-                    <div><strong>Vendedor / Loja</strong>${valor(vendedor?.nomeLoja || vendedor?.nome_loja || produto.vendedorNome || produto.vendedor_nome)}<br><small>${valor(vendedor?.email)}</small></div>
-                    <div><strong>Preço e stock</strong>${valor(produto.preco)} Kz · ${Number(produto.estoque || 0)} unidade(s)</div>
-                    <div><strong>Categoria / marca</strong>${valor(produto.categoria || produto.tag)} · ${valor(produto.marca)}</div>
-                    <div><strong>SKU</strong>${valor(produto.sku)}</div>
-                </div>
-                ${revisadoEm ? `<p class="revisao-historico">Última decisão: ${valor(revisadoEm)}${revisadoPor ? ` por ${valor(revisadoPor)}` : ''}${notaAnterior ? ` · ${valor(notaAnterior)}` : ''}</p>` : ''}
-            </div>
-        </section>
-        <section class="revisao-secao"><h3>Descrição enviada pelo vendedor</h3><div class="revisao-descricao">${valor(produto.descricao || 'Sem descrição enviada.')}</div></section>
-        <section class="revisao-secao"><h3>Imagens para conferência (${imagens.length})</h3><div class="revisao-galeria">${galeria}</div></section>
-        <section class="revisao-secao"><h3>Confirmação obrigatória da revisão</h3>
-            <div class="revisao-checklist" id="checklistRevisaoProduto">
-                <label><input type="checkbox" data-check-revisao="imagens"> Vi todas as imagens e não encontrei conteúdo proibido, ilegal, sexual, violento ou inadequado.</label>
-                <label><input type="checkbox" data-check-revisao="produto"> O produto e a categoria estão claros e podem ser anunciados no marketplace.</label>
-                <label><input type="checkbox" data-check-revisao="descricao"> O nome, preço, stock e descrição não parecem enganosos nem violam as regras da loja.</label>
-                <label><input type="checkbox" data-check-revisao="politica"> Confirmo que esta decisão cumpre a política de produtos e que assumo esta revisão.</label>
-            </div>
-        </section>
-        <section class="revisao-secao"><h3>Nota para o registo e para o vendedor</h3><textarea id="notaRevisaoProduto" class="revisao-nota" maxlength="600" placeholder="Obrigatória ao recusar. Explique claramente o que deve ser corrigido."></textarea></section>
-        ${acoes}`;
-}
-
-function atualizarBotaoAprovacaoAposRevisao() {
-    const conteudo = document.getElementById('conteudoRevisaoProduto');
-    const botao = document.getElementById('btnAprovarAposRevisao');
-    if (!conteudo || !botao) return;
-    const confirmacoes = [...conteudo.querySelectorAll('[data-check-revisao]')];
-    const completo = confirmacoes.length === 4 && confirmacoes.every(item => item.checked);
-    botao.disabled = !completo;
-    botao.title = completo ? '' : 'Marque todas as confirmações depois de analisar o produto.';
-}
-
-function abrirRevisaoProdutoAdmin(produtoId) {
-    const produto = produtosVendedorAdmin.find(item => String(item.id) === String(produtoId));
-    const dialogo = document.getElementById('dialogRevisaoProduto');
-    const conteudo = document.getElementById('conteudoRevisaoProduto');
-    if (!produto || !dialogo || !conteudo) return alert('Produto não encontrado. Atualize a fila e tente novamente.');
-    const vendedorId = produto.vendedorId || produto.vendedor_id;
-    const vendedor = vendedoresAdmin.find(item => String(item.id) === String(vendedorId));
-    produtoEmRevisaoAdmin = produto;
-    conteudo.innerHTML = detalhesRevisaoProdutoAdmin(produto, vendedor);
-    conteudo.querySelectorAll('[data-check-revisao]').forEach(item => item.addEventListener('change', atualizarBotaoAprovacaoAposRevisao));
-    conteudo.querySelectorAll('img').forEach(imagem => imagem.addEventListener('error', () => { imagem.src = IMAGEM_FALLBACK; }));
-    atualizarBotaoAprovacaoAposRevisao();
-    if (!dialogo.open) dialogo.showModal();
-}
-
-async function decidirRevisaoProdutoAdmin(acao) {
-    const conteudo = document.getElementById('conteudoRevisaoProduto');
-    const produto = produtoEmRevisaoAdmin;
-    if (!produto || !conteudo || !['aprovar', 'recusar'].includes(acao)) return;
-    const checklist = Object.fromEntries([...conteudo.querySelectorAll('[data-check-revisao]')].map(item => [item.dataset.checkRevisao, item.checked]));
-    const revisaoConcluida = Object.values(checklist).length === 4 && Object.values(checklist).every(Boolean);
-    const nota = String(document.getElementById('notaRevisaoProduto')?.value || '').trim();
-    if (!revisaoConcluida) return alert('Conclua as quatro confirmações da revisão antes de decidir.');
-    if (acao === 'recusar' && !nota) return alert('Ao recusar, informe ao vendedor o motivo e a correção necessária.');
-    const texto = acao === 'aprovar'
-        ? 'Confirmar que o produto foi revisto e pode ser publicado? Esta decisão ficará registada.'
-        : 'Confirmar a recusa? O produto ficará fora do site até ser corrigido e enviado novamente.';
-    if (!confirm(texto)) return;
-    const guardado = await acaoProdutoVendedorAdmin(produto.id, acao, { revisaoConcluida, checklist, nota });
-    if (guardado) document.getElementById('dialogRevisaoProduto')?.close();
-}
-
 async function carregarPainelVendedoresAdmin() {
     const tbodyV = document.getElementById('corpoTabelaVendedoresAdmin');
     const tbodyP = document.getElementById('corpoTabelaProdutosVendedores');
@@ -1569,7 +1461,7 @@ async function carregarPainelVendedoresAdmin() {
             msg.textContent = 'Não foi possível carregar vendedores/produtos: ' + (e.message || e);
         }
         if (tbodyV) tbodyV.innerHTML = '<tr><td colspan="8" style="padding:18px;text-align:center;">Sem dados. Verifique as políticas RLS do Supabase.</td></tr>';
-        if (tbodyP) tbodyP.innerHTML = '<tr><td colspan="7" style="padding:18px;text-align:center;">Sem produtos de vendedores.</td></tr>';
+        if (tbodyP) tbodyP.innerHTML = '<tr><td colspan="6" style="padding:18px;text-align:center;">Sem produtos de vendedores.</td></tr>';
     }
 }
 
@@ -1610,11 +1502,9 @@ function renderizarPainelVendedoresAdmin() {
         const vid = p.vendedorId || p.vendedor_id;
         const v = vendedoresAdmin.find(x => x.id === vid);
         const status = p.statusAprovacao || p.status_aprovacao || 'aguardando_aprovacao';
-        const imagem = escapeHTML(imagemPrincipalProdutoAdmin(p));
-        const revisadoEm = p.revisadoEm || p.revisado_em;
-        const acao = `<button class="btn-admin" data-admin-produto-rever="true" data-id="${escapeHTML(p.id)}">${status === 'aguardando_aprovacao' ? '🔎 Rever e decidir' : '🔎 Ver revisão'}</button>${revisadoEm ? `<br><small style="color:#667085">Revisto: ${escapeHTML(revisadoEm)}</small>` : ''}`;
-        return `<tr><td style="padding:9px;"><img class="produto-miniatura" src="${imagem}" alt="Prévia de ${escapeHTML(p.nome || 'produto')}" loading="lazy"></td><td style="padding:9px;"><strong>${escapeHTML(p.nome || 'Sem nome')}</strong><br><small>${escapeHTML(p.id)}</small></td><td style="padding:9px;">${escapeHTML(v?.nomeLoja || v?.nome_loja || p.vendedorNome || p.vendedor_nome || '—')}</td><td style="padding:9px;">${escapeHTML(p.preco || '0')} Kz</td><td style="padding:9px;text-align:center;">${Number(p.estoque || 0)}</td><td style="padding:9px;">${statusLabelProduto(status)}</td><td style="padding:9px;white-space:nowrap;">${acao}</td></tr>`;
-    }).join('') : '<tr><td colspan="7" style="padding:18px;text-align:center;">Nenhum produto de vendedor.</td></tr>';
+        let action = status === 'aguardando_aprovacao' ? `<button class="btn-admin" style="background:#087f5b" data-admin-produto-action="aprovar" data-id="${escapeHTML(p.id)}">✅ Aprovar</button> <button class="btn-admin" style="background:#b42318" data-admin-produto-action="recusar" data-id="${escapeHTML(p.id)}">❌ Recusar</button>` : status === 'aprovado' ? `<button class="btn-admin" style="background:#b42318" data-admin-produto-action="recusar" data-id="${escapeHTML(p.id)}">❌ Recusar</button>` : `<button class="btn-admin" style="background:#087f5b" data-admin-produto-action="aprovar" data-id="${escapeHTML(p.id)}">✅ Aprovar</button>`;
+        return `<tr><td style="padding:9px;"><strong>${escapeHTML(p.nome || 'Sem nome')}</strong><br><small>${escapeHTML(p.id)}</small></td><td style="padding:9px;">${escapeHTML(v?.nomeLoja || v?.nome_loja || p.vendedorNome || p.vendedor_nome || '—')}</td><td style="padding:9px;">${escapeHTML(p.preco || '0')} Kz</td><td style="padding:9px;text-align:center;">${Number(p.estoque || 0)}</td><td style="padding:9px;">${statusLabelProduto(status)}</td><td style="padding:9px;white-space:nowrap;">${action}</td></tr>`;
+    }).join('') : '<tr><td colspan="6" style="padding:18px;text-align:center;">Nenhum produto de vendedor.</td></tr>';
 }
 
 async function chamarAcaoAdmin(nome, data) {
@@ -1827,28 +1717,37 @@ async function acaoVendedorAdmin(uid, acao) {
     }
 }
 
-async function acaoProdutoVendedorAdmin(produtoId, acao, revisao = {}) {
-    if (!produtoId || !['aprovar', 'recusar'].includes(acao)) return false;
-    if (revisao.revisaoConcluida !== true) {
-        alert('Abra o produto e conclua a revisão obrigatória antes de decidir.');
-        return false;
-    }
-    if (acao === 'recusar' && !String(revisao.nota || '').trim()) {
-        alert('A recusa precisa de um motivo claro para o vendedor corrigir o anúncio.');
-        return false;
-    }
+async function acaoProdutoVendedorAdmin(produtoId, acao) {
+    if (!produtoId || !acao) return;
+    if (!confirm(`Confirmar ${acao} este produto?`)) return;
+    const motivoRecusa = acao === 'recusar'
+        ? String(prompt('Motivo da recusa para o vendedor (opcional):') || '').trim()
+        : '';
     try {
-        await chamarAcaoAdmin('aprovarProdutoVendedor', {
-            produtoId,
-            acao,
-            motivoRecusa: String(revisao.nota || '').trim(),
-            revisaoConcluida: true,
-            checklistRevisao: revisao.checklist || {}
-        });
+        await chamarAcaoAdmin('aprovarProdutoVendedor', { produtoId, acao, motivoRecusa });
         await carregarPainelVendedoresAdmin();
-        return true;
-    } catch (erro) {
-        alert(`A decisão não foi gravada. O produto continua sem alteração. Detalhe: ${erro.message || erro}`);
-        return false;
+    } catch (e) {
+        try {
+            const produto = produtosVendedorAdmin.find((item) => String(item.id) === String(produtoId));
+            if (!produto) throw new Error('Produto não encontrado no painel. Atualize a lista e tente novamente.');
+            const vendedorId = produto?.vendedorId || produto?.vendedor_id;
+            const vendedor = vendedoresAdmin.find((item) => String(item.id) === String(vendedorId));
+            if (acao === 'aprovar' && (!vendedor || vendedor.status !== 'aprovado' || vendedor.ativo === false)) {
+                throw new Error('O vendedor precisa estar aprovado e ativo antes de aprovar um produto.');
+            }
+            // Envia um patch com os nomes reais das colunas SQL. Assim, dados
+            // legados que acompanham o produto nunca são reenviados ao Supabase.
+            const { error } = await supabase.from('produtos').update({
+                status_aprovacao: acao === 'aprovar' ? 'aprovado' : 'recusado',
+                ativo: acao === 'aprovar',
+                vendedor_ativo: acao === 'aprovar' ? true : vendedor?.ativo !== false,
+                motivo_recusa: acao === 'aprovar' ? null : motivoRecusa,
+                atualizado_em: new Date().toISOString()
+            }).eq('id', produtoId);
+            if (error) throw error;
+            await carregarPainelVendedoresAdmin();
+        } catch (fallbackError) {
+            alert(`Não foi possível atualizar o produto. Edge Function: ${e.message || e}. Atualização administrativa: ${fallbackError.message || fallbackError}`);
+        }
     }
 }
