@@ -51,9 +51,20 @@ async function userFromRequest(req: Request) {
   return data.user;
 }
 async function requireUser(req:Request){const u=await userFromRequest(req);if(!u)err('Inicie sessão para continuar.','unauthenticated');return u;}
-async function isAdmin(uid:string){const {data}=await db.from('profiles').select('role,ativo').eq('id',uid).maybeSingle();return data?.role==='admin'&&data?.ativo!==false;}
+// A autorização do administrador usa a mesma sessão que chegou do navegador.
+// Assim, a validação respeita a RLS do próprio perfil e não depende de a
+// conexão privilegiada manter um contexto de autenticação do utilizador.
+async function isAdmin(req:Request,uid:string){
+  const authorization=req.headers.get('Authorization');
+  const anonKey=Deno.env.get('SUPABASE_ANON_KEY');
+  if(!authorization?.startsWith('Bearer ')||!anonKey)return false;
+  const scopedDb=createClient(SUPABASE_URL,anonKey,{auth:{persistSession:false},global:{headers:{Authorization:authorization}}});
+  const {data,error}=await scopedDb.from('profiles').select('role,ativo').eq('id',uid).maybeSingle();
+  if(error){console.error('Falha ao validar o perfil administrativo.',error);return false;}
+  return data?.role==='admin'&&data?.ativo!==false;
+}
 async function isSeller(uid:string){const {data}=await db.from('vendedores').select('status,ativo').eq('id',uid).maybeSingle();return data?.status==='aprovado'&&data?.ativo!==false;}
-async function requireAdmin(req:Request){const u=await requireUser(req);if(!(await isAdmin(u.id)))err('Acesso administrativo necessário.','permission_denied');return u;}
+async function requireAdmin(req:Request){const u=await requireUser(req);if(!(await isAdmin(req,u.id)))err('Acesso administrativo necessário.','permission_denied');return u;}
 async function requireSeller(req:Request){const u=await requireUser(req);if(!(await isSeller(u.id)))err('Conta de vendedor aprovada necessária.','permission_denied');return u;}
 
 async function criarPedido(req:Request, input:any){
