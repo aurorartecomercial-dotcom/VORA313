@@ -6,6 +6,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SECRET_KEYS = JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}');
 const SERVICE_KEY = SECRET_KEYS.default || Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 if (!SERVICE_KEY) throw new Error('A chave segura da Edge Function não está disponível.');
+const PUBLISHABLE_KEYS = JSON.parse(Deno.env.get('SUPABASE_PUBLISHABLE_KEYS') || '{}');
+const PUBLISHABLE_KEY = PUBLISHABLE_KEYS.default || Deno.env.get('SUPABASE_ANON_KEY');
+if (!PUBLISHABLE_KEY) throw new Error('A chave pública da Edge Function não está disponível.');
 const db = createClient(SUPABASE_URL, SERVICE_KEY, { auth: { persistSession: false } });
 
 const cors = {
@@ -46,19 +49,25 @@ function code(prefix:string){ return `${prefix}-${crypto.randomUUID().replaceAll
 function dbRow(input: Record<string,any>) { const out:any={}; for(const [k,v] of Object.entries(input)) { out[k.replace(/[A-Z]/g,m=>'_'+m.toLowerCase())]=v; } return out; }
 function camelRow(input:any):any { if(Array.isArray(input)) return input.map(camelRow); if(input&&typeof input==='object'&&!(input instanceof Date)){const o:any={};for(const[k,v]of Object.entries(input)){o[k.replace(/_([a-z])/g,(_,c)=>c.toUpperCase())]=camelRow(v);}return o;}return input; }
 
+function dbDoUtilizador(req: Request) {
+  return createClient(SUPABASE_URL, PUBLISHABLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: req.headers.get('Authorization') || '' } }
+  });
+}
 async function userFromRequest(req: Request) {
   const auth = req.headers.get('Authorization');
   if (!auth?.startsWith('Bearer ')) return null;
   const token = auth.slice(7);
-  const { data, error } = await db.auth.getUser(token);
+  const { data, error } = await dbDoUtilizador(req).auth.getUser(token);
   if (error || !data.user) return null;
   return data.user;
 }
 async function requireUser(req:Request){const u=await userFromRequest(req);if(!u)err('Inicie sessão para continuar.','unauthenticated');return u;}
-async function isAdmin(uid:string){const {data}=await db.from('profiles').select('role,ativo').eq('id',uid).maybeSingle();return data?.role==='admin'&&data?.ativo!==false;}
-async function isSeller(uid:string){const {data}=await db.from('vendedores').select('status,ativo').eq('id',uid).maybeSingle();return data?.status==='aprovado'&&data?.ativo!==false;}
-async function requireAdmin(req:Request){const u=await requireUser(req);if(!(await isAdmin(u.id)))err('Acesso administrativo necessário.','permission_denied');return u;}
-async function requireSeller(req:Request){const u=await requireUser(req);if(!(await isSeller(u.id)))err('Conta de vendedor aprovada necessária.','permission_denied');return u;}
+async function isAdmin(req:Request,uid:string){const {data,error}=await dbDoUtilizador(req).from('profiles').select('role,ativo').eq('id',uid).maybeSingle();if(error){console.error('Falha ao verificar administrador:',error.message);return false;}return data?.role==='admin'&&data?.ativo!==false;}
+async function isSeller(req:Request,uid:string){const {data,error}=await dbDoUtilizador(req).from('vendedores').select('status,ativo').eq('id',uid).maybeSingle();if(error){console.error('Falha ao verificar vendedor:',error.message);return false;}return data?.status==='aprovado'&&data?.ativo!==false;}
+async function requireAdmin(req:Request){const u=await requireUser(req);if(!(await isAdmin(req,u.id)))err('Acesso administrativo necessário.','permission_denied');return u;}
+async function requireSeller(req:Request){const u=await requireUser(req);if(!(await isSeller(req,u.id)))err('Conta de vendedor aprovada necessária.','permission_denied');return u;}
 
 async function criarPedido(req:Request, input:any){
   const user=await requireUser(req); if(!Array.isArray(input?.itens)||!input.itens.length||input.itens.length>30)err('O carrinho é inválido.');
