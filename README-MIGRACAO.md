@@ -60,7 +60,13 @@ usa a variável legada como compatibilidade. Não crie nem coloque chaves
 
 ## Pagamentos
 
-As funções de pagamento (`criarPagamentoMulticaixa`, `consultarPagamentoMulticaixa`, `criarPagamentoCartao`, `consultarPagamentoCartao`) estavam referenciadas no frontend original, mas não estavam exportadas pelo backend Firebase recebido. Nesta versão elas retornam explicitamente `not_configured` até a integração oficial do provedor ser implementada.
+Execute `015_pagamentos_vora_pay.sql` e publique novamente a Edge Function `api`.
+Ela cria a fila de comprovativos, a trilha de auditoria e uma confirmação que só
+pode ser feita pelo servidor/administrador; o cliente nunca consegue alterar o
+estado de uma venda para pago. A transferência com comprovativo por WhatsApp
+continua disponível enquanto o gateway automático é contratado. Leia
+`PAGAMENTOS-VORA-PAY.md` antes de ativar Multicaixa Express, referência ou
+cartão.
 
 ## Dados antigos
 

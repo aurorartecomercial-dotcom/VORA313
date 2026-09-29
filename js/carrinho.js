@@ -19,7 +19,10 @@ let selectBairro;
 let inputObservacao;
 let btnSalvarCliente;
 let cupomAplicado = '';
+let pedidoEmPagamento = null;
+let metodoPagamentoSelecionado = 'transferencia_manual';
 const CHECKOUT_IDEMPOTENCY_KEY = 'vora313_checkout_idempotency';
+const PAYMENT_IDEMPOTENCY_PREFIX = 'vora313_payment_idempotency_';
 
 function invalidarTentativaCheckout() {
   localStorage.removeItem(CHECKOUT_IDEMPOTENCY_KEY);
@@ -30,6 +33,15 @@ function obterChavePedido() {
   if (existente && /^[a-zA-Z0-9_-]{16,128}$/.test(existente)) return existente;
   const nova = crypto.randomUUID ? crypto.randomUUID() : `vora_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
   localStorage.setItem(CHECKOUT_IDEMPOTENCY_KEY, nova);
+  return nova;
+}
+
+function obterChavePagamento(pedidoId) {
+  const chave = `${PAYMENT_IDEMPOTENCY_PREFIX}${pedidoId}`;
+  const existente = localStorage.getItem(chave);
+  if (existente && /^[a-zA-Z0-9_-]{16,128}$/.test(existente)) return existente;
+  const nova = crypto.randomUUID ? crypto.randomUUID() : `pay_${Date.now()}_${Math.random().toString(36).slice(2, 14)}`;
+  localStorage.setItem(chave, nova);
   return nova;
 }
 
@@ -69,6 +81,9 @@ export function initCarrinho() {
     document.getElementById('toast-notificacao').style.top = '-100px';
   });
   btnSalvarCliente?.addEventListener('click', finalizarPedido);
+  document.querySelectorAll('[data-metodo-pagamento]').forEach((botao) => {
+    botao.addEventListener('click', () => definirMetodoPagamento(botao.dataset.metodoPagamento));
+  });
 
   modalCliente?.addEventListener('click', (event) => {
     if (event.target === modalCliente) fecharModalCliente();
@@ -344,6 +359,8 @@ async function finalizarPedido() {
 
 function abrirModalPagamento(pedido) {
   if (!modalPagamento || !pedido) return;
+  pedidoEmPagamento = pedido;
+  metodoPagamentoSelecionado = 'transferencia_manual';
   document.getElementById('pagProdutos').textContent = formatarMoeda(pedido.subtotal);
   document.getElementById('pagFrete').textContent = formatarMoeda(pedido.frete);
   document.getElementById('pagValor').textContent = formatarMoeda(pedido.valorTotal);
@@ -363,8 +380,66 @@ function abrirModalPagamento(pedido) {
       mostrarToast(`Referência: ${pedido.numeroFatura}`, 'info');
     }
   };
-  document.getElementById('btnConfirmarPagamento').onclick = () => enviarPedidoWhatsApp(pedido);
+  definirMetodoPagamento(metodoPagamentoSelecionado);
+  document.getElementById('btnConfirmarPagamento').onclick = iniciarPagamentoManual;
   modalPagamento.style.display = 'flex';
+}
+
+function definirMetodoPagamento(metodo) {
+  if (!metodo) return;
+  metodoPagamentoSelecionado = metodo;
+  document.querySelectorAll('[data-metodo-pagamento]').forEach((botao) => {
+    const ativo = botao.dataset.metodoPagamento === metodo;
+    botao.setAttribute('aria-pressed', String(ativo));
+    botao.style.borderColor = ativo ? 'var(--cor-esmeralda)' : '#e4e8e6';
+    botao.style.background = ativo ? '#eaf7f2' : '#fff';
+    botao.style.color = ativo ? 'var(--cor-esmeralda)' : '#3d4b47';
+  });
+  const mensagem = document.getElementById('pagMetodoEstado');
+  const botaoConfirmar = document.getElementById('btnConfirmarPagamento');
+  if (metodo === 'transferencia_manual') {
+    if (mensagem) mensagem.textContent = 'Envie o comprovativo. A VORA confirma o pagamento antes de processar o pedido.';
+    if (botaoConfirmar) {
+      botaoConfirmar.disabled = false;
+      botaoConfirmar.textContent = '📤 Enviar comprovativo por WhatsApp';
+      botaoConfirmar.style.opacity = '1';
+      botaoConfirmar.style.cursor = 'pointer';
+    }
+  }
+}
+
+async function iniciarPagamentoManual() {
+  const pedido = pedidoEmPagamento;
+  if (!pedido) return;
+  if (metodoPagamentoSelecionado !== 'transferencia_manual') {
+    mostrarToast('Este método de pagamento ainda não está ativo.', 'info');
+    return;
+  }
+  const botao = document.getElementById('btnConfirmarPagamento');
+  if (botao) {
+    botao.disabled = true;
+    botao.textContent = '⏳ A preparar comprovativo…';
+  }
+  try {
+    await garantirSessao();
+    const iniciarPagamento = httpsCallable(functions, 'iniciarPagamentoPedido');
+    await iniciarPagamento({
+      pedidoId: pedido.pedidoId,
+      metodo: metodoPagamentoSelecionado,
+      idempotencyKey: obterChavePagamento(pedido.pedidoId)
+    });
+  } catch (error) {
+    // A migração ou a nova Edge Function pode ainda não ter sido publicada.
+    // Mantemos o fluxo atual por WhatsApp para não bloquear uma venda legítima.
+    console.warn('Registo seguro do pagamento ainda indisponível:', error);
+    mostrarToast('Pedido criado. O registo do pagamento será concluído pela equipa VORA.', 'info');
+  } finally {
+    if (botao) {
+      botao.disabled = false;
+      botao.textContent = '📤 Enviar comprovativo por WhatsApp';
+    }
+  }
+  enviarPedidoWhatsApp(pedido);
 }
 
 function limparCarrinho() {

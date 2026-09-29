@@ -19,6 +19,7 @@ let produtosVendedorAdmin = [];
 let levantamentosFinanceiroAdmin = [];
 let comissoesFinanceiroAdmin = [];
 let disputasFinanceiroAdmin = [];
+let pagamentosFinanceiroAdmin = [];
 let produtoEmRevisaoAdmin = null;
 
 function chartDisponivel() {
@@ -111,6 +112,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (abrirDisputaBtn) { await abrirDisputaFinanceiro(abrirDisputaBtn.dataset.financeiroAbrirDisputa); return; }
         const resolverDisputaBtn = event.target.closest('[data-financeiro-resolver-disputa]');
         if (resolverDisputaBtn) await resolverDisputaFinanceiro(resolverDisputaBtn.dataset.financeiroResolverDisputa, resolverDisputaBtn.dataset.decisao);
+        const confirmarPagamentoBtn = event.target.closest('[data-financeiro-confirmar-pagamento]');
+        if (confirmarPagamentoBtn) await confirmarPagamentoFinanceiro(confirmarPagamentoBtn.dataset.financeiroConfirmarPagamento);
     });
 
     // ✅ Fase 4: Botão de backup
@@ -1656,10 +1659,20 @@ async function carregarFinanceiroAdmin() {
             getDocs(collection(db, 'disputas_vendas')),
             getDocs(collection(db, 'vendas'))
         ]);
+        // A tabela de pagamentos foi acrescentada numa migration posterior.
+        // Se a publicação do frontend chegar antes dela, o resto do financeiro
+        // continua a funcionar e a fila aparece vazia até à atualização.
+        let pagamentosSnap = { docs: [] };
+        try {
+            pagamentosSnap = await getDocs(collection(db, 'pagamentos'));
+        } catch (erroPagamento) {
+            console.warn('Fila de pagamentos ainda indisponível:', erroPagamento);
+        }
         vendedoresAdmin = vendedoresSnap.docs.map(item => ({ id: item.id, ...item.data() }));
         levantamentosFinanceiroAdmin = levantamentosSnap.docs.map(item => ({ id: item.id, ...item.data() }));
         comissoesFinanceiroAdmin = comissoesSnap.docs.map(item => ({ id: item.id, ...item.data() }));
         disputasFinanceiroAdmin = disputasSnap.docs.map(item => ({ id: item.id, ...item.data() }));
+        pagamentosFinanceiroAdmin = pagamentosSnap.docs.map(item => ({ id: item.id, ...item.data() }));
         todasVendas = vendasSnap.docs.map(item => ({ id: item.id, ...item.data() }));
         renderizarFinanceiroAdmin();
     } catch (erro) {
@@ -1703,6 +1716,17 @@ function renderizarFinanceiroAdmin() {
         return `<tr><td style="padding:9px;">${escapeHTML(item.codigoRastreio || item.codigo_rastreio || '—')}</td><td style="padding:9px;">${escapeHTML(item.motivo || '—')}</td><td style="padding:9px;">${escapeHTML(item.status || '—')}</td><td style="padding:9px;white-space:nowrap;">${acoes}</td></tr>`;
     }).join('') : '<tr><td colspan="4" style="padding:18px;text-align:center;">Não há disputas registadas.</td></tr>';
 
+    const pagamentos = document.getElementById('corpoPagamentosPendentes');
+    const aguardandoComprovativo = pagamentosFinanceiroAdmin
+        .filter(item => ['aguarda_comprovativo', 'aguarda_cliente', 'processando'].includes(String(item.status || '')))
+        .sort((a, b) => parseDataHora(b.criadoEm || b.criado_em)?.getTime() - parseDataHora(a.criadoEm || a.criado_em)?.getTime());
+    if (pagamentos) pagamentos.innerHTML = aguardandoComprovativo.length ? aguardandoComprovativo.map(item => {
+        const codigo = item.codigoRastreio || item.codigo_rastreio || '—';
+        const referencia = item.referencia || item.numeroFatura || item.numero_fatura || '—';
+        const metodo = String(item.metodo || 'transferencia_manual').replaceAll('_', ' ');
+        return `<tr><td style="padding:9px;"><strong>${escapeHTML(codigo)}</strong><br><small>${escapeHTML(item.criadoEm || item.criado_em || '')}</small></td><td style="padding:9px;font-family:monospace;">${escapeHTML(referencia)}</td><td style="padding:9px;text-transform:capitalize;">${escapeHTML(metodo)}</td><td style="padding:9px;font-weight:700;">${moedaAdmin(numeroFinanceiro(item.valor))}</td><td style="padding:9px;">Aguardando comprovativo</td><td style="padding:9px;"><button class="btn-admin" style="background:#087f5b" data-financeiro-confirmar-pagamento="${escapeHTML(item.id)}">✅ Confirmar pagamento</button></td></tr>`;
+    }).join('') : '<tr><td colspan="6" style="padding:18px;text-align:center;">Não há comprovativos aguardando confirmação.</td></tr>';
+
     const posVenda = document.getElementById('corpoPedidosPosVenda');
     const elegiveis = todasVendas.filter(venda => ['pago', 'em_preparacao', 'enviado', 'entregue'].includes(venda.status));
     if (posVenda) posVenda.innerHTML = elegiveis.length ? elegiveis.map(venda => {
@@ -1725,6 +1749,19 @@ async function liberarSaldosVencidosAdmin() {
         await carregarFinanceiroAdmin();
     } catch (erro) {
         mensagemFinanceiroAdmin(`Não foi possível liberar os saldos: ${erro.message || erro}`, true);
+    }
+}
+
+async function confirmarPagamentoFinanceiro(pagamentoId) {
+    if (!pagamentoId) return;
+    if (!confirm('Confirma que conferiu o comprovativo e o movimento bancário? Esta ação marca o pedido como pago, baixa o stock e inicia o saldo pendente dos vendedores.')) return;
+    const nota = String(prompt('Nota de confirmação (opcional):') || '').trim();
+    try {
+        await chamarAcaoAdmin('confirmarPagamentoManual', { pagamentoId, nota });
+        mensagemFinanceiroAdmin('Pagamento confirmado com sucesso. O pedido e o financeiro foram atualizados de forma auditável.');
+        await carregarFinanceiroAdmin();
+    } catch (erro) {
+        mensagemFinanceiroAdmin(`Não foi possível confirmar o pagamento: ${erro.message || erro}`, true);
     }
 }
 

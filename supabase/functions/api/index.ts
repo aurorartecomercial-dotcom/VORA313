@@ -25,6 +25,7 @@ const FRETES: Record<string, number> = {
   'Cahama (Cunene)': 3000, 'Outro (Cunene)': 4000
 };
 const ESTADOS = new Set(['aguardando_pagamento','pago','em_preparacao','enviado','entregue','cancelado']);
+const METODOS_PAGAMENTO = new Set(['multicaixa_express', 'multicaixa_referencia', 'cartao', 'transferencia_manual']);
 const COMISSAO_PADRAO = 7;
 const COMISSAO_MAX = 30;
 
@@ -105,6 +106,152 @@ async function criarPedido(req:Request, input:any){
   return {pedidoId:id,codigoRastreio:rastreio,numeroFatura:fatura,status:'aguardando_pagamento',subtotal:money(subtotal),frete:money(frete),valorDesconto:money(desconto),valorTotal:money(total),itens,cupomAplicado};
 }
 
+function respostaPagamento(p:any) {
+  return {
+    pagamentoId: p.id,
+    pedidoId: p.venda_id,
+    codigoRastreio: p.codigo_rastreio,
+    numeroFatura: p.numero_fatura,
+    valor: Number(p.valor || 0),
+    moeda: p.moeda,
+    metodo: p.metodo,
+    provedor: p.provedor,
+    status: p.status,
+    entidade: p.entidade || null,
+    referencia: p.referencia || null,
+    checkoutUrl: p.checkout_url || null,
+    qrPayload: p.qr_payload || null,
+    expiraEm: p.expira_em || null,
+    pagoEm: p.pago_em || null
+  };
+}
+
+async function iniciarPagamentoPedido(req: Request, input: any) {
+  const user = await requireUser(req);
+  const pedidoId = text(input?.pedidoId, 'Pedido', 128);
+  const metodo = text(input?.metodo, 'Método de pagamento', 40).toLowerCase();
+  const chaveRecebida = text(input?.idempotencyKey, 'Chave de pagamento', 128, false);
+  if (!METODOS_PAGAMENTO.has(metodo)) err('Método de pagamento inválido.');
+  if (chaveRecebida && !/^[a-zA-Z0-9_-]{16,128}$/.test(chaveRecebida)) {
+    err('Chave de pagamento inválida.');
+  }
+  const idempotencyKey = chaveRecebida || code('PAY');
+
+  const { data: pedido, error: pedidoErro } = await db
+    .from('vendas')
+    .select('id,uid_cliente,codigo_rastreio,numero_fatura,status,valor_total,expira_em,pagamento')
+    .eq('id', pedidoId)
+    .eq('uid_cliente', user.id)
+    .maybeSingle();
+  if (pedidoErro) throw pedidoErro;
+  if (!pedido) err('Pedido não encontrado.', 'not_found');
+  if (pedido.status !== 'aguardando_pagamento') {
+    err('Este pedido já não está disponível para pagamento.', 'failed_precondition');
+  }
+  if (pedido.expira_em && new Date(pedido.expira_em).getTime() < Date.now()) {
+    err('Este pedido expirou. Crie um novo pedido.', 'failed_precondition');
+  }
+
+  const { data: existente, error: existenteErro } = await db
+    .from('pagamentos')
+    .select('*')
+    .eq('venda_id', pedido.id)
+    .eq('idempotency_key', idempotencyKey)
+    .maybeSingle();
+  if (existenteErro) throw existenteErro;
+  if (existente) return respostaPagamento(existente);
+
+  // Nesta primeira fase só o fluxo manual é disponibilizado. A integração
+  // automática será ligada quando a VORA tiver o contrato/credenciais do banco
+  // ou gateway; não é seguro inventar uma referência ou confirmação.
+  if (metodo !== 'transferencia_manual') {
+    err('Este método ainda está em ativação pela VORA 313. Escolha transferência manual ou tente novamente quando o gateway estiver ativo.', 'not_configured');
+  }
+
+  const agora = new Date().toISOString();
+  const { data: criado, error: criarErro } = await db
+    .from('pagamentos')
+    .insert({
+      venda_id: pedido.id,
+      uid_cliente: user.id,
+      codigo_rastreio: pedido.codigo_rastreio,
+      numero_fatura: pedido.numero_fatura,
+      valor: Number(pedido.valor_total),
+      moeda: 'AOA',
+      metodo,
+      provedor: 'manual',
+      referencia: pedido.numero_fatura,
+      status: 'aguarda_comprovativo',
+      expira_em: pedido.expira_em || null,
+      idempotency_key: idempotencyKey,
+      metadados: { criadoVia: 'checkout_web', criadoEm: agora }
+    })
+    .select('*')
+    .single();
+  if (criarErro) {
+    if (criarErro.code === '23505') {
+      const { data: repetido, error: repetidoErro } = await db
+        .from('pagamentos').select('*').eq('venda_id', pedido.id).eq('idempotency_key', idempotencyKey).maybeSingle();
+      if (repetidoErro) throw repetidoErro;
+      if (repetido) return respostaPagamento(repetido);
+    }
+    throw criarErro;
+  }
+
+  const { error: eventoErro } = await db.from('pagamentos_eventos').insert({
+    pagamento_id: criado.id,
+    uid_cliente: user.id,
+    origem: 'cliente',
+    tipo: 'comprovativo_solicitado',
+    detalhes: { metodo, referencia: pedido.numero_fatura }
+  });
+  if (eventoErro) throw eventoErro;
+
+  const { error: vendaErro } = await db.from('vendas').update({
+    pagamento: {
+      ...(pedido.pagamento || {}),
+      metodo,
+      status: 'aguarda_comprovativo',
+      pagamentoId: criado.id,
+      referencia: pedido.numero_fatura,
+      atualizadoEm: agora
+    },
+    atualizado_em: agora
+  }).eq('id', pedido.id).eq('uid_cliente', user.id);
+  if (vendaErro) throw vendaErro;
+
+  return respostaPagamento(criado);
+}
+
+async function consultarPagamentoPedido(req: Request, input: any) {
+  const user = await requireUser(req);
+  const pagamentoId = text(input?.pagamentoId, 'Pagamento', 128, false);
+  const pedidoId = text(input?.pedidoId, 'Pedido', 128, false);
+  if (!pagamentoId && !pedidoId) err('Informe o pagamento ou o pedido.');
+  let consulta = db.from('pagamentos').select('*').eq('uid_cliente', user.id);
+  consulta = pagamentoId ? consulta.eq('id', pagamentoId) : consulta.eq('venda_id', pedidoId).order('criado_em', { ascending: false }).limit(1);
+  const { data, error } = await consulta.maybeSingle();
+  if (error) throw error;
+  if (!data) err('Pagamento não encontrado.', 'not_found');
+  return respostaPagamento(data);
+}
+
+async function confirmarPagamentoManual(req: Request, input: any) {
+  const admin = await requireAdmin(req);
+  const pagamentoId = text(input?.pagamentoId, 'Pagamento', 128);
+  const nota = text(input?.nota, 'Nota da confirmação', 600, false);
+  const eventoExternoId = `MANUAL-${pagamentoId}-${crypto.randomUUID()}`;
+  const { data, error } = await db.rpc('confirmar_pagamento_vora', {
+    p_pagamento_id: pagamentoId,
+    p_evento_externo_id: eventoExternoId,
+    p_provedor_pagamento_id: null,
+    p_origem: 'administrador',
+    p_detalhes: { confirmadoPor: admin.id, emailAdministrador: admin.email || null, nota: nota || null }
+  });
+  if (error) throw error;
+  return camelRow(data);
+}
+
 async function atualizarEstadoPedido(req:Request,input:any){
   await requireAdmin(req);const codigo=text(input?.codigoRastreio,'Código de rastreio',64).toUpperCase();const novo=text(input?.status,'Estado',32);if(!ESTADOS.has(novo))err('Estado inválido.');
   const {data,error}=await db.rpc('atualizar_estado_pedido',{p_codigo:codigo,p_novo_status:novo});
@@ -177,6 +324,9 @@ async function moderarProdutoVendedor(req: Request, input: any) {
 async function handle(req:Request,name:string,input:any){
   switch(name){
     case 'criarPedido': return criarPedido(req,input);
+    case 'iniciarPagamentoPedido': return iniciarPagamentoPedido(req,input);
+    case 'consultarPagamentoPedido': return consultarPagamentoPedido(req,input);
+    case 'confirmarPagamentoManual': return confirmarPagamentoManual(req,input);
     case 'atualizarEstadoPedido': return atualizarEstadoPedido(req,input);
     case 'liberarSaldosVencidos': return liberarSaldosVencidos(req);
     case 'abrirDisputaFinanceira': return abrirDisputaFinanceira(req,input);
