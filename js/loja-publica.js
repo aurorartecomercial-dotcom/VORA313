@@ -34,6 +34,12 @@ function numero(valor) {
   return Number(valor || 0).toLocaleString('pt-AO');
 }
 
+function definirEstatistica(id, valor) {
+  texto(id, numero(valor));
+  const cartao = $(id)?.closest('.loja-estatistica');
+  if (cartao) cartao.hidden = Number(valor || 0) <= 0;
+}
+
 function emDestaque(produto) {
   const monetizacao = produto?.monetizacao || {};
   if (monetizacao.destaque !== true && produto?.destaque !== true) return false;
@@ -124,6 +130,7 @@ function configurarPartilha(nomeLoja, descricao) {
 function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ainda não tem produtos publicados.') {
   const grid = $(alvo);
   if (!grid) return;
+  grid.classList.toggle('loja-grid-publica--single', lista.length === 1);
   if (!lista.length) {
     grid.innerHTML = '<div class="loja-vazia">' + escapeHTML(textoVazio) + '</div>';
     return;
@@ -131,6 +138,15 @@ function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ai
   // criarCardProduto devolve um HTMLElement, não uma string. Usar append evita
   // que o navegador mostre "[object HTMLElement]" no lugar do produto.
   grid.replaceChildren(...lista.map(criarCartaoSeguro).filter(Boolean));
+}
+
+function renderizarDestaques(lista, textoVazio = 'A loja ainda não selecionou produtos em destaque.') {
+  const secao = $('destaquesSecao');
+  if (secao) secao.hidden = !lista.length;
+  // Uma secção sem destaques não ocupa espaço: o cliente chega diretamente ao
+  // catálogo. Quando existirem destaques, continua a usar o mesmo cartão e a
+  // mesma navegação já usados no restante da loja.
+  if (lista.length) renderizarProdutos(lista, 'destaquesLoja', textoVazio);
 }
 
 function configurarFiltros() {
@@ -169,14 +185,18 @@ function preencherPerfil(vendedor, produtos) {
   texto('lojaCategoria', categoria);
   texto('lojaLocal', local);
   texto('lojaHorario', horario ? '🕒 ' + horario : '💬 Contacte a loja para saber o horário');
-  texto('totalProdutos', String(produtos.length));
-  texto('totalDestaques', String(produtos.filter(emDestaque).length));
-  texto('totalVendas', numero(vendedor?.totalVendas));
+  definirEstatistica('totalProdutos', produtos.length);
+  definirEstatistica('totalDestaques', produtos.filter(emDestaque).length);
+  definirEstatistica('totalVendas', vendedor?.totalVendas);
+  const estatisticas = document.querySelector('.loja-estatisticas');
+  if (estatisticas) estatisticas.hidden = !estatisticas.querySelector('.loja-estatistica:not([hidden])');
   texto('contadorProdutos', produtos.length + (produtos.length === 1 ? ' produto' : ' produtos'));
   texto('estado', produtos.length + (produtos.length === 1 ? ' produto' : ' produtos'));
   texto('estadoDestaques', produtos.some(emDestaque) ? 'Produtos patrocinados' : 'Escolhas da loja');
   texto('lojaFaixa', destaque || 'Produtos publicados pela loja');
   texto('lojaFaixaIcone', destaque ? '✨' : '🏪');
+  const faixaPromocional = $('lojaFaixaPromocional');
+  if (faixaPromocional) faixaPromocional.hidden = !destaque;
   mostrarLogo(perfil.logoUrl);
   aplicarCapa(perfil.capaUrl);
   configurarPartilha(nomeLoja, vendedor?.descricao || 'Conheça esta loja na VORA 313.');
@@ -205,6 +225,7 @@ function preencherPerfil(vendedor, produtos) {
   }
 
   texto('notaLoja', avaliacaoDaLoja.total ? `${avaliacaoDaLoja.media.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : '—');
+  $('avaliacoesLoja')?.classList.toggle('loja-avaliacoes-vazias', !avaliacaoDaLoja.total);
   const avaliacoes = $('avaliacoesConteudo');
   if (avaliacoes) avaliacoes.innerHTML = avaliacaoDaLoja.total
     ? `<article><div class="review-stars">★★★★★</div><strong>${escapeHTML(avaliacaoDaLoja.media.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))} de 5</strong><p>${escapeHTML(`${avaliacaoDaLoja.total} avaliação${avaliacaoDaLoja.total === 1 ? '' : 'ões'} verificada${avaliacaoDaLoja.total === 1 ? '' : 's'} em produtos desta loja.`)}</p></article>`
@@ -222,7 +243,7 @@ function carregarDemo() {
     descricao: 'Loja de demonstração da VORA 313 para mostrar a vitrine de um vendedor.',
     perfilPublico: { horario: 'Seg–Sáb, 08:00–18:00', destaque: 'Tecnologia e acessórios selecionados' }
   }, produtosDaLoja);
-  renderizarProdutos(produtosDaLoja.filter(emDestaque), 'destaquesLoja', 'A loja ainda não selecionou produtos em destaque.');
+  renderizarDestaques(produtosDaLoja.filter(emDestaque));
   renderizarProdutos(produtosDaLoja);
   configurarFiltros();
 }
@@ -262,7 +283,7 @@ async function carregarLojaReal() {
     texto('desc', 'Esta loja não está disponível publicamente neste momento.');
     texto('estado', 'Sem produtos publicados');
     texto('estadoDestaques', 'Escolhas da loja');
-    renderizarProdutos([], 'destaquesLoja', 'Esta loja ainda não tem produtos em destaque.');
+    renderizarDestaques([], 'Esta loja ainda não tem produtos em destaque.');
     renderizarProdutos([]);
     return;
   }
@@ -277,7 +298,7 @@ async function carregarLojaReal() {
       descricao: 'Veja os produtos publicados por esta loja na VORA 313.'
     };
   preencherPerfil(vendedor, produtosDaLoja);
-  renderizarProdutos(produtosDaLoja.filter(emDestaque), 'destaquesLoja', 'A loja ainda não selecionou produtos em destaque.');
+  renderizarDestaques(produtosDaLoja.filter(emDestaque));
   renderizarProdutos(produtosDaLoja);
   configurarFiltros();
 
@@ -295,7 +316,7 @@ setTimeout(() => {
     console.error('Não foi possível carregar a loja pública:', erro);
     texto('desc', 'Não foi possível carregar os dados desta loja agora. Tente novamente em instantes.');
     texto('estado', 'Tente atualizar a página');
-    renderizarProdutos([], 'destaquesLoja', 'Não foi possível carregar os destaques agora.');
+    renderizarDestaques([], 'Não foi possível carregar os destaques agora.');
     renderizarProdutos([], 'produtos', 'Não foi possível carregar os produtos agora. Atualize a página para tentar de novo.');
   });
 }, 0);
