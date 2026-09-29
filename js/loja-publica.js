@@ -1,7 +1,7 @@
 import { db, CONFIG, supabase } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where } from './supabase-compat.js';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js';
-import { escapeHTML, urlSegura } from './utils.js';
+import { escapeHTML, imagemProdutoSegura, urlSegura } from './utils.js';
 import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=9';
 
 const params = new URLSearchParams(location.search);
@@ -10,6 +10,9 @@ const $ = (id) => document.getElementById(id);
 let produtosDaLoja = [];
 let avaliacaoDaLoja = { media: 0, total: 0 };
 let tentativaExtraAgendada = false;
+let produtosFiltradosDaLoja = [];
+let paginaProdutosDaLoja = 1;
+const PRODUTOS_POR_PAGINA_LOJA = 8;
 const PRODUTOS_DEMO = [
   { id: 'demo-1', nome: 'Smartphone VORA X Pro 256GB', preco: '245.000 Kz', categoria: 'Tecnologia', imagens: ['oferta-4-smartphones.png'], estoque: 8, freteGratis: true, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
   { id: 'demo-2', nome: 'Relógio Smart Premium', preco: '58.500 Kz', categoria: 'Acessórios', imagens: ['oferta-6-semana.png'], estoque: 4, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
@@ -17,7 +20,7 @@ const PRODUTOS_DEMO = [
 ];
 
 function imagemSegura(valor) {
-  return urlSegura(valor, '');
+  return imagemProdutoSegura(valor, '');
 }
 
 function atualizarAtalhoSacola(mensagem = '') {
@@ -182,6 +185,42 @@ function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ai
   grid.replaceChildren(...lista.map(criarCartaoSeguro).filter(Boolean));
 }
 
+// A vitrine de cada vendedor usa páginas incrementais, sem mudar os cartões
+// nem os filtros existentes. Isso mantém a loja rápida mesmo com muitos
+// anúncios publicados.
+function mostrarProdutosDaLoja(lista, textoVazio = 'Esta loja ainda não tem produtos publicados.') {
+  produtosFiltradosDaLoja = Array.isArray(lista) ? lista : [];
+  paginaProdutosDaLoja = 1;
+  atualizarPaginaProdutosDaLoja(textoVazio);
+}
+
+function atualizarPaginaProdutosDaLoja(textoVazio = 'Esta loja ainda não tem produtos publicados.') {
+  const total = produtosFiltradosDaLoja.length;
+  const totalPaginas = Math.ceil(total / PRODUTOS_POR_PAGINA_LOJA);
+  if (!totalPaginas) paginaProdutosDaLoja = 1;
+  else paginaProdutosDaLoja = Math.min(paginaProdutosDaLoja, totalPaginas);
+  const inicio = (paginaProdutosDaLoja - 1) * PRODUTOS_POR_PAGINA_LOJA;
+  renderizarProdutos(produtosFiltradosDaLoja.slice(inicio, inicio + PRODUTOS_POR_PAGINA_LOJA), 'produtos', textoVazio);
+
+  const controles = $('lojaCarregarMaisControles');
+  const botao = $('carregarMaisProdutosLoja');
+  if (!controles || !botao) return;
+  const temMais = paginaProdutosDaLoja < totalPaginas;
+  controles.hidden = total <= PRODUTOS_POR_PAGINA_LOJA;
+  botao.disabled = !temMais;
+  botao.setAttribute('aria-disabled', String(!temMais));
+  botao.textContent = temMais
+    ? `Carregar mais produtos (${Math.min(paginaProdutosDaLoja * PRODUTOS_POR_PAGINA_LOJA, total)} de ${total})`
+    : 'Todos os produtos foram carregados';
+}
+
+function carregarMaisProdutosDaLoja() {
+  const totalPaginas = Math.ceil(produtosFiltradosDaLoja.length / PRODUTOS_POR_PAGINA_LOJA);
+  if (paginaProdutosDaLoja >= totalPaginas) return;
+  paginaProdutosDaLoja += 1;
+  atualizarPaginaProdutosDaLoja();
+}
+
 function renderizarDestaques(lista, textoVazio = 'A loja ainda não selecionou produtos em destaque.') {
   const secao = $('destaquesSecao');
   if (secao) secao.hidden = !lista.length;
@@ -200,14 +239,14 @@ function configurarFiltros() {
       filtros.querySelectorAll('button').forEach((item) => item.classList.remove('ativo'));
       botao.classList.add('ativo');
       const categoria = botao.dataset.cat;
-      renderizarProdutos(categoria === 'todos' ? produtosDaLoja : produtosDaLoja.filter((produto) => produto.categoria === categoria));
+      mostrarProdutosDaLoja(categoria === 'todos' ? produtosDaLoja : produtosDaLoja.filter((produto) => produto.categoria === categoria));
     }));
   }
 
   const busca = $('buscaLoja');
   if (busca) busca.addEventListener('input', () => {
     const termo = busca.value.trim().toLowerCase();
-    renderizarProdutos(produtosDaLoja.filter((produto) => (produto.nome || '').toLowerCase().includes(termo)));
+    mostrarProdutosDaLoja(produtosDaLoja.filter((produto) => (produto.nome || '').toLowerCase().includes(termo)));
   });
 }
 
@@ -286,7 +325,7 @@ function carregarDemo() {
     perfilPublico: { horario: 'Seg–Sáb, 08:00–18:00', destaque: 'Tecnologia e acessórios selecionados' }
   }, produtosDaLoja);
   renderizarDestaques(produtosDaLoja.filter(emDestaque));
-  renderizarProdutos(produtosDaLoja);
+  mostrarProdutosDaLoja(produtosDaLoja);
   configurarFiltros();
 }
 
@@ -326,7 +365,7 @@ async function carregarLojaReal() {
     texto('estado', 'Sem produtos publicados');
     texto('estadoDestaques', 'Escolhas da loja');
     renderizarDestaques([], 'Esta loja ainda não tem produtos em destaque.');
-    renderizarProdutos([]);
+    mostrarProdutosDaLoja([]);
     return;
   }
 
@@ -341,7 +380,7 @@ async function carregarLojaReal() {
     };
   preencherPerfil(vendedor, produtosDaLoja);
   renderizarDestaques(produtosDaLoja.filter(emDestaque));
-  renderizarProdutos(produtosDaLoja);
+  mostrarProdutosDaLoja(produtosDaLoja);
   configurarFiltros();
 
   // Tenta uma segunda vez apenas se a loja existe mas nenhum produto chegou.
@@ -359,8 +398,9 @@ setTimeout(() => {
     texto('desc', 'Não foi possível carregar os dados desta loja agora. Tente novamente em instantes.');
     texto('estado', 'Tente atualizar a página');
     renderizarDestaques([], 'Não foi possível carregar os destaques agora.');
-    renderizarProdutos([], 'produtos', 'Não foi possível carregar os produtos agora. Atualize a página para tentar de novo.');
+    mostrarProdutosDaLoja([], 'Não foi possível carregar os produtos agora. Atualize a página para tentar de novo.');
   });
 }, 0);
 
 atualizarAtalhoSacola();
+$('carregarMaisProdutosLoja')?.addEventListener('click', carregarMaisProdutosDaLoja);

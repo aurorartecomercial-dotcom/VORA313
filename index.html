@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=42" />
+    <link rel="stylesheet" href="style.css?v=43" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -280,6 +280,9 @@
             <div class="lojas-publicas-grid" id="lojasPublicasGrid">
                 <div class="lojas-empty"><strong>🏪 A carregar lojas...</strong><span>Estamos a procurar lojas de vendedores.</span></div>
             </div>
+            <div class="lojas-publicas-controles" id="lojasPublicasControles" hidden>
+                <button id="carregarMaisLojas" type="button">Carregar mais lojas</button>
+            </div>
         </section>
 
         <!-- MAIS COMPRADOS -->
@@ -388,7 +391,7 @@
                 <div id="carregandoProdutos" style="text-align:center; padding:40px; color:#999;">Carregando produtos...</div>
                 <div class="grade-produtos" id="gradeProdutos"></div>
                 <div id="paginaControles" style="display:flex; justify-content:center; margin:20px 0;">
-                    <button id="carregarMais" style="background:var(--cor-botao); border:none; padding:10px 30px; border-radius:20px; font-weight:600; cursor:pointer; color:#000;">Carregar mais</button>
+                    <button id="carregarMais" type="button" style="background:var(--cor-botao); border:none; padding:10px 30px; border-radius:20px; font-weight:600; cursor:pointer; color:#000;">Carregar mais</button>
                 </div>
             </section>
         </div>
@@ -644,7 +647,7 @@
     </script>
 
     <!-- SCRIPTS PRINCIPAIS -->
-    <script type="module" src="js/app.js?v=41"></script>
+    <script type="module" src="js/app.js?v=42"></script>
     <script type="module" src="js/carrinho.js?v=9"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
     <script type="module" src="js/favoritos.js?v=6"></script>

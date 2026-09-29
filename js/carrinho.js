@@ -1,4 +1,4 @@
-import { escapeHTML, extrairValorNumerico, formatarMoeda, mostrarToast, validarCliente } from './utils.js';
+import { escapeHTML, extrairValorNumerico, formatarMoeda, imagemProdutoSegura, mostrarToast, validarCliente } from './utils.js';
 import { auth, CONFIG, functions } from './config.js';
 import { signInAnonymously } from './supabase-compat.js';
 import { httpsCallable } from './supabase-compat.js';
@@ -77,7 +77,10 @@ export function initCarrinho() {
   overlay.addEventListener('click', fecharCarrinho);
   document.getElementById('btnFinalizarWhatsApp')?.addEventListener('click', () => {
     if (!carrinho.length) return mostrarToast('A sua sacola está vazia.', 'info');
-    abrirModalCliente();
+    // No telemóvel a sacola ocupa toda a tela. Fechá-la antes de abrir o
+    // formulário evita que o cliente tenha de sair manualmente da sacola.
+    fecharCarrinho();
+    requestAnimationFrame(abrirModalCliente);
   });
 
   const inputCupom = document.getElementById('inputCupom');
@@ -197,9 +200,10 @@ export function atualizarCarrinho() {
     li.className = 'item-carrinho-loja';
     const imagem = document.createElement('div');
     imagem.className = 'v32-cart-thumb';
-    if (item.imagem) {
+    const imagemUrl = imagemProdutoSegura(item.imagem, '');
+    if (imagemUrl) {
       const img = document.createElement('img');
-      img.src = item.imagem;
+      img.src = imagemUrl;
       img.alt = item.nome;
       img.loading = 'lazy';
       img.addEventListener('error', () => imagem.classList.add('sem-imagem'));
@@ -293,7 +297,7 @@ export function adicionarProdutoCarrinho(produto, observacao = '') {
     produtoId,
     nome: String(produto.nome || 'Produto'),
     preco: String(produto.preco || ''),
-    imagem: String(produto.imagem || produto.imagemUrl || produto.foto || produto.image || produto.imagens?.[0] || ''),
+    imagem: imagemProdutoSegura(produto.imagem || produto.imagemUrl || produto.foto || produto.image || produto.imagens?.[0] || '', ''),
     quantidade: 1,
     observacao: String(observacao || '').slice(0, 500)
   });

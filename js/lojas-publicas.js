@@ -1,6 +1,6 @@
 import { db } from './config.js';
 import { collection, getDocs } from './supabase-compat.js';
-import { urlSegura, IMAGEM_FALLBACK, escapeHTML } from './utils.js';
+import { imagemProdutoSegura, urlSegura, IMAGEM_FALLBACK, escapeHTML } from './utils.js';
 
 function destaqueAtivo(produto) {
   if (produto?.monetizacao?.destaque !== true) return false;
@@ -49,18 +49,19 @@ export function agruparLojas(produtos, perfis = []) {
 }
 
 function imagemLoja(loja) {
-  return loja.capaUrl || urlSegura(loja.produtos.find((produto) => produto?.imagens?.[0])?.imagens?.[0], IMAGEM_FALLBACK);
+  return loja.capaUrl || imagemProdutoSegura(loja.produtos.find((produto) => produto?.imagens?.[0])?.imagens?.[0], IMAGEM_FALLBACK);
 }
 
 // "dados" aceita também uma lista simples para não quebrar qualquer chamada
 // antiga. A página principal envia produtos + perfis públicos.
-export function renderizarLojas(container, dados, limite = 24) {
+export function renderizarLojas(container, dados, limite = 8) {
   if (!container) return;
   const entrada = Array.isArray(dados) ? { produtos: dados, perfis: [] } : (dados || {});
-  const lojas = agruparLojas(entrada.produtos || [], entrada.perfis || []).slice(0, limite);
+  const todasLojas = agruparLojas(entrada.produtos || [], entrada.perfis || []).slice(0, 24);
+  const lojas = todasLojas.slice(0, limite);
   if (!lojas.length) {
     container.innerHTML = `<div class="lojas-empty"><strong>🏪 As lojas dos vendedores aparecerão aqui</strong><span>Quando os primeiros vendedores publicarem produtos aprovados, as suas lojas serão apresentadas nesta área.</span></div>`;
-    return;
+    return { exibidas: 0, total: 0 };
   }
   container.innerHTML = lojas.map((loja) => {
     const nome = escapeHTML(loja.nome);
@@ -84,6 +85,7 @@ export function renderizarLojas(container, dados, limite = 24) {
       </a>
     </article>`;
   }).join('');
+  return { exibidas: lojas.length, total: todasLojas.length };
 }
 
 export async function carregarLojasPublicas() {

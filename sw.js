@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vora313-cache-v54-sacola-lojas-identidade';
+const CACHE_NAME = 'vora313-cache-v55-carregar-mais-checkout-mobile';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html',
   './style.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',

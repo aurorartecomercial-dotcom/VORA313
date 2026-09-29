@@ -1,15 +1,18 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=9';
 import { carregarCatalogo, filtrarEOrdenar, renderizarGrade, criarCardProduto } from './catalogo.js';
 import { initMobileMenu } from './menu.js';
-import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, urlSegura, IMAGEM_FALLBACK } from './utils.js';
+import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';
 import { initFidelidade } from './fidelidade.js';
 import { initFavoritos } from './favoritos.js';
 import { initRecomendacoes, initAfiliados, initI18n, initChatbot } from './fase3.js';
-import { renderizarLojas, carregarLojasPublicas } from './lojas-publicas.js';
+import { renderizarLojas, carregarLojasPublicas } from './lojas-publicas.js?v=10';
 
 let catalogo = [];
 let paginaAtual = 1;
 const ITENS_POR_PAGINA = 10;
+let carregandoMaisProdutos = false;
+let dadosLojasPublicas = null;
+let limiteLojasPublicas = 8;
 let categoriaAtiva = 'todos';
 let termoBusca = '';
 let precoMin = 0;
@@ -66,7 +69,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderizarTudo();
     await renderizarDestaquesVora();
-    carregarLojasPublicas().then((dados) => renderizarLojas(document.getElementById('lojasPublicasGrid'), dados, 24));
+    carregarLojasPublicas().then((dados) => {
+        dadosLojasPublicas = dados;
+        limiteLojasPublicas = 8;
+        atualizarLojasPublicas();
+    }).catch(() => {
+        dadosLojasPublicas = { produtos: [], perfis: [] };
+        atualizarLojasPublicas();
+    });
     if (carregando) carregando.style.display = 'none';
 
     // Quando existe cache, carregarCatalogo já atualiza o Supabase em segundo plano.
@@ -137,11 +147,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const carregarMaisBtn = document.getElementById('carregarMais');
     if (carregarMaisBtn) {
-        carregarMaisBtn.addEventListener('click', () => {
-            paginaAtual++;
-            aplicarFiltros(false);
-        });
+        carregarMaisBtn.addEventListener('click', carregarMaisProdutos);
     }
+
+    document.getElementById('carregarMaisLojas')?.addEventListener('click', () => {
+        if (!dadosLojasPublicas) return;
+        limiteLojasPublicas += 8;
+        atualizarLojasPublicas();
+    });
 
     await aplicarFiltros();
 });
@@ -226,14 +239,59 @@ async function aplicarFiltros(resetPagina = true) {
     const filtrados = filtrarEOrdenar(catalogo, categoriaAtiva, termoBusca, precoMin, precoMax, ordenacao, minAvaliacao, dataFiltro);
     const container = document.getElementById('gradeProdutos');
     if (!container) return;
+    const totalPaginas = Math.ceil(filtrados.length / ITENS_POR_PAGINA);
+    // Se o catálogo mudar enquanto o visitante está numa página seguinte,
+    // o botão nunca pode apontar para uma página que deixou de existir.
+    if (!totalPaginas) paginaAtual = 1;
+    else if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
     if (paginaAtual === 1) container.innerHTML = '';
     await renderizarGrade(filtrados, container, paginaAtual, ITENS_POR_PAGINA);
-    const totalPaginas = Math.ceil(filtrados.length / ITENS_POR_PAGINA);
+    atualizarControleCarregarMais(totalPaginas);
+}
+
+function atualizarControleCarregarMais(totalPaginas) {
     const btn = document.getElementById('carregarMais');
-    if (btn) {
-        btn.textContent = paginaAtual < totalPaginas ? 'Carregar mais' : 'Todos carregados';
-        btn.disabled = paginaAtual >= totalPaginas;
+    if (!btn) return;
+    const temMais = paginaAtual < totalPaginas;
+    btn.textContent = !totalPaginas ? 'Sem mais produtos' : (temMais ? 'Carregar mais produtos' : 'Todos os produtos carregados');
+    btn.disabled = carregandoMaisProdutos || !temMais;
+    btn.setAttribute('aria-disabled', String(btn.disabled));
+}
+
+async function carregarMaisProdutos() {
+    if (carregandoMaisProdutos) return;
+    const filtrados = filtrarEOrdenar(catalogo, categoriaAtiva, termoBusca, precoMin, precoMax, ordenacao, minAvaliacao, dataFiltro);
+    const totalPaginas = Math.ceil(filtrados.length / ITENS_POR_PAGINA);
+    if (paginaAtual >= totalPaginas) {
+        atualizarControleCarregarMais(totalPaginas);
+        return;
     }
+    carregandoMaisProdutos = true;
+    atualizarControleCarregarMais(totalPaginas);
+    const btn = document.getElementById('carregarMais');
+    if (btn) btn.textContent = 'A carregar produtos…';
+    try {
+        paginaAtual += 1;
+        await aplicarFiltros(false);
+    } finally {
+        carregandoMaisProdutos = false;
+        atualizarControleCarregarMais(totalPaginas);
+    }
+}
+
+function atualizarLojasPublicas() {
+    if (!dadosLojasPublicas) return;
+    const resultado = renderizarLojas(document.getElementById('lojasPublicasGrid'), dadosLojasPublicas, limiteLojasPublicas);
+    const controles = document.getElementById('lojasPublicasControles');
+    const botao = document.getElementById('carregarMaisLojas');
+    if (!controles || !botao || !resultado) return;
+    const temMais = resultado.exibidas < resultado.total;
+    controles.hidden = resultado.total <= 8;
+    botao.disabled = !temMais;
+    botao.setAttribute('aria-disabled', String(!temMais));
+    botao.textContent = temMais
+        ? `Carregar mais lojas (${resultado.exibidas} de ${resultado.total})`
+        : 'Todas as lojas foram carregadas';
 }
 
 async function renderizarMaisComprados() {
@@ -383,7 +441,7 @@ async function mostrarSugestoes(termo, container) {
                 const imgSrc = prod.imagens && prod.imagens[0] ? prod.imagens[0] : '';
                 html += `
                     <a href="detalhe.html?id=${encodeURIComponent(prod.id)}" style="display:flex; align-items:center; gap:10px; padding:8px 12px; text-decoration:none; color:#333; border-bottom:1px solid #f0f0f0; transition:0.2s;">
-                        <img src="${escapeHTML(urlSegura(imgSrc, IMAGEM_FALLBACK))}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:4px; background:#f0f0f0;" onerror="this.style.display='none';" />
+                        <img src="${escapeHTML(imagemProdutoSegura(imgSrc, IMAGEM_FALLBACK))}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:4px; background:#f0f0f0;" onerror="this.style.display='none';" />
                         <div style="flex:1; min-width:0;">
                             <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(prod.nome)}</div>
                             <div style="font-size:12px; color:var(--cor-esmeralda); font-weight:700;">${escapeHTML(preco)}</div>

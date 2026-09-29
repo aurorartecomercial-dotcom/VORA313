@@ -29,6 +29,15 @@ export function urlSegura(valor, fallback = '') {
     return fallback;
 }
 
+// Produtos antigos podem conter somente "foto.jpg". Esses ficheiros não
+// existem no site publicado; usar o placeholder evita pedidos 404 repetidos.
+// URLs do Storage, data URLs e caminhos explícitos seguem permitidos.
+export function imagemProdutoSegura(valor, fallback = IMAGEM_FALLBACK) {
+    const original = String(valor || '').trim();
+    if (/^[^\\/?#]+\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(original)) return fallback;
+    return urlSegura(original, fallback);
+}
+
 // Sanitizador pequeno para o conteúdo editorial local. Não use para conteúdo
 // livre enviado por utilizadores sem uma política de sanitização no servidor.
 export function htmlEditorialSeguro(valor) {

@@ -2,7 +2,7 @@ import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.
 import { carregarCatalogo, criarCardProduto } from './catalogo.js';
 import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, obterAvaliacao } from './avaliacoes.js';
-import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, urlSegura } from './utils.js';
+import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, imagemProdutoSegura, urlSegura } from './utils.js';
 import { registrarVista } from './fase3.js';
 
 let catalogoAtual = [];
@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     renderizarDetalhes(produtoAtual);
     registarProdutoVisto(produtoAtual);
     renderizarRecomendacoes(produtoAtual);
-    atualizarMetaTags(produtoAtual.nome, produtoAtual.descricao || 'Detalhes do produto', produtoAtual.imagens?.[0] || '');
+    atualizarMetaTags(produtoAtual.nome, produtoAtual.descricao || 'Detalhes do produto', imagemProdutoSegura(produtoAtual.imagens?.[0], ''));
     registrarVista(produtoAtual);
     carregarAvaliacaoAsync(produtoAtual.id);
 });
@@ -88,7 +88,7 @@ function renderizarDetalhes(prod) {
     if (prodName) prodName.textContent = prod.nome || 'Produto';
 
     const imagens = Array.isArray(prod.imagens) && prod.imagens.length ? prod.imagens : [IMAGEM_FALLBACK];
-    const principal = urlSegura(imagens[0], IMAGEM_FALLBACK);
+    const principal = imagemProdutoSegura(imagens[0], IMAGEM_FALLBACK);
     const stock = Number(prod.estoque);
     const stockConhecido = Number.isFinite(stock);
     const esgotado = stockConhecido && stock <= 0;
@@ -101,7 +101,7 @@ function renderizarDetalhes(prod) {
 
     const miniaturasHtml = imagens.map((src, i) => `
         <button type="button" class="miniatura-produto ${i === 0 ? 'ativa' : ''}" data-index="${i}" aria-label="Ver imagem ${i + 1}">
-            <img src="${escaparAtributo(urlSegura(src, IMAGEM_FALLBACK))}" alt="${escaparAtributo(prod.nome)} - imagem ${i + 1}" loading="lazy" onerror="this.onerror=null;this.src='${IMAGEM_FALLBACK}';">
+            <img src="${escaparAtributo(imagemProdutoSegura(src, IMAGEM_FALLBACK))}" alt="${escaparAtributo(prod.nome)} - imagem ${i + 1}" loading="lazy" onerror="this.onerror=null;this.src='${IMAGEM_FALLBACK}';">
         </button>`).join('');
 
     container.innerHTML = `
@@ -218,7 +218,7 @@ function configurarGaleria(imagens, nome) {
     document.querySelectorAll('#miniaturas .miniatura-produto').forEach((botao) => {
         botao.addEventListener('click', () => {
             const index = Number(botao.dataset.index);
-            const src = urlSegura(imagens[index], IMAGEM_FALLBACK);
+            const src = imagemProdutoSegura(imagens[index], IMAGEM_FALLBACK);
             if (principal) principal.src = src;
             document.querySelectorAll('#miniaturas .miniatura-produto').forEach(b => b.classList.remove('ativa'));
             botao.classList.add('ativa');

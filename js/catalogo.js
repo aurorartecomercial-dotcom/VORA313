@@ -1,6 +1,6 @@
 import { db, CONFIG } from './config.js';
 import { collection, getDocs } from './supabase-compat.js';
-import { extrairValorNumerico, IMAGEM_FALLBACK, urlSegura } from './utils.js';
+import { extrairValorNumerico, IMAGEM_FALLBACK, imagemProdutoSegura } from './utils.js';
 import { obterAvaliacao } from './avaliacoes.js';
 import { verificarFavorito } from './favoritos.js';
 import { obterLinkAfiliado } from './fase3.js';
@@ -165,7 +165,7 @@ function elemento(tag, texto, classe = '') {
 
 function imagemProduto(src, alt, classe = '') {
   const image = document.createElement('img');
-  image.src = urlSegura(src, IMAGEM_FALLBACK);
+  image.src = imagemProdutoSegura(src, IMAGEM_FALLBACK);
   image.alt = String(alt || '');
   image.loading = 'lazy';
   image.decoding = 'async';
