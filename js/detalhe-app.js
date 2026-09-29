@@ -1,4 +1,4 @@
-import { adicionarProdutoCarrinho } from './carrinho.js';
+import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=9';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js';
 import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, obterAvaliacao } from './avaliacoes.js';
@@ -22,6 +22,12 @@ function escaparAtributo(valor) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // A página de detalhe tem a própria interface da sacola. Sem esta
+    // inicialização o botão até chamava a função, mas nada era guardado.
+    if (!window.__carrinhoInicializado) {
+        initCarrinho();
+        window.__carrinhoInicializado = true;
+    }
     initMobileMenu();
     const params = new URLSearchParams(window.location.search);
     const idProduto = params.get('id');
@@ -42,6 +48,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     atualizarMetaTags(produtoAtual.nome, produtoAtual.descricao || 'Detalhes do produto', produtoAtual.imagens?.[0] || '');
     registrarVista(produtoAtual);
     carregarAvaliacaoAsync(produtoAtual.id);
+});
+
+// Os cartões de produtos relacionados são criados depois do carregamento e
+// não passam pelo app.js da página inicial. Este delegado cobre exatamente
+// esses botões sem alterar o comportamento da vitrine principal.
+document.addEventListener('click', (event) => {
+    const botao = event.target.closest('.btn-add-carrinho-card');
+    if (!botao) return;
+    const produto = catalogoAtual.find((item) => String(item.id) === String(botao.dataset.produtoId));
+    if (!produto) return;
+    event.preventDefault();
+    event.stopPropagation();
+    adicionarProdutoCarrinho(produto);
 });
 
 function mostrarErro(mensagem) {
@@ -151,7 +170,7 @@ function renderizarDetalhes(prod) {
     document.getElementById('btnAdicionarDetalhe')?.addEventListener('click', () => adicionarQuantidadeAoCarrinho(prod));
     document.getElementById('btnComprarDetalhe')?.addEventListener('click', () => {
         adicionarQuantidadeAoCarrinho(prod);
-        setTimeout(() => document.getElementById('abrirCarrinhoFlutuante')?.click(), 80);
+        abrirSacola();
     });
     document.getElementById('btnPartilharDetalhe')?.addEventListener('click', () => partilharProduto(prod));
 }

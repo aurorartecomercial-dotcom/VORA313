@@ -3002,3 +3002,19 @@ body:has(.carrinho-sidebar.ativo) .carrinho-overlay{
 @media(prefers-reduced-motion:reduce){
   .carrinho-sidebar,.carrinho-overlay{transition:none!important}
 }
+
+/* Identidade das lojas: usa o logótipo público configurado pelo vendedor.
+   A capa continua apenas como contexto visual; o símbolo da loja é o foco. */
+.loja-card-avatar{overflow:hidden;background:#fff!important;color:#075946;font-weight:900;letter-spacing:.04em}
+.loja-card-avatar img{display:block!important;width:100%!important;height:100%!important;object-fit:cover!important;opacity:1!important}
+.loja-card-avatar span{font-size:15px;line-height:1}
+.loja-card-capa>img{filter:saturate(.82) contrast(.94)}
+.loja-sacola-link{margin-left:auto;border:1px solid #d6e7e1;border-radius:999px;background:#fff;color:#075946!important;padding:0 12px;font-weight:800;text-decoration:none;box-shadow:0 3px 12px rgba(5,62,49,.07)}
+.loja-feedback-sacola{margin:0 0 12px;padding:10px 13px;border:1px solid #cfe7dc;border-radius:12px;background:#edf9f3;color:#075946;font-size:12px;font-weight:750}
+@media(max-width:650px){
+  .loja-publica-top{display:flex;gap:6px;align-items:center}
+  .loja-sacola-link{margin-left:auto;padding:0 9px!important;font-size:11px!important}
+  .loja-card-avatar{left:9px!important;bottom:-15px!important;width:46px!important;height:46px!important;border-width:3px!important;border-radius:13px!important}
+  .loja-card-avatar span{font-size:12px}
+  .loja-feedback-sacola{margin-bottom:9px;padding:8px 10px;font-size:11px}
+}

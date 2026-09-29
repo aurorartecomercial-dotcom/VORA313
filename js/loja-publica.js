@@ -2,6 +2,7 @@ import { db, CONFIG, supabase } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where } from './supabase-compat.js';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js';
 import { escapeHTML, urlSegura } from './utils.js';
+import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=9';
 
 const params = new URLSearchParams(location.search);
 const vendedorId = params.get('id');
@@ -14,6 +15,38 @@ const PRODUTOS_DEMO = [
   { id: 'demo-2', nome: 'Relógio Smart Premium', preco: '58.500 Kz', categoria: 'Acessórios', imagens: ['oferta-6-semana.png'], estoque: 4, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
   { id: 'demo-3', nome: 'Fones Bluetooth Pro ANC', preco: '42.900 Kz', categoria: 'Tecnologia', imagens: ['oferta-1-tecnologia.png'], estoque: 12, vendedorNome: 'Kwanza Tech', ativo: true }
 ];
+
+function imagemSegura(valor) {
+  return urlSegura(valor, '');
+}
+
+function atualizarAtalhoSacola(mensagem = '') {
+  const atalho = $('atalhoSacolaLoja');
+  const total = quantidadeItensCarrinho();
+  if (atalho) {
+    atalho.textContent = total ? `🛒 Sacola (${total})` : '🛒 Sacola';
+    atalho.setAttribute('aria-label', total ? `Abrir sacola com ${total} produto(s)` : 'Abrir sacola');
+  }
+  const retorno = $('lojaFeedbackSacola');
+  if (retorno && mensagem) {
+    retorno.textContent = mensagem;
+    retorno.hidden = false;
+  }
+}
+
+// Esta página não carrega o app.js da homepage. Delegar o clique aqui garante
+// que os cartões da loja do vendedor adicionem à mesma sacola do site inteiro.
+document.addEventListener('click', (event) => {
+  const botao = event.target.closest('.btn-add-carrinho-card');
+  if (!botao) return;
+  const produto = produtosDaLoja.find((item) => String(item.id) === String(botao.dataset.produtoId));
+  if (!produto) return;
+  event.preventDefault();
+  event.stopPropagation();
+  if (adicionarProdutoCarrinho(produto)) {
+    atualizarAtalhoSacola('✓ Produto adicionado à sacola. Pode finalizar a compra quando quiser.');
+  }
+});
 
 function produtosDoCache() {
   try {
@@ -61,6 +94,15 @@ function criarCartaoSeguro(produto) {
     const imagem = imagemSegura(produto?.imagens?.[0]);
     link.innerHTML = (imagem ? '<div class="produto-imagem"><img src="' + escapeHTML(imagem) + '" alt="" loading="lazy"></div>' : '') + '<div class="produto-info"><span class="categoria-tag">' + escapeHTML(produto?.categoria || 'Produto') + '</span><h3>' + escapeHTML(produto?.nome || 'Produto') + '</h3><div class="produto-preco-linha"><span class="preco">' + escapeHTML(produto?.preco || '') + '</span></div></div>';
     artigo.append(link);
+    const acoes = document.createElement('div');
+    acoes.className = 'acoes-produto';
+    const adicionar = document.createElement('button');
+    adicionar.type = 'button';
+    adicionar.className = 'btn-add-carrinho-card';
+    adicionar.dataset.produtoId = String(produto?.id || '');
+    adicionar.textContent = '🛒 Adicionar ao carrinho';
+    acoes.append(adicionar);
+    artigo.append(acoes);
     return artigo;
   }
 }
@@ -320,3 +362,5 @@ setTimeout(() => {
     renderizarProdutos([], 'produtos', 'Não foi possível carregar os produtos agora. Atualize a página para tentar de novo.');
   });
 }, 0);
+
+atualizarAtalhoSacola();

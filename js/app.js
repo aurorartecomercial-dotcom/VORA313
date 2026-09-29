@@ -1,4 +1,4 @@
-import { initCarrinho, adicionarProdutoCarrinho } from './carrinho.js';
+import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=9';
 import { carregarCatalogo, filtrarEOrdenar, renderizarGrade, criarCardProduto } from './catalogo.js';
 import { initMobileMenu } from './menu.js';
 import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, urlSegura, IMAGEM_FALLBACK } from './utils.js';
@@ -31,6 +31,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         initCarrinho();
         window.__carrinhoInicializado = true;
     }
+    const parametrosDaPagina = new URLSearchParams(window.location.search);
+    if (parametrosDaPagina.get('sacola') === '1') {
+        requestAnimationFrame(() => {
+            if (abrirSacola()) {
+                parametrosDaPagina.delete('sacola');
+                const sufixo = parametrosDaPagina.toString();
+                history.replaceState({}, '', `${location.pathname}${sufixo ? `?${sufixo}` : ''}${location.hash}`);
+            }
+        });
+    }
     initMobileMenu();
     initVoraThemePicker();
     initFidelidade();
@@ -56,7 +66,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderizarTudo();
     await renderizarDestaquesVora();
-    carregarLojasPublicas().then((produtos) => renderizarLojas(document.getElementById('lojasPublicasGrid'), produtos, 8));
+    carregarLojasPublicas().then((dados) => renderizarLojas(document.getElementById('lojasPublicasGrid'), dados, 24));
     if (carregando) carregando.style.display = 'none';
 
     // Quando existe cache, carregarCatalogo já atualiza o Supabase em segundo plano.
@@ -136,12 +146,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     await aplicarFiltros();
 });
 
-document.addEventListener('click', function(e) {
+document.addEventListener('click', async function(e) {
     const btnAdd = e.target.closest('.btn-add-carrinho-card');
     if (btnAdd) {
         e.preventDefault();
         e.stopPropagation();
-        const produto = catalogo.find((item) => String(item.id) === String(btnAdd.dataset.produtoId));
+        let produto = catalogo.find((item) => String(item.id) === String(btnAdd.dataset.produtoId));
+        // Uma categoria pode terminar de desenhar os cartões alguns instantes
+        // antes de o catálogo global acabar de carregar. Reutiliza a mesma
+        // fonte em vez de deixar esse primeiro clique sem efeito.
+        if (!produto) {
+            try {
+                catalogo = await carregarCatalogo();
+                produto = catalogo.find((item) => String(item.id) === String(btnAdd.dataset.produtoId));
+            } catch (_) {}
+        }
         if (produto && extrairValorNumerico(produto.preco) > 0) {
             adicionarProdutoCarrinho(produto);
         } else {

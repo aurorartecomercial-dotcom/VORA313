@@ -4,6 +4,8 @@ import { signInAnonymously } from './supabase-compat.js';
 import { httpsCallable } from './supabase-compat.js';
 
 let carrinho = [];
+let carrinhoCarregado = false;
+let interfaceInicializada = false;
 let listaProdutosHTML;
 let totalHTML;
 let badgeContador;
@@ -46,6 +48,10 @@ function obterChavePagamento(pedidoId) {
 }
 
 export function initCarrinho() {
+  // O carrinho também é usado pelas páginas de detalhe e pelas lojas dos
+  // vendedores. Carregar o estado antes de procurar a interface garante que
+  // um produto adicionado numa dessas páginas não se perde.
+  carregarCarrinho();
   listaProdutosHTML = document.getElementById('itensCarrinhoLoja');
   totalHTML = document.getElementById('totalCarrinhoLoja');
   badgeContador = document.getElementById('badgeContador');
@@ -61,10 +67,11 @@ export function initCarrinho() {
   inputObservacao = document.getElementById('inputObservacao');
   btnSalvarCliente = document.getElementById('btnSalvarCliente');
 
-  if (!listaProdutosHTML || !totalHTML || !badgeContador || !sidebar || !overlay) return;
+  if (!listaProdutosHTML || !totalHTML || !badgeContador || !sidebar || !overlay) return false;
 
-  carregarCarrinho();
   atualizarCarrinho();
+  if (interfaceInicializada) return true;
+  interfaceInicializada = true;
   document.getElementById('abrirCarrinhoFlutuante')?.addEventListener('click', abrirCarrinho);
   document.getElementById('btnFecharCarrinho')?.addEventListener('click', fecharCarrinho);
   overlay.addEventListener('click', fecharCarrinho);
@@ -110,6 +117,7 @@ export function initCarrinho() {
     }
   });
   configurarGPS();
+  return true;
 }
 
 function configurarGPS() {
@@ -144,6 +152,7 @@ function configurarGPS() {
 }
 
 function carregarCarrinho() {
+  if (carrinhoCarregado) return;
   try {
     const salvo = JSON.parse(localStorage.getItem('carrinho_aurora') || '[]');
     carrinho = Array.isArray(salvo) ? salvo.filter((item) =>
@@ -153,6 +162,7 @@ function carregarCarrinho() {
   } catch {
     carrinho = [];
   }
+  carrinhoCarregado = true;
 }
 
 function salvarCarrinho() {
@@ -168,17 +178,21 @@ function atualizarBadge() {
 }
 
 export function atualizarCarrinho() {
-  if (!listaProdutosHTML) return;
-  listaProdutosHTML.replaceChildren();
+  carregarCarrinho();
   let total = 0;
-  if (!carrinho.length) {
-    const vazio = document.createElement('li');
-    vazio.textContent = 'A sua sacola está vazia.';
-    vazio.style.cssText = 'text-align:center;color:#999;margin-top:40px;font-size:15px;';
-    listaProdutosHTML.append(vazio);
-  }
-  carrinho.forEach((item, index) => {
+  carrinho.forEach((item) => {
     total += extrairValorNumerico(item.preco) * item.quantidade;
+  });
+
+  if (listaProdutosHTML) {
+    listaProdutosHTML.replaceChildren();
+    if (!carrinho.length) {
+      const vazio = document.createElement('li');
+      vazio.textContent = 'A sua sacola está vazia.';
+      vazio.style.cssText = 'text-align:center;color:#999;margin-top:40px;font-size:15px;';
+      listaProdutosHTML.append(vazio);
+    }
+    carrinho.forEach((item, index) => {
     const li = document.createElement('li');
     li.className = 'item-carrinho-loja';
     const imagem = document.createElement('div');
@@ -218,8 +232,9 @@ export function atualizarCarrinho() {
     );
     li.append(imagem, info, controles);
     listaProdutosHTML.append(li);
-  });
-  totalHTML.textContent = formatarMoeda(total).replace(/\s*Kz$/, '');
+    });
+  }
+  if (totalHTML) totalHTML.textContent = formatarMoeda(total).replace(/\s*Kz$/, '');
   const subtotalResumo = document.getElementById('v32CartSubtotal');
   if (subtotalResumo) subtotalResumo.textContent = formatarMoeda(total);
   atualizarBadge();
@@ -253,26 +268,44 @@ function alterarQuantidade(index, mudanca) {
 }
 
 export function adicionarProdutoCarrinho(produto, observacao = '') {
-  if (!produto || typeof produto.id !== 'string' || !produto.id) {
+  carregarCarrinho();
+  const produtoId = String(produto?.id || '').trim();
+  if (!produtoId) {
     mostrarToast('Este produto precisa ser atualizado antes de ser comprado.', 'info');
-    return;
+    return false;
   }
-  const estoque = Number(produto.estoque ?? 0);
-  if (!Number.isFinite(estoque) || estoque <= 0) return mostrarToast('🚫 Produto esgotado!', 'info');
-  const existente = carrinho.find((item) => item.produtoId === produto.id && item.observacao === observacao);
-  if (existente && existente.quantidade >= estoque) return mostrarToast('🚫 Estoque esgotado!', 'info');
+  const estoque = Number(produto?.estoque);
+  const estoqueConhecido = Number.isFinite(estoque);
+  // Produtos antigos do catálogo não têm stock no ficheiro local. Eles podem
+  // entrar na sacola; o servidor confirma o stock verdadeiro antes de criar
+  // o pedido. Um stock explícito igual a zero continua bloqueado.
+  if (estoqueConhecido && estoque <= 0) {
+    mostrarToast('🚫 Produto esgotado!', 'info');
+    return false;
+  }
+  const existente = carrinho.find((item) => item.produtoId === produtoId && item.observacao === observacao);
+  if (existente && estoqueConhecido && existente.quantidade >= estoque) {
+    mostrarToast('🚫 Estoque esgotado!', 'info');
+    return false;
+  }
   if (existente) existente.quantidade += 1;
   else carrinho.push({
-    produtoId: produto.id,
+    produtoId,
     nome: String(produto.nome || 'Produto'),
     preco: String(produto.preco || ''),
-    imagem: String(produto.imagem || produto.imagemUrl || produto.foto || produto.image || ''),
+    imagem: String(produto.imagem || produto.imagemUrl || produto.foto || produto.image || produto.imagens?.[0] || ''),
     quantidade: 1,
     observacao: String(observacao || '').slice(0, 500)
   });
   invalidarTentativaCheckout();
   atualizarCarrinho();
   mostrarToast('Produto adicionado!', 'sucesso');
+  return true;
+}
+
+export function quantidadeItensCarrinho() {
+  carregarCarrinho();
+  return carrinho.reduce((total, item) => total + Number(item.quantidade || 0), 0);
 }
 
 export function aplicarCupom(valor) {
@@ -288,6 +321,12 @@ function abrirCarrinho() {
   sidebar?.classList.add('ativo');
   if (overlay) overlay.style.display = 'block';
   document.body.style.overflow = 'hidden';
+}
+
+export function abrirSacola() {
+  if (!sidebar || !overlay) return false;
+  abrirCarrinho();
+  return true;
 }
 
 function fecharCarrinho() {
@@ -444,6 +483,7 @@ async function iniciarPagamentoManual() {
 
 function limparCarrinho() {
   carrinho = [];
+  carrinhoCarregado = true;
   cupomAplicado = '';
   invalidarTentativaCheckout();
   localStorage.removeItem('carrinho_aurora');
