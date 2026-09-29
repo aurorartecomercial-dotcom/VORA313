@@ -4,6 +4,7 @@ import { getIdTokenResult, signInWithEmailAndPassword, signOut } from './supabas
 import { httpsCallable } from './supabase-compat.js';
 import { extrairValorNumerico, escapeHTML, IMAGEM_FALLBACK, urlSegura } from './utils.js';
 import { exportarBackupCompleto } from './fase4.js'; // ✅ Fase 4
+import { gerarFaturaHTML } from './carrinho.js';
 
 if (!document.getElementById('loginVendas') || !document.getElementById('conteudoVendas')) {
     console.warn('admin-vendas.js carregado em página incorreta. Abortando execução.');
@@ -1382,53 +1383,26 @@ window.imprimirFatura = async function(codigoRastreio) {
         const snapshot = await getDocs(q);
         if (snapshot.empty) return alert('Pedido não encontrado.');
         const venda = snapshot.docs[0].data();
-        
-        const html = `<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<title>Fatura ${codigoRastreio} - VORA 313</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 30px; }
-  h1 { color: #005A4C; text-align: center; }
-  h2 { color: #D4AF37; text-align: center; margin-top: 0; }
-  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-  th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-  th { background-color: #005A4C; color: white; }
-  .total { font-size: 20px; font-weight: bold; text-align: right; margin-top: 20px; }
-  .dados { margin-top: 20px; }
-  .dados p { margin: 5px 0; }
-</style>
-</head>
-<body>
-<h1>VORA 313</h1>
-<h2>Contribuinte: 5000048151 | Tel: +244 933 677 628</h2>
-<hr>
-<p><strong>Fatura Nº:</strong> ${codigoRastreio}</p>
-<p><strong>Data:</strong> ${venda.dataHora || ''}</p>
-<div class="dados">
-<p><strong>Cliente:</strong> ${venda.nomeCliente || ''}</p>
-<p><strong>Telefone:</strong> ${venda.telefoneCliente || ''}</p>
-<p><strong>NIF:</strong> ${venda.nifCliente || ''}</p>
-<p><strong>Morada:</strong> ${venda.moradaCliente || ''} - ${venda.bairro || ''}</p>
-</div>
-<table>
-<thead><tr><th>Descrição</th><th>Qtd</th><th>Preço Unit.</th><th>Subtotal</th></tr></thead>
-<tbody>${(venda.itens||[]).map(item=>`<tr><td>${item.nome}</td><td>${item.quantidade}</td><td>${item.preco||0}</td><td>${(item.preco||0)*(item.quantidade||1)}</td></tr>`).join('') || venda.produtosResumo || ''}</tbody>
-</table>
-<div class="resumo" style="text-align:right; margin-top:15px;">
-${venda.subtotal ? `<p><strong>Subtotal:</strong> ${venda.subtotal.toFixed(2)} Kz</p>` : ''}
-${venda.valorDesconto ? `<p><strong>Desconto:</strong> -${venda.valorDesconto.toFixed(2)} Kz</p>` : ''}
-${venda.frete ? `<p><strong>Frete (${venda.bairro}):</strong> ${venda.frete.toFixed(2)} Kz</p>` : ''}
-<p class="total">Total a Pagar: ${(venda.valorTotal || 0).toFixed(2)} Kz</p>
-</div>
-<script>window.print();</script>
-</body>
-</html>`;
-
-        const win = window.open('', '_blank');
-        win.document.write(html);
-        win.document.close();
+        gerarFaturaHTML({
+            numeroFatura: venda.numeroFatura || venda.numero_fatura || codigoRastreio,
+            codigoRastreio: venda.codigoRastreio || venda.codigo_rastreio || codigoRastreio,
+            status: venda.status || 'aguardando_pagamento',
+            subtotal: venda.subtotal || 0,
+            frete: venda.frete || 0,
+            valorDesconto: venda.valorDesconto ?? venda.valor_desconto ?? 0,
+            valorTotal: venda.valorTotal ?? venda.valor_total ?? 0,
+            itens: venda.itens || [],
+            cupomAplicado: venda.cupomAplicado || venda.cupom_aplicado || null,
+            emitidoEm: venda.criadoEm || venda.criado_em || venda.dataHora || null,
+            expiraEm: venda.expiraEm || venda.expira_em || null,
+            cliente: {
+                nome: venda.nomeCliente || venda.nome_cliente || '',
+                telefone: venda.telefoneCliente || venda.telefone_cliente || '',
+                nif: venda.nifCliente || venda.nif_cliente || '',
+                morada: venda.moradaCliente || venda.morada_cliente || '',
+                bairro: venda.bairro || ''
+            }
+        });
     } catch(e) { alert('Erro: ' + e.message); }
 };
 

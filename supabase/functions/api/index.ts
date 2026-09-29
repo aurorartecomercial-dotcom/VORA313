@@ -77,7 +77,13 @@ async function criarPedido(req:Request, input:any){
   // Clientes com uma versão antiga do PWA não enviam a chave; mantemos a
   // compatibilidade, mas os clientes atuais sempre recebem idempotência.
   const idempotencyKey=idempotencyRecebida||code('CHECKOUT');
-  const pedidoResposta=(p:any)=>({pedidoId:p.id,codigoRastreio:p.codigo_rastreio,numeroFatura:p.numero_fatura,status:p.status,subtotal:Number(p.subtotal||0),frete:Number(p.frete||0),valorDesconto:Number(p.valor_desconto||0),valorTotal:Number(p.valor_total||0),itens:camelRow(p.itens||[]),cupomAplicado:camelRow(p.cupom_aplicado)});
+  const pedidoResposta=(p:any)=>({
+    pedidoId:p.id,codigoRastreio:p.codigo_rastreio,numeroFatura:p.numero_fatura,status:p.status,
+    subtotal:Number(p.subtotal||0),frete:Number(p.frete||0),valorDesconto:Number(p.valor_desconto||0),
+    valorTotal:Number(p.valor_total||0),itens:camelRow(p.itens||[]),cupomAplicado:camelRow(p.cupom_aplicado),
+    cliente:{nome:p.nome_cliente,telefone:p.telefone_cliente,nif:p.nif_cliente,morada:p.morada_cliente,bairro:p.bairro},
+    emitidoEm:p.criado_em||p.data_hora||null,expiraEm:p.expira_em||null,pagamento:camelRow(p.pagamento||{})
+  });
   const {data:existente,error:existenteErro}=await db.from('vendas').select('*').eq('uid_cliente',user.id).eq('idempotency_key',idempotencyKey).maybeSingle();
   if(existenteErro)throw existenteErro;
   if(existente)return pedidoResposta(existente);
@@ -103,7 +109,7 @@ async function criarPedido(req:Request, input:any){
     }
     throw saveError;
   }
-  return {pedidoId:id,codigoRastreio:rastreio,numeroFatura:fatura,status:'aguardando_pagamento',subtotal:money(subtotal),frete:money(frete),valorDesconto:money(desconto),valorTotal:money(total),itens,cupomAplicado};
+  return pedidoResposta(venda);
 }
 
 function respostaPagamento(p:any) {
