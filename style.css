@@ -3021,3 +3021,58 @@ body:has(.carrinho-sidebar.ativo) .carrinho-overlay{
   .loja-card-avatar span{font-size:12px}
   .loja-feedback-sacola{margin-bottom:9px;padding:8px 10px;font-size:11px}
 }
+
+/* Faixa de canais de pagamento: identifica os parceiros planeados sem anunciar
+   que o cartão já está operacional. Os símbolos são composição tipográfica local,
+   sem carregar imagens de terceiros nem afetar o fluxo atual de checkout. */
+.vora-payment-strip{
+  display:flex!important;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  min-height:72px;
+  padding:12px 18px!important;
+  color:#183c34;
+}
+.vora-payment-copy{display:flex;flex-direction:column;gap:2px;min-width:143px}
+.vora-payment-copy strong{font-size:13px;line-height:1.2;color:#075946}
+.vora-payment-eyebrow{font-size:9px;letter-spacing:.11em;font-weight:900;color:#aa8514}
+.vora-payment-logos{display:flex;align-items:center;justify-content:center;gap:9px;flex:1;min-width:0}
+.vora-payment-logo{
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  height:34px;
+  min-width:58px;
+  padding:0 10px;
+  border:1px solid #dce7e3;
+  border-radius:8px;
+  background:#fff;
+  box-shadow:0 2px 7px rgba(0,61,50,.07);
+  overflow:hidden;
+  font-size:15px;
+  font-weight:950;
+  letter-spacing:-.04em;
+  line-height:1;
+}
+.vora-payment-visa{border-color:#dce4f4;color:#1a3d8f;font-style:italic;letter-spacing:-.07em}
+.vora-payment-visa:after{content:"";position:absolute;right:5px;bottom:5px;width:22px;height:3px;border-radius:99px;background:#f3b31a;transform:skewX(-25deg)}
+.vora-payment-bai{gap:3px;border-color:#d9ebe3;color:#08764f;letter-spacing:-.06em}
+.vora-payment-bai i{font-style:normal;font-size:13px;color:#e0ae22;transform:rotate(45deg)}
+.vora-payment-bfa{border-color:#f0d7d5;color:#c51f32;font-size:18px;letter-spacing:-.1em;font-weight:900}
+.vora-payment-bfa:after{content:"";position:absolute;bottom:4px;width:25px;height:2px;border-radius:99px;background:#173e82}
+.vora-payment-bic{border-color:#f2e4d0;color:#1a1a1a;letter-spacing:-.08em}
+.vora-payment-bic:before{content:"";width:7px;height:17px;margin-right:4px;border-radius:2px;background:#f39820;box-shadow:3px 0 0 #fbc357}
+.vora-payment-status{display:inline-flex;align-items:center;justify-content:flex-end;gap:5px;min-width:185px;color:#5d746d;font-size:11px;font-weight:700;line-height:1.3;text-align:right}
+.vora-payment-status>span{color:#aa8514;font-size:17px;line-height:1}
+
+@media(max-width:700px){
+  .vora-payment-strip{display:grid!important;grid-template-columns:1fr auto;gap:7px 9px;min-height:0;padding:10px 11px!important}
+  .vora-payment-copy{min-width:0}.vora-payment-copy strong{font-size:10px}.vora-payment-eyebrow{font-size:7px}
+  .vora-payment-logos{justify-content:flex-start;gap:5px;grid-column:1/-1;width:100%;order:3}
+  .vora-payment-logo{height:27px;min-width:0;flex:1;padding:0 5px;border-radius:6px;font-size:12px}
+  .vora-payment-bfa{font-size:15px}.vora-payment-bai i{font-size:10px}.vora-payment-bic:before{width:5px;height:13px;margin-right:2px}
+  .vora-payment-visa:after{right:4px;bottom:4px;width:16px;height:2px}.vora-payment-bfa:after{bottom:3px;width:18px}
+  .vora-payment-status{min-width:0;font-size:8px;white-space:nowrap}.vora-payment-status>span{font-size:13px}
+}

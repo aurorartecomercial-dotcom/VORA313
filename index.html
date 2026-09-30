@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=43" />
+    <link rel="stylesheet" href="style.css?v=44" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -550,14 +550,21 @@
         </div>
     </div>
 
-    <!-- PAGAMENTOS ACEITES -->
-    <section class="aurora-pagamentos" aria-label="Métodos de pagamento">
-        <span>Cartões aceites:</span>
-        <strong class="pay-badge pay-visa">VISA</strong>
-        <strong class="pay-badge pay-master">●●</strong>
-        <strong class="pay-badge pay-paypal">PayPal</strong>
-        <strong class="pay-badge pay-k">K</strong>
-        <span class="pay-secure">🔒 Pagamento seguro e rápido</span>
+    <!-- CANAIS DE PAGAMENTO
+         Os bancos aparecem como identificação visual. Não são botões nem prometem
+         pagamento por cartão enquanto o gateway e os contratos não estiverem ativos. -->
+    <section class="aurora-pagamentos vora-payment-strip" aria-label="Canais de pagamento em preparação">
+        <div class="vora-payment-copy">
+            <span class="vora-payment-eyebrow">PAGAMENTO</span>
+            <strong>Canais em preparação</strong>
+        </div>
+        <div class="vora-payment-logos" aria-label="Visa, Banco BAI, Banco BFA e Banco BIC">
+            <span class="vora-payment-logo vora-payment-visa" role="img" aria-label="Visa">VISA</span>
+            <span class="vora-payment-logo vora-payment-bai" role="img" aria-label="Banco BAI"><i aria-hidden="true">◆</i>BAI</span>
+            <span class="vora-payment-logo vora-payment-bfa" role="img" aria-label="Banco BFA">bfa</span>
+            <span class="vora-payment-logo vora-payment-bic" role="img" aria-label="Banco BIC">BIC</span>
+        </div>
+        <span class="vora-payment-status"><span aria-hidden="true">◷</span> Integração bancária em ativação</span>
     </section>
 
     <!-- RODAPÉ -->
