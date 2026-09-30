@@ -1,7 +1,7 @@
-import { auth, db, storage, CONFIG } from './config.js';
+import { auth, db, storage, functions, CONFIG } from './config.js';
 import { collection, getDocs, setDoc, updateDoc, deleteDoc, doc } from './supabase-compat.js';
-import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword } from './supabase-compat.js';
-import { getDownloadURL, ref, uploadBytes } from './supabase-compat.js';
+import { getIdTokenResult, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, httpsCallable, validarPalavraPasseSegura } from './supabase-compat.js';
+import { getDownloadURL, ref, uploadToSignedUrl } from './supabase-compat.js';
 import { escapeHTML, extrairValorNumerico, valorMonetarioKz, mostrarToast, IMAGEM_FALLBACK, urlSegura } from './utils.js';
 
 let produtos = [];
@@ -135,8 +135,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         erroRecuperacao.style.display = 'none';
         const nova = novaSenha.value;
         const confirmacao = confirmarSenha.value;
-        if (nova.length < 6) {
-            erroRecuperacao.textContent = 'A palavra-passe deve ter pelo menos 6 caracteres.';
+        try {
+            validarPalavraPasseSegura(nova);
+        } catch (error) {
+            erroRecuperacao.textContent = error.message;
             erroRecuperacao.style.display = 'block';
             return;
         }
@@ -236,10 +238,12 @@ function iniciarAdmin() {
         if (file.size > 5 * 1024 * 1024) {
             throw new Error(`Arquivo muito grande (${(file.size / 1024 / 1024).toFixed(2)}MB). Máximo 5MB.`);
         }
-        const nomeSeguro = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const arquivo = ref(storage, `produtos/${Date.now()}_${gerarId()}_${nomeSeguro}`);
-        await uploadBytes(arquivo, file, { contentType: file.type });
-        return getDownloadURL(arquivo);
+        const { data: autorizacao } = await httpsCallable(functions, 'criarUploadAssinado')({
+            tipo: 'produto_admin', mimeType: file.type, tamanho: file.size
+        });
+        const destino = ref(storage, autorizacao.caminho);
+        await uploadToSignedUrl(destino, autorizacao.token, file, { contentType: file.type });
+        return getDownloadURL(destino);
     }
 
     btnUploadImg.addEventListener('click', async () => {

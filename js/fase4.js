@@ -37,7 +37,7 @@ export function calcularPesoTotal(itens) {
 export async function enviarEmailConfirmacao(dados) {
     try {
         // Simulação (implementar com EmailJS ou Edge Function)
-        console.log('📧 Email enviado para:', dados.email, '| Pedido:', dados.codigo);
+        console.info('Confirmação de pedido preparada para envio.');
         return true;
     } catch (e) {
         console.error('Erro ao enviar email:', e);
@@ -80,5 +80,5 @@ export async function exportarBackupCompleto() {
 // --- 5. RELATÓRIOS AVANÇADOS ---
 export function gerarRelatorioVendasPeriodo(inicio, fim) {
     // Esta função seria chamada no admin-vendas.js
-    console.log('Gerar relatório de vendas de', inicio, 'até', fim);
+    console.info('Relatório administrativo solicitado.');
 }

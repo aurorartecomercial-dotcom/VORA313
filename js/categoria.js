@@ -1,4 +1,4 @@
-import { carregarCatalogo, criarCardProduto } from './catalogo.js';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
 import { initMobileMenu } from './menu.js';
 
 document.addEventListener('DOMContentLoaded', async () => {

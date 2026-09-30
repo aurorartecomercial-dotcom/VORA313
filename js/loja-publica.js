@@ -1,6 +1,6 @@
 import { db, CONFIG, supabase } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where } from './supabase-compat.js';
-import { carregarCatalogo, criarCardProduto } from './catalogo.js';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
 import { escapeHTML, imagemProdutoSegura, urlSegura } from './utils.js';
 import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=9';
 

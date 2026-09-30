@@ -1,0 +1,4 @@
+Contact: mailto:contacto@aurorarte.ao
+Policy: https://aurorartecomercial-dotcom.github.io/VORA313/politica.html
+Preferred-Languages: pt, en
+Canonical: https://aurorartecomercial-dotcom.github.io/VORA313/.well-known/security.txt

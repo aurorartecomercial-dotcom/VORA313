@@ -1,5 +1,5 @@
 import { auth, db, storage, functions, supabase } from './config.js';
-import { collection, doc, getDoc, getDocs, query, where, limit, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, httpsCallable, ref, uploadBytes, getDownloadURL } from './supabase-compat.js';
+import { collection, doc, getDoc, getDocs, query, where, limit, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, httpsCallable, ref, uploadToSignedUrl, getDownloadURL, validarPalavraPasseSegura } from './supabase-compat.js';
 import { escapeHTML, extrairValorNumerico, urlSegura } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
@@ -500,6 +500,7 @@ async function enviarCadastro(evento) {
   try {
     let user = auth.currentUser;
     if (!user) {
+      validarPalavraPasseSegura(dados.senha);
       guardarRascunho(dados);
       const criado = await createUserWithEmailAndPassword(auth, dados.email, dados.senha);
       user = criado.user;
@@ -555,7 +556,8 @@ async function recuperarSenha() {
 async function redefinirSenha(evento) {
   evento.preventDefault();
   const dados = Object.fromEntries(new FormData(evento.currentTarget));
-  if (String(dados.senha || '').length < 6) return mensagem('A palavra-passe deve ter pelo menos 6 caracteres.', false);
+  try { validarPalavraPasseSegura(dados.senha); }
+  catch (erro) { return mensagem(erroTexto(erro), false); }
   if (dados.senha !== dados.confirmacao) return mensagem('As palavras-passe não coincidem.', false);
   try {
     await updatePassword(auth, dados.senha);
@@ -609,9 +611,9 @@ async function enviarImagensProduto() {
     for (const arquivo of input.files) {
       if (!/^image\/(jpeg|png|webp|gif)$/i.test(arquivo.type)) throw new Error('Use imagem JPG, PNG, WEBP ou GIF.');
       if (arquivo.size > 5 * 1024 * 1024) throw new Error('Cada imagem deve ter no máximo 5 MB.');
-      const nomeSeguro = arquivo.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const destino = ref(storage, `vendedores/${auth.currentUser.id}/produtos/${Date.now()}_${nomeSeguro}`);
-      await uploadBytes(destino, arquivo, { contentType: arquivo.type });
+      const { data: autorizacao } = await call('criarUploadAssinado')({ tipo: 'produto', mimeType: arquivo.type, tamanho: arquivo.size });
+      const destino = ref(storage, autorizacao.caminho);
+      await uploadToSignedUrl(destino, autorizacao.token, arquivo, { contentType: arquivo.type });
       urls.push(await getDownloadURL(destino));
     }
     $('vendImagens').value = [$('vendImagens').value, ...urls].filter(Boolean).join(', ');
@@ -626,9 +628,9 @@ async function enviarLogo() {
   try {
     if (!/^image\/(jpeg|png|webp)$/i.test(arquivo.type)) throw new Error('Use imagem JPG, PNG ou WEBP.');
     if (arquivo.size > 2 * 1024 * 1024) throw new Error('O logótipo deve ter no máximo 2 MB.');
-    const extensao = arquivo.name.split('.').pop()?.replace(/[^a-zA-Z0-9]/g, '') || 'png';
-    const destino = ref(storage, `vendedores/${auth.currentUser.id}/perfil/logo_${Date.now()}.${extensao}`);
-    await uploadBytes(destino, arquivo, { contentType: arquivo.type });
+    const { data: autorizacao } = await call('criarUploadAssinado')({ tipo: 'logo', mimeType: arquivo.type, tamanho: arquivo.size });
+    const destino = ref(storage, autorizacao.caminho);
+    await uploadToSignedUrl(destino, autorizacao.token, arquivo, { contentType: arquivo.type });
     const url = await getDownloadURL(destino);
     setValor('perfilLogoUrl', url);
     mostrarImagem('perfilLogoPreview', 'perfilLogoFallback', url, iniciais($('perfilNomeLoja').value || vendedor.nomeLoja));

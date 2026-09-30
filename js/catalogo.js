@@ -268,6 +268,10 @@ export function criarCardProduto(produto) {
 export function filtrarEOrdenar(produtos, categoria, busca, min, max, ordenacao, minAvaliacao = 0, dataFiltro = '') {
   const termo = String(busca || '').toLocaleLowerCase();
   let filtrados = produtos.filter((prod) => {
+    // A paginação tem de contar exatamente os mesmos anúncios que podem virar
+    // cartões públicos. Sem isto, produtos pendentes/inativos ocupavam uma
+    // página invisível e o botão "Carregar mais" parecia não fazer nada.
+    if (!produtoPublico(prod)) return false;
     const nome = String(prod.nome || '').toLocaleLowerCase();
     const tag = String(prod.tag || '').toLocaleLowerCase();
     const categoriaProd = String(prod.categoria || '').toLocaleLowerCase();

@@ -21,8 +21,11 @@ export function urlSegura(valor, fallback = '') {
     if (!valor || typeof valor !== 'string') return fallback;
     try {
         const url = new URL(valor, document.baseURI);
-        if (url.protocol === 'https:' || url.protocol === 'http:') return url.href;
-        if (url.protocol === 'data:' && valor.startsWith('data:image/')) return valor;
+        // Links inseridos por vendedores, produtos ou artigos nunca podem usar
+        // javascript:, data: ou HTTP externo. HTTP fica restrito a localhost
+        // para o desenvolvimento local; a produção usa sempre HTTPS.
+        const localhost = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+        if (url.protocol === 'https:' || localhost) return url.href;
     } catch (_) {
         // URL inválida: retornar o fallback sem expor uma URL executável.
     }
@@ -31,7 +34,7 @@ export function urlSegura(valor, fallback = '') {
 
 // Produtos antigos podem conter somente "foto.jpg". Esses ficheiros não
 // existem no site publicado; usar o placeholder evita pedidos 404 repetidos.
-// URLs do Storage, data URLs e caminhos explícitos seguem permitidos.
+// URLs HTTPS do Storage e caminhos explícitos seguem permitidos.
 export function imagemProdutoSegura(valor, fallback = IMAGEM_FALLBACK) {
     const original = String(valor || '').trim();
     if (/^[^\\/?#]+\.(?:avif|gif|jpe?g|png|svg|webp)$/i.test(original)) return fallback;

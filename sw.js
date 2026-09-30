@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vora313-cache-v55-carregar-mais-checkout-mobile';
+const CACHE_NAME = 'vora313-cache-v57-seguranca-p0';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html',
   './style.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',

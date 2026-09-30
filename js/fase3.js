@@ -194,5 +194,5 @@ function obterMensagem(opcao) {
 
 function abrirWhatsApp(mensagem) {
     const url = `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(mensagem)}`;
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener,noreferrer');
 }

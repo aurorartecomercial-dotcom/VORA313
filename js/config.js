@@ -1,5 +1,7 @@
 // VORA 313 — configuração central Supabase
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// Versão fixa: evita que uma atualização automática de CDN mude o comportamento
+// da autenticação ou do Storage sem revisão do projeto.
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/+esm';
 import { SUPABASE_CONFIG } from './supabase-config.js';
 
 if (!SUPABASE_CONFIG.url || SUPABASE_CONFIG.url.includes('SEU-PROJETO')) {

@@ -78,9 +78,9 @@
             <h2>🔑 Nova palavra-passe</h2>
             <p id="mensagemRecuperacaoAdmin" style="color:#bbb;">Defina uma nova palavra-passe para o acesso administrativo.</p>
             <label for="novaSenhaAdmin">Nova palavra-passe:</label>
-            <input type="password" id="novaSenhaAdmin" minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" required />
+            <input type="password" id="novaSenhaAdmin" minlength="12" autocomplete="new-password" placeholder="12+ caracteres, maiúscula, minúscula e número" required />
             <label for="confirmarSenhaAdmin" style="margin-top:10px;">Confirmar palavra-passe:</label>
-            <input type="password" id="confirmarSenhaAdmin" minlength="6" autocomplete="new-password" placeholder="Repita a palavra-passe" required />
+            <input type="password" id="confirmarSenhaAdmin" minlength="12" autocomplete="new-password" placeholder="Repita a palavra-passe" required />
             <button id="btnSalvarNovaSenhaAdmin" type="button" class="btn-admin" style="width:100%; margin-top:10px;">Guardar nova palavra-passe</button>
             <button id="btnVoltarLoginAdmin" type="button" class="btn-admin" style="width:100%; margin-top:8px; background:#333; color:#fff;">Voltar ao login</button>
             <p id="erroRecuperacaoAdmin" style="color:#ff5555; display:none;"></p>
@@ -268,6 +268,6 @@ Garantia: 12 meses"></textarea>
         </div>
     </div>
 
-    <script type="module" src="js/admin.js?v=20260924-catalog-import"></script>
+    <script type="module" src="js/admin.js?v=20260929-security-p0"></script>
 </body>
 </html>

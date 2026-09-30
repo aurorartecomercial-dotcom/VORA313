@@ -16,6 +16,20 @@ const TABLES = Object.freeze({
 const tableName = (name) => TABLES[name] || name;
 const camelToSnake = (key) => key.replace(/[A-Z]/g, m => '_' + m.toLowerCase());
 const snakeToCamel = (key) => key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+const MINIMO_PALAVRA_PASSE = 12;
+
+export function validarPalavraPasseSegura(password) {
+  const valor = String(password || '');
+  if (valor.length < MINIMO_PALAVRA_PASSE
+      || !/[a-z]/.test(valor)
+      || !/[A-Z]/.test(valor)
+      || !/\d/.test(valor)) {
+    const erro = new Error('Use pelo menos 12 caracteres, com letra maiúscula, minúscula e número.');
+    erro.code = 'auth/weak-password';
+    throw erro;
+  }
+  return true;
+}
 
 function encodeWrite(value) {
   if (value === undefined) return undefined;
@@ -137,6 +151,7 @@ export async function signInWithEmailAndPassword(_auth, email, password) {
 }
 
 export async function createUserWithEmailAndPassword(_auth, email, password) {
+  validarPalavraPasseSegura(password);
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) throw normalizeAuthError(error);
   if (!data.user) throw new Error('Não foi possível criar a conta.');
@@ -192,9 +207,7 @@ export async function sendPasswordResetEmail(_auth, email, redirectTo = `${locat
 }
 
 export async function updatePassword(_auth, password) {
-  if (!password || String(password).length < 6) {
-    throw new Error('A palavra-passe deve ter pelo menos 6 caracteres.');
-  }
+  validarPalavraPasseSegura(password);
   const { data, error } = await supabase.auth.updateUser({ password: String(password) });
   if (error) throw normalizeAuthError(error);
   auth.currentUser = data.user || auth.currentUser;
@@ -204,6 +217,19 @@ export async function updatePassword(_auth, password) {
 export function ref(_storage, path) { return { path: String(path) }; }
 export async function uploadBytes(storageRef, file, options = {}) {
   const { error } = await supabase.storage.from(storage.bucket).upload(storageRef.path, file, { contentType: options.contentType || file.type, upsert: true });
+  if (error) throw error;
+  return { ref: storageRef };
+}
+// O token é emitido pela Edge Function somente depois da validação de papel,
+// tipo e tamanho. Assim o browser não recebe permissão direta de escrita.
+export async function uploadToSignedUrl(storageRef, token, file, options = {}) {
+  if (!token) throw new Error('Autorização temporária de upload ausente.');
+  const { error } = await supabase.storage.from(storage.bucket).uploadToSignedUrl(
+    storageRef.path,
+    token,
+    file,
+    { contentType: options.contentType || file.type }
+  );
   if (error) throw error;
   return { ref: storageRef };
 }

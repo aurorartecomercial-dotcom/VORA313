@@ -68,6 +68,28 @@ continua disponível enquanto o gateway automático é contratado. Leia
 `PAGAMENTOS-VORA-PAY.md` antes de ativar Multicaixa Express, referência ou
 cartão.
 
+## Segurança P0
+
+Execute `016_seguranca_p0_uploads_e_limites.sql` antes de publicar a versão
+mais recente da Edge Function e do frontend. Esta etapa substitui uploads
+diretos por autorizações temporárias para vendedores aprovados e aplica limites
+contra abuso de pedidos e uploads. Siga `SEGURANCA-P0-DEPLOY.md` pela ordem.
+
+## Segurança completa P0–P3
+
+As migrations `016` a `019` formam um único pacote de segurança:
+
+- `016` — escrita no Storage por autorização temporária e limites atómicos;
+- `017` — privacidade da vitrine pública e validação do perfil de loja;
+- `018` — trilha de auditoria de ações sensíveis;
+- `019` — rotina protegida para retenção de registos técnicos.
+
+Consulte `MIGRACOES-SEGURANCA-COMPLETAS.md` para a ordem exata, inclusive em
+uma base que já está em produção. Depois, siga
+`CONFIGURACAO-SEGURANCA-EXTERNA.md` para SMTP, confirmação de e-mail, MFA,
+CAPTCHA, domínio/CDN e gateway. Essas configurações não podem ser ativadas
+apenas com código público.
+
 ## Dados antigos
 
 Os scripts em `tools/` continuam disponíveis somente como ferramentas de importação única dos dados históricos do Firebase. Eles não fazem parte do runtime da aplicação.

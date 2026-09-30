@@ -1,5 +1,5 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=9';
-import { carregarCatalogo, filtrarEOrdenar, renderizarGrade, criarCardProduto } from './catalogo.js';
+import { carregarCatalogo, filtrarEOrdenar, renderizarGrade, criarCardProduto } from './catalogo.js?v=3';
 import { initMobileMenu } from './menu.js';
 import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';
 import { initFidelidade } from './fidelidade.js';
@@ -494,7 +494,7 @@ const intervaloCarrossel = setInterval(() => window.mudarSlide(1), 6000);
 
 window.shareProduct = function(nome, preco, link) {
     const texto = `Olha só este produto incrível da VORA 313!\n\n🔹 *${nome}*\n💰 Preço: ${preco}\n🔗 Confira aqui: ${link}`;
-    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank');
+    window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
 };
 
 // V31 — UX mobile: navegação inferior, pesquisa e filtros recolhíveis.

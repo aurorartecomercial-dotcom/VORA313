@@ -1,5 +1,5 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=9';
-import { carregarCatalogo, criarCardProduto } from './catalogo.js';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
 import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, obterAvaliacao } from './avaliacoes.js';
 import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, imagemProdutoSegura, urlSegura } from './utils.js';
