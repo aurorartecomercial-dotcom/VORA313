@@ -321,10 +321,61 @@ function preencherPerfil() {
   setValor('perfilHorario', perfil.horario);
   setValor('perfilInstagram', perfil.instagram);
   setValor('perfilDestaque', perfil.destaque);
+  setValor('perfilEstiloVitrine', perfil.estiloVitrine || 'padrao');
+  setValor('perfilEditorialColecao', perfil.editorialColecao);
+  setValor('perfilEditorialTitulo', perfil.editorialTitulo);
+  setValor('perfilEditorialChamada', perfil.editorialChamada);
+  preencherProdutosEditorial(perfil.editorialProdutoId);
+  atualizarEditorEditorial();
   const recebimento = vendedor.dadosRecebimento || {};
   setValor('vendMetodoRecebimento', recebimento.metodo);
   setValor('vendTitular', recebimento.titular);
   setValor('vendReferencia', recebimento.referencia);
+}
+
+function instalarEditorEditorial() {
+  const formulario = $('formPerfilVendedor');
+  const acoes = formulario?.querySelector('.seller-actions');
+  if (!formulario || !acoes || $('perfilEstiloVitrine')) return;
+  const bloco = document.createElement('section');
+  bloco.className = 'seller-editorial-config seller-span-2';
+  bloco.innerHTML = `
+    <div class="seller-editorial-head"><div><span class="seller-eyebrow">Nova apresentação</span><h2>Vitrine editorial</h2><p>Transforme a página pública num lookbook de moda, revista de beleza ou seleção de livros. Apenas produtos já publicados podem ser destacados.</p></div><span class="seller-editorial-mark" aria-hidden="true">✦</span></div>
+    <label><span>Estilo da loja</span><select id="perfilEstiloVitrine" name="estiloVitrine"><option value="padrao">Padrão — catálogo tradicional</option><option value="editorial_moda">Editorial — Moda e roupa</option><option value="editorial_beleza">Editorial — Beleza e cosméticos</option><option value="editorial_livros">Editorial — Livros e cultura</option></select></label>
+    <div id="camposEditorial" class="seller-editorial-fields" hidden>
+      <p class="seller-editorial-tip">Use na capa uma imagem vertical (proporção 4:5) para mostrar melhor vestidos, looks ou produtos. A imagem de capa da loja será usada aqui.</p>
+      <label><span>Nome da edição / coleção</span><input id="perfilEditorialColecao" name="editorialColecao" maxlength="80" placeholder="Ex.: Coleção Primavera 2026"></label>
+      <label><span>Produto principal</span><select id="perfilEditorialProdutoId" name="editorialProdutoId"><option value="">Selecionar produto publicado</option></select></label>
+      <label class="seller-editorial-span"><span>Título da capa</span><input id="perfilEditorialTitulo" name="editorialTitulo" maxlength="120" placeholder="Ex.: Vestidos para ser vista por inteiro"></label>
+      <label class="seller-editorial-span"><span>Texto da capa</span><textarea id="perfilEditorialChamada" name="editorialChamada" maxlength="320" placeholder="Explique em poucas palavras a coleção ou a rotina de produtos."></textarea></label>
+    </div>`;
+  acoes.before(bloco);
+}
+
+function atualizarEditorEditorial() {
+  const estilo = $('perfilEstiloVitrine')?.value || 'padrao';
+  const campos = $('camposEditorial');
+  if (campos) campos.hidden = estilo === 'padrao';
+}
+
+function preencherProdutosEditorial(idSelecionado = '') {
+  const seletor = $('perfilEditorialProdutoId');
+  if (!seletor) return;
+  const publicados = produtos.filter((produto) => estadoProduto(produto) === 'aprovado');
+  seletor.replaceChildren();
+  const inicial = document.createElement('option');
+  inicial.value = '';
+  inicial.textContent = publicados.length ? 'Selecionar produto publicado' : 'Publique um produto para o destacar';
+  seletor.append(inicial);
+  publicados.forEach((produto) => {
+    const opcao = document.createElement('option');
+    opcao.value = String(produto.id || '');
+    opcao.textContent = String(produto.nome || 'Produto');
+    seletor.append(opcao);
+  });
+  const permitido = publicados.some((produto) => String(produto.id || '') === String(idSelecionado || ''));
+  seletor.value = permitido ? String(idSelecionado) : '';
+  seletor.disabled = !publicados.length;
 }
 
 function valorPedido(pedido) {
@@ -642,7 +693,11 @@ async function enviarLogo() {
 async function salvarPerfil(evento) {
   evento.preventDefault();
   const dados = Object.fromEntries(new FormData(evento.currentTarget));
-  const perfil = { logoUrl: dados.logoUrl || '', capaUrl: dados.capaUrl || '', horario: dados.horario || '', instagram: dados.instagram || '', destaque: dados.destaque || '' };
+  const perfil = {
+    logoUrl: dados.logoUrl || '', capaUrl: dados.capaUrl || '', horario: dados.horario || '', instagram: dados.instagram || '', destaque: dados.destaque || '',
+    estiloVitrine: dados.estiloVitrine || 'padrao', editorialColecao: dados.editorialColecao || '', editorialTitulo: dados.editorialTitulo || '',
+    editorialChamada: dados.editorialChamada || '', editorialProdutoId: dados.editorialProdutoId || ''
+  };
   const parametros = { p_nome: dados.nome, p_nome_loja: dados.nomeLoja, p_telefone: dados.telefone, p_morada: dados.morada || '', p_categoria: dados.categoria, p_descricao: dados.descricao || '', p_perfil_publico: perfil };
   try {
     const { error } = await supabase.rpc('atualizar_perfil_central_vendedor', parametros);
@@ -699,6 +754,7 @@ async function alterarDisponibilidadeProduto(produtoId, ativo) {
 }
 
 function ligarEventos() {
+  instalarEditorEditorial();
   $('formVendedor').addEventListener('submit', enviarCadastro);
   $('formLoginVendedor').addEventListener('submit', entrar);
   $('formRedefinirSenha').addEventListener('submit', redefinirSenha);
@@ -723,6 +779,7 @@ function ligarEventos() {
   $('filtroPedidosStatus').addEventListener('change', renderizarPedidos);
   $('filtroPedidosPeriodo').addEventListener('change', renderizarPedidos);
   $('perfilLogoUrl').addEventListener('input', () => mostrarImagem('perfilLogoPreview', 'perfilLogoFallback', $('perfilLogoUrl').value, iniciais($('perfilNomeLoja').value || vendedor?.nomeLoja)));
+  $('perfilEstiloVitrine')?.addEventListener('change', atualizarEditorEditorial);
   $('btnMenuVendedor').addEventListener('click', () => { const aberto = $('sellerSidebar').classList.toggle('open'); $('btnMenuVendedor').setAttribute('aria-expanded', String(aberto)); });
   document.addEventListener('click', (evento) => {
     const nav = evento.target.closest('[data-view]');

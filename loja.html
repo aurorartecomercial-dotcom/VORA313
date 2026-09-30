@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Loja — VORA 313</title>
 <meta name="description" content="Visite uma loja de vendedor na VORA 313 e veja os seus produtos publicados.">
-<link rel="stylesheet" href="style.css?v=43">
+<link rel="stylesheet" href="style.css?v=44">
+<link rel="stylesheet" href="loja-editorial.css?v=1">
 <style>
 .loja-publica{max-width:1400px;margin:0 auto;padding:18px 24px 55px}.loja-publica-top{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.loja-publica-top a{color:#075946;font-weight:800;text-decoration:none}.loja-publica-top .demo-link{background:#fff6d5;border:1px solid #ead58b;padding:8px 12px;border-radius:999px;font-size:12px;color:#6d5600}
 .loja-hero-publico{position:relative;overflow:hidden;border-radius:24px;background:linear-gradient(135deg,#003d32,#075946 55%,#0f8a63);color:#fff;margin-bottom:18px;box-shadow:0 16px 45px rgba(0,61,50,.15);border:1px solid rgba(212,175,55,.45)}.loja-capa-demo{height:145px;background:linear-gradient(135deg,rgba(0,61,50,.25),rgba(212,175,55,.22)),var(--loja-capa,url('oferta-1-tecnologia.png')) center/cover;position:relative}.loja-capa-demo:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,61,50,.12),rgba(0,61,50,.75))}.loja-hero-inner{position:relative;z-index:1;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:18px;padding:0 30px 28px;margin-top:-35px}.loja-avatar-grande{width:92px;height:92px;border-radius:24px;display:grid;place-items:center;overflow:hidden;background:linear-gradient(135deg,#d4af37,#f5e6a3);color:#073b2a;font-size:40px;box-shadow:0 10px 25px rgba(0,0,0,.22);border:5px solid #fff}.loja-avatar-grande img{width:100%;height:100%;object-fit:cover;display:none}.loja-avatar-grande img[src]{display:block}.loja-avatar-grande img[src]+span{display:none}.loja-hero-publico h1{margin:0 0 6px;font-size:32px}.loja-hero-publico p{margin:0 0 11px;max-width:720px;color:#eefaf6}.loja-selos{display:flex;flex-wrap:wrap;gap:7px}.loja-selo{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:6px 10px;font-size:12px;font-weight:700}.loja-estatisticas{display:flex;gap:12px}.loja-estatistica{text-align:center;min-width:82px;background:rgba(0,0,0,.12);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:10px 8px}.loja-estatistica strong{display:block;font-size:22px;color:#f5e6a3}.loja-estatistica span{font-size:11px;color:#d7eee7}.loja-acoes{display:flex;gap:9px;margin-top:13px;flex-wrap:wrap}.loja-acoes a{display:inline-flex;padding:10px 16px;border-radius:999px;text-decoration:none;font-weight:800;background:#d4af37;color:#111}.loja-acoes a.secundario{background:#fff;color:#075946}.loja-info-extra{display:flex;gap:15px;flex-wrap:wrap;margin-top:11px;font-size:12px;color:#d9eee8}.loja-sobre-grid{display:grid;grid-template-columns:1.4fr repeat(2,minmax(120px,.6fr));gap:10px;margin-top:15px}.loja-sobre-dado{background:#f7faf9;border:1px solid #e1ebe7;border-radius:12px;padding:11px}.loja-sobre-dado span{display:block;color:#7b8b85;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em}.loja-sobre-dado strong,.loja-sobre-dado a{display:block;margin-top:5px;color:#075946;font-size:12px;line-height:1.45;text-decoration:none;overflow-wrap:anywhere}
@@ -39,11 +40,23 @@
       <div class="loja-estatisticas"><div class="loja-estatistica"><strong id="totalProdutos">0</strong><span>Produtos</span></div><div class="loja-estatistica"><strong id="totalDestaques">0</strong><span>Destaques</span></div><div class="loja-estatistica"><strong id="totalVendas">0</strong><span>Vendas</span></div></div>
     </div>
   </section>
+  <!-- Vitrine editorial: aparece somente quando o vendedor escolhe um tema.
+       Os textos e o produto vêm do perfil validado e do catálogo já aprovado. -->
+  <section id="lojaEditorial" class="loja-editorial" hidden aria-labelledby="lojaEditorialTitulo">
+    <div id="lojaEditorialImagem" class="loja-editorial-imagem" aria-hidden="true"></div>
+    <div class="loja-editorial-conteudo">
+      <p id="lojaEditorialColecao" class="loja-editorial-colecao">Edição da loja</p>
+      <h2 id="lojaEditorialTitulo">A sua nova coleção</h2>
+      <p id="lojaEditorialChamada">Conheça os produtos selecionados por esta loja.</p>
+      <a id="lojaEditorialColecaoLink" class="loja-editorial-link" href="#produtosSecao">Ver coleção <span aria-hidden="true">→</span></a>
+    </div>
+    <article id="lojaEditorialProduto" class="loja-editorial-produto" hidden aria-label="Produto em destaque editorial"></article>
+  </section>
   <div class="loja-confiança" aria-label="Compromissos da VORA 313"><span>✓ Loja aprovada</span><span>🔒 Compra segura</span><span>💬 Atendimento direto</span></div>
   <p id="lojaFeedbackSacola" class="loja-feedback-sacola" role="status" hidden></p>
   <div id="demoNote" class="loja-demo-note" style="display:none"><strong>🧪 Modo demonstração:</strong> esta loja é apenas um exemplo visual. Nenhum vendedor real foi criado e nada é gravado no Supabase.</div>
   <div id="lojaFaixaPromocional" class="loja-promo-strip loja-faixa-promocional" hidden><span id="lojaFaixaIcone">🛍️ Produtos da loja</span><strong id="lojaFaixa">Veja os produtos selecionados por este vendedor.</strong><a href="#produtosSecao">Ver produtos →</a></div>
-  <nav class="loja-navegacao" aria-label="Navegação da loja"><a class="ativo" href="#produtosSecao">Produtos</a><a href="#sobreLoja">Sobre a loja</a><a href="#avaliacoesLoja">Avaliações</a><a href="vendedor.html">Vender na VORA</a></nav>
+  <nav class="loja-navegacao" aria-label="Navegação da loja"><a id="lojaEditorialNav" href="#lojaEditorial" hidden>Coleção</a><a class="ativo" href="#produtosSecao">Produtos</a><a href="#sobreLoja">Sobre a loja</a><a href="#avaliacoesLoja">Avaliações</a><a href="vendedor.html">Vender na VORA</a></nav>
   <section class="loja-painel loja-destaques" id="destaquesSecao">
     <div class="loja-painel-top"><h2>⭐ Produtos em destaque</h2><small id="estadoDestaques">Escolhas da loja</small></div>
     <div id="destaquesLoja" class="loja-grid-publica"></div>
@@ -58,6 +71,6 @@
   <section class="loja-painel" id="sobreLoja"><div class="loja-painel-top"><h2>🏪 Sobre a loja</h2></div><p id="sobreTexto" style="margin:0;color:#5e6d67;line-height:1.6">Esta loja está a preparar a sua apresentação.</p><div id="sobreDetalhes" class="loja-sobre-grid"></div></section>
   <section class="loja-painel" id="avaliacoesLoja"><div class="loja-painel-top"><div><h2>⭐ Avaliações da loja</h2><small>Experiências de clientes verificadas</small></div><strong id="notaLoja" class="loja-rating-grande">—</strong></div><div id="avaliacoesConteudo" class="loja-review-grid"><article><strong>Ainda não há avaliações verificadas.</strong><p>As avaliações aparecerão aqui após compras concluídas através da VORA 313.</p></article></div></section>
 </main>
-<script type="module" src="js/loja-publica.js?v=11"></script>
+<script type="module" src="js/loja-publica.js?v=12"></script>
 </body>
 </html>

@@ -1,7 +1,7 @@
-const CACHE_NAME = 'vora313-cache-v57-seguranca-p0';
+const CACHE_NAME = 'vora313-cache-v58-vitrine-editorial';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html',
-  './style.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
+  './style.css','./loja-editorial.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
   './js/app.js','./js/lojas-publicas.js','./js/carrinho.js','./js/catalogo.js','./js/config.js',
   './js/utils.js','./js/menu.js','./js/monetizacao.js','./vendedor.html','./vendedor-v25.css','./loja.html','./admin-vendedores.html','./js/vendedor.js','./js/loja-publica.js','./assets/visual/vora-vendedor-hero.svg','./assets/visual/vora-admin-hero.svg','./assets/visual/vora-login-hero.svg','./js/avaliacoes.js','./js/blog.js','./js/post.js','./js/detalhe-app.js','./blog.json',
   './js/categoria.js','./js/fidelidade.js','./js/favoritos.js','./js/chatbot.js','./js/perfil.js','./js/fase3.js',

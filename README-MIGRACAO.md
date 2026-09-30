@@ -90,6 +90,15 @@ uma base que já está em produção. Depois, siga
 CAPTCHA, domínio/CDN e gateway. Essas configurações não podem ser ativadas
 apenas com código público.
 
+## Vitrine Editorial das lojas
+
+Execute `020_vitrine_editorial_lojas.sql` depois da migration `017` e publique
+novamente a Edge Function `api`. A opção adiciona as apresentações Editorial de
+Moda, Beleza e Livros sem criar uma segunda loja e sem alterar o carrinho. A
+migration preserva a política de perfil público: apenas campos controlados,
+uma capa HTTPS e um produto publicado da própria loja podem ser usados. Veja
+`VITRINE-EDITORIAL.md` para configurar uma loja.
+
 ## Dados antigos
 
 Os scripts em `tools/` continuam disponíveis somente como ferramentas de importação única dos dados históricos do Firebase. Eles não fazem parte do runtime da aplicação.

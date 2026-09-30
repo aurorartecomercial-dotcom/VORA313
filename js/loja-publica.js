@@ -127,6 +127,108 @@ function aplicarCapa(url) {
   capa.style.setProperty('--loja-capa', 'url("' + seguroParaCss + '")');
 }
 
+const ESTILOS_EDITORIAIS = new Set(['editorial_moda', 'editorial_beleza', 'editorial_livros']);
+
+function temaEditorial(estilo) {
+  return ({
+    editorial_moda: {
+      colecao: 'Nova coleção',
+      titulo: 'Moda para ser vista por inteiro.',
+      chamada: 'Descubra peças escolhidas para criar o seu próximo look.'
+    },
+    editorial_beleza: {
+      colecao: 'Edição de beleza',
+      titulo: 'A sua rotina começa aqui.',
+      chamada: 'Produtos selecionados para cuidar, realçar e inspirar.'
+    },
+    editorial_livros: {
+      colecao: 'Seleção da livraria',
+      titulo: 'Histórias que merecem um lugar especial.',
+      chamada: 'Conheça livros escolhidos para a sua próxima leitura.'
+    }
+  })[estilo] || null;
+}
+
+// A secção é inteiramente composta no navegador com texto e URLs já validados.
+// O vendedor escolhe um produto do próprio catálogo; não há HTML livre nem
+// consulta de produtos de outra loja.
+function renderizarEditorial(perfil, listaProdutos) {
+  const secao = $('lojaEditorial');
+  const navegacao = $('lojaEditorialNav');
+  const estilo = String(perfil?.estiloVitrine || 'padrao').toLowerCase();
+  const tema = temaEditorial(estilo);
+  const ativo = ESTILOS_EDITORIAIS.has(estilo) && !!tema;
+  if (!secao) return;
+
+  secao.hidden = !ativo;
+  if (navegacao) navegacao.hidden = !ativo;
+  document.body.dataset.estiloVitrine = ativo ? estilo : 'padrao';
+  if (!ativo) return;
+
+  secao.dataset.tema = estilo;
+  const produtosPublicados = Array.isArray(listaProdutos) ? listaProdutos : [];
+  const produtoEscolhido = produtosPublicados.find((produto) => String(produto?.id || '') === String(perfil?.editorialProdutoId || ''))
+    || produtosPublicados.find(emDestaque)
+    || produtosPublicados[0]
+    || null;
+  const imagemCapa = urlSegura(perfil?.capaUrl, '') || imagemSegura(produtoEscolhido?.imagens?.[0]);
+  const imagem = $('lojaEditorialImagem');
+  if (imagem) {
+    if (imagemCapa) {
+      imagem.style.setProperty('--loja-editorial-capa', 'url("' + imagemCapa.replace(/["\\]/g, '\\$&') + '")');
+      imagem.style.backgroundImage = '';
+    } else {
+      imagem.style.removeProperty('--loja-editorial-capa');
+      imagem.style.backgroundImage = 'linear-gradient(145deg,#2f6a5b,#dfb78f)';
+    }
+  }
+
+  texto('lojaEditorialColecao', perfil?.editorialColecao || tema.colecao);
+  texto('lojaEditorialTitulo', perfil?.editorialTitulo || tema.titulo);
+  texto('lojaEditorialChamada', perfil?.editorialChamada || tema.chamada);
+
+  const blocoProduto = $('lojaEditorialProduto');
+  if (!blocoProduto) return;
+  blocoProduto.replaceChildren();
+  blocoProduto.hidden = !produtoEscolhido;
+  if (!produtoEscolhido) return;
+
+  const link = document.createElement('a');
+  link.className = 'loja-editorial-produto-imagem';
+  link.href = 'detalhe.html?id=' + encodeURIComponent(String(produtoEscolhido.id || ''));
+  link.setAttribute('aria-label', 'Ver ' + String(produtoEscolhido.nome || 'produto em destaque'));
+  const imagemProduto = imagemSegura(produtoEscolhido.imagens?.[0]);
+  if (imagemProduto) {
+    const img = document.createElement('img');
+    img.src = imagemProduto;
+    img.alt = '';
+    img.loading = 'lazy';
+    link.append(img);
+  }
+
+  const dados = document.createElement('div');
+  dados.className = 'loja-editorial-produto-texto';
+  const legenda = document.createElement('small');
+  legenda.textContent = 'Peça em destaque';
+  const nome = document.createElement('a');
+  nome.href = link.href;
+  nome.textContent = String(produtoEscolhido.nome || 'Produto da coleção');
+  const preco = document.createElement('strong');
+  preco.textContent = String(produtoEscolhido.preco || 'Ver preço');
+  dados.append(legenda, nome, preco);
+
+  const adicionar = document.createElement('button');
+  adicionar.type = 'button';
+  adicionar.className = 'loja-editorial-adicionar';
+  adicionar.textContent = 'Adicionar ao carrinho';
+  adicionar.addEventListener('click', () => {
+    if (adicionarProdutoCarrinho(produtoEscolhido)) {
+      atualizarAtalhoSacola('✓ Produto da coleção adicionado à sacola.');
+    }
+  });
+  blocoProduto.append(link, dados, adicionar);
+}
+
 function linkInstagram(valor) {
   const original = String(valor || '').trim();
   if (!original) return '';
@@ -280,6 +382,7 @@ function preencherPerfil(vendedor, produtos) {
   if (faixaPromocional) faixaPromocional.hidden = !destaque;
   mostrarLogo(perfil.logoUrl);
   aplicarCapa(perfil.capaUrl);
+  renderizarEditorial(perfil, produtos);
   configurarPartilha(nomeLoja, vendedor?.descricao || 'Conheça esta loja na VORA 313.');
 
   const whatsapp = $('whatsappLoja');
