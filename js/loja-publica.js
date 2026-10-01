@@ -150,8 +150,24 @@ function temaEditorial(estilo) {
 }
 
 // A secção é inteiramente composta no navegador com texto e URLs já validados.
-// O vendedor escolhe um produto do próprio catálogo; não há HTML livre nem
+// Mostra no máximo cinco produtos que já pertencem ao catálogo público da própria
+// loja. O vendedor pode continuar a definir a prioridade de um produto; os outros
+// são completados por destaques e, depois, pelo catálogo. Não há HTML livre nem
 // consulta de produtos de outra loja.
+function produtosDaColecaoEditorial(perfil, listaProdutos) {
+  const publicados = (Array.isArray(listaProdutos) ? listaProdutos : [])
+    .filter((produto) => produto && produto.ativo !== false);
+  const prioritario = publicados.find((produto) => String(produto?.id || '') === String(perfil?.editorialProdutoId || ''));
+  const candidatos = [prioritario, ...publicados.filter(emDestaque), ...publicados];
+  const vistos = new Set();
+  return candidatos.filter((produto) => {
+    const id = String(produto?.id || '');
+    if (!id || vistos.has(id)) return false;
+    vistos.add(id);
+    return true;
+  }).slice(0, 5);
+}
+
 function renderizarEditorial(perfil, listaProdutos) {
   const secao = $('lojaEditorial');
   const navegacao = $('lojaEditorialNav');
@@ -166,67 +182,143 @@ function renderizarEditorial(perfil, listaProdutos) {
   if (!ativo) return;
 
   secao.dataset.tema = estilo;
-  const produtosPublicados = Array.isArray(listaProdutos) ? listaProdutos : [];
-  const produtoEscolhido = produtosPublicados.find((produto) => String(produto?.id || '') === String(perfil?.editorialProdutoId || ''))
-    || produtosPublicados.find(emDestaque)
-    || produtosPublicados[0]
-    || null;
-  const imagemCapa = urlSegura(perfil?.capaUrl, '') || imagemSegura(produtoEscolhido?.imagens?.[0]);
+  const colecao = produtosDaColecaoEditorial(perfil, listaProdutos);
+  const produtoPrioritario = colecao[0] || null;
+  const imagemCapa = urlSegura(perfil?.capaUrl, '') || imagemSegura(produtoPrioritario?.imagens?.[0]);
   const imagem = $('lojaEditorialImagem');
-  if (imagem) {
-    if (imagemCapa) {
-      imagem.style.setProperty('--loja-editorial-capa', 'url("' + imagemCapa.replace(/["\\]/g, '\\$&') + '")');
-      imagem.style.backgroundImage = '';
-    } else {
-      imagem.style.removeProperty('--loja-editorial-capa');
-      imagem.style.backgroundImage = 'linear-gradient(145deg,#2f6a5b,#dfb78f)';
-    }
-  }
 
   texto('lojaEditorialColecao', perfil?.editorialColecao || tema.colecao);
   texto('lojaEditorialTitulo', perfil?.editorialTitulo || tema.titulo);
   texto('lojaEditorialChamada', perfil?.editorialChamada || tema.chamada);
 
   const blocoProduto = $('lojaEditorialProduto');
-  if (!blocoProduto) return;
+  if (!imagem || !blocoProduto) return;
   blocoProduto.replaceChildren();
-  blocoProduto.hidden = !produtoEscolhido;
-  if (!produtoEscolhido) return;
+  blocoProduto.hidden = !colecao.length;
 
-  const link = document.createElement('a');
-  link.className = 'loja-editorial-produto-imagem';
-  link.href = 'detalhe.html?id=' + encodeURIComponent(String(produtoEscolhido.id || ''));
-  link.setAttribute('aria-label', 'Ver ' + String(produtoEscolhido.nome || 'produto em destaque'));
-  const imagemProduto = imagemSegura(produtoEscolhido.imagens?.[0]);
-  if (imagemProduto) {
-    const img = document.createElement('img');
-    img.src = imagemProduto;
-    img.alt = '';
-    img.loading = 'lazy';
-    link.append(img);
-  }
-
-  const dados = document.createElement('div');
-  dados.className = 'loja-editorial-produto-texto';
-  const legenda = document.createElement('small');
-  legenda.textContent = 'Peça em destaque';
-  const nome = document.createElement('a');
-  nome.href = link.href;
-  nome.textContent = String(produtoEscolhido.nome || 'Produto da coleção');
-  const preco = document.createElement('strong');
-  preco.textContent = String(produtoEscolhido.preco || 'Ver preço');
-  dados.append(legenda, nome, preco);
-
-  const adicionar = document.createElement('button');
-  adicionar.type = 'button';
-  adicionar.className = 'loja-editorial-adicionar';
-  adicionar.textContent = 'Adicionar ao carrinho';
-  adicionar.addEventListener('click', () => {
-    if (adicionarProdutoCarrinho(produtoEscolhido)) {
-      atualizarAtalhoSacola('✓ Produto da coleção adicionado à sacola.');
+  const definirImagemPrincipal = (produto) => {
+    const imagemProduto = produto ? imagemSegura(produto.imagens?.[0]) : imagemCapa;
+    if (imagemProduto) {
+      imagem.style.setProperty('--loja-editorial-capa', 'url("' + imagemProduto.replace(/["\\]/g, '\\$&') + '")');
+      imagem.style.backgroundImage = '';
+    } else {
+      imagem.style.removeProperty('--loja-editorial-capa');
+      imagem.style.backgroundImage = 'linear-gradient(145deg,#2f6a5b,#dfb78f)';
     }
+    imagem.replaceChildren();
+
+    const legenda = document.createElement('div');
+    legenda.className = 'loja-editorial-imagem-legenda';
+    const tipo = document.createElement('small');
+    tipo.textContent = produto ? 'Produto selecionado' : 'Coleção da loja';
+    const nome = document.createElement('strong');
+    nome.textContent = produto ? String(produto.nome || 'Produto da coleção') : String(perfil?.editorialColecao || tema.colecao);
+    legenda.append(tipo, nome);
+    if (produto?.preco) {
+      const preco = document.createElement('span');
+      preco.textContent = String(produto.preco);
+      legenda.append(preco);
+    }
+    imagem.append(legenda);
+    imagem.setAttribute('aria-label', produto
+      ? 'Produto selecionado: ' + String(produto.nome || 'produto da coleção')
+      : 'Capa da coleção ' + String(perfil?.editorialColecao || tema.colecao));
+  };
+
+  // A capa aparece primeiro. Ao escolher um cartão, a imagem grande passa a
+  // ser do produto escolhido, sem alterar a capa guardada do vendedor.
+  definirImagemPrincipal(null);
+  if (!colecao.length) return;
+
+  const cabecalho = document.createElement('div');
+  cabecalho.className = 'loja-editorial-galeria-cabecalho';
+  const tituloGaleria = document.createElement('strong');
+  tituloGaleria.textContent = `${colecao.length} produto${colecao.length === 1 ? '' : 's'} na coleção`;
+  const navegacaoGaleria = document.createElement('div');
+  navegacaoGaleria.className = 'loja-editorial-galeria-navegacao';
+  const anterior = document.createElement('button');
+  anterior.type = 'button';
+  anterior.className = 'loja-editorial-seta';
+  anterior.setAttribute('aria-label', 'Produto anterior da coleção');
+  anterior.textContent = '‹';
+  const proximo = document.createElement('button');
+  proximo.type = 'button';
+  proximo.className = 'loja-editorial-seta';
+  proximo.setAttribute('aria-label', 'Próximo produto da coleção');
+  proximo.textContent = '›';
+  if (colecao.length < 2) {
+    anterior.disabled = true;
+    proximo.disabled = true;
+  }
+  navegacaoGaleria.append(anterior, proximo);
+  cabecalho.append(tituloGaleria, navegacaoGaleria);
+
+  const galeria = document.createElement('div');
+  galeria.className = 'loja-editorial-galeria';
+  galeria.setAttribute('role', 'list');
+  const cartoes = [];
+  let indiceSelecionado = -1;
+
+  const selecionarProduto = (indice) => {
+    if (!colecao.length) return;
+    indiceSelecionado = (indice + colecao.length) % colecao.length;
+    const produto = colecao[indiceSelecionado];
+    definirImagemPrincipal(produto);
+    cartoes.forEach((cartao, indiceCartao) => {
+      const selecionado = indiceCartao === indiceSelecionado;
+      cartao.classList.toggle('selecionado', selecionado);
+      cartao.querySelector('.loja-editorial-escolher')?.setAttribute('aria-pressed', String(selecionado));
+    });
+    cartoes[indiceSelecionado]?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+  };
+
+  colecao.forEach((produto, indice) => {
+    const cartao = document.createElement('article');
+    cartao.className = 'loja-editorial-cartao';
+    cartao.setAttribute('role', 'listitem');
+    const escolher = document.createElement('button');
+    escolher.type = 'button';
+    escolher.className = 'loja-editorial-escolher';
+    escolher.setAttribute('aria-label', 'Ver ' + String(produto.nome || 'produto') + ' na imagem principal');
+    escolher.setAttribute('aria-pressed', 'false');
+    const imagemProduto = imagemSegura(produto.imagens?.[0]);
+    if (imagemProduto) {
+      const miniatura = document.createElement('img');
+      miniatura.src = imagemProduto;
+      miniatura.alt = '';
+      miniatura.loading = 'lazy';
+      escolher.append(miniatura);
+    }
+    const dados = document.createElement('span');
+    dados.className = 'loja-editorial-cartao-dados';
+    const categoria = document.createElement('small');
+    categoria.textContent = String(produto.categoria || 'Produto');
+    const nome = document.createElement('strong');
+    nome.textContent = String(produto.nome || 'Produto da coleção');
+    const preco = document.createElement('b');
+    preco.textContent = String(produto.preco || 'Ver preço');
+    dados.append(categoria, nome, preco);
+    escolher.append(dados);
+    escolher.addEventListener('click', () => selecionarProduto(indice));
+
+    const adicionar = document.createElement('button');
+    adicionar.type = 'button';
+    adicionar.className = 'loja-editorial-cartao-adicionar';
+    adicionar.textContent = 'Adicionar';
+    adicionar.setAttribute('aria-label', 'Adicionar ' + String(produto.nome || 'produto') + ' ao carrinho');
+    adicionar.addEventListener('click', () => {
+      if (adicionarProdutoCarrinho(produto)) {
+        atualizarAtalhoSacola('✓ Produto da coleção adicionado à sacola.');
+      }
+    });
+    cartao.append(escolher, adicionar);
+    cartoes.push(cartao);
+    galeria.append(cartao);
   });
-  blocoProduto.append(link, dados, adicionar);
+
+  anterior.addEventListener('click', () => selecionarProduto(indiceSelecionado < 0 ? colecao.length - 1 : indiceSelecionado - 1));
+  proximo.addEventListener('click', () => selecionarProduto(indiceSelecionado < 0 ? 0 : indiceSelecionado + 1));
+  blocoProduto.append(cabecalho, galeria);
 }
 
 function linkInstagram(valor) {
@@ -417,15 +509,63 @@ function preencherPerfil(vendedor, produtos) {
 }
 
 function carregarDemo() {
-  produtosDaLoja = PRODUTOS_DEMO;
+  const estiloDemo = String(params.get('estilo') || 'padrao').toLowerCase();
+  const demosEditoriais = {
+    editorial_moda: {
+      nomeLoja: 'Atelier Horizonte', categoria: 'Moda', morada: 'Luanda, Angola',
+      descricao: 'Uma montra editorial para ver o look completo, os detalhes e o caimento de cada peça.',
+      capaUrl: 'oferta-2-moda.png', editorialColecao: 'Coleção Primavera',
+      editorialTitulo: 'Peças que falam por si.',
+      editorialChamada: 'Looks completos, fotografados para veres o conjunto com clareza.',
+      produtos: [
+        { id: 'demo-moda-1', nome: 'Vestido Aurora em linho', preco: '38.500 Kz', categoria: 'Moda', imagens: ['oferta-2-moda.png'], estoque: 6, vendedorNome: 'Atelier Horizonte', ativo: true, monetizacao: { destaque: true } },
+        { id: 'demo-moda-2', nome: 'Conjunto urbano essencial', preco: '29.900 Kz', categoria: 'Moda', imagens: ['oferta-2-moda.png'], estoque: 4, vendedorNome: 'Atelier Horizonte', ativo: true }
+      ]
+    },
+    editorial_beleza: {
+      nomeLoja: 'Casa Aura', categoria: 'Beleza', morada: 'Talatona, Luanda',
+      descricao: 'Uma seleção de cuidados e beleza apresentada como uma revista de autocuidado.',
+      capaUrl: 'oferta-5-beleza.png', editorialColecao: 'Ritual de autocuidado',
+      editorialTitulo: 'A sua rotina começa aqui.',
+      editorialChamada: 'Produtos escolhidos para cuidar, realçar e inspirar todos os dias.',
+      produtos: [
+        { id: 'demo-beleza-1', nome: 'Kit cuidado e beleza', preco: '24.500 Kz', categoria: 'Beleza', imagens: ['oferta-5-beleza.png'], estoque: 8, vendedorNome: 'Casa Aura', ativo: true, monetizacao: { destaque: true } },
+        { id: 'demo-beleza-2', nome: 'Rotina essencial para a pele', preco: '18.900 Kz', categoria: 'Beleza', imagens: ['oferta-5-beleza.png'], estoque: 5, vendedorNome: 'Casa Aura', ativo: true }
+      ]
+    },
+    editorial_livros: {
+      nomeLoja: 'Páginas & Companhia', categoria: 'Livros', morada: 'Maianga, Luanda',
+      descricao: 'Uma livraria com leitura editorial: capa, sinopse curta e recomendações numa só montra.',
+      capaUrl: 'blog-imagens/blog-7-guia-compras.png', editorialColecao: 'Seleção da livraria',
+      editorialTitulo: 'Histórias que merecem um lugar especial.',
+      editorialChamada: 'Escolhas para oferecer, aprender e levar contigo para a próxima leitura.',
+      produtos: [
+        { id: 'demo-livro-1', nome: 'Guia de compras inteligentes', preco: '12.500 Kz', categoria: 'Livros', imagens: ['blog-imagens/blog-7-guia-compras.png'], estoque: 9, vendedorNome: 'Páginas & Companhia', ativo: true, monetizacao: { destaque: true } },
+        { id: 'demo-livro-2', nome: 'Caderno de ideias e projetos', preco: '8.900 Kz', categoria: 'Livros', imagens: ['blog-imagens/blog-7-guia-compras.png'], estoque: 7, vendedorNome: 'Páginas & Companhia', ativo: true }
+      ]
+    }
+  };
+  const editorial = demosEditoriais[estiloDemo];
+  produtosDaLoja = editorial ? editorial.produtos : PRODUTOS_DEMO;
   const nota = $('demoNote');
   if (nota) nota.style.display = 'block';
   preencherPerfil({
-    nomeLoja: 'Kwanza Tech',
-    categoria: 'Tecnologia',
-    morada: 'Luanda, Angola',
-    descricao: 'Loja de demonstração da VORA 313 para mostrar a vitrine de um vendedor.',
-    perfilPublico: { horario: 'Seg–Sáb, 08:00–18:00', destaque: 'Tecnologia e acessórios selecionados' }
+    nomeLoja: editorial?.nomeLoja || 'Kwanza Tech',
+    categoria: editorial?.categoria || 'Tecnologia',
+    morada: editorial?.morada || 'Luanda, Angola',
+    descricao: editorial?.descricao || 'Loja de demonstração da VORA 313 para mostrar a vitrine de um vendedor.',
+    perfilPublico: {
+      horario: 'Seg–Sáb, 08:00–18:00',
+      destaque: editorial ? editorial.editorialColecao : 'Tecnologia e acessórios selecionados',
+      ...(editorial ? {
+        capaUrl: editorial.capaUrl,
+        estiloVitrine: estiloDemo,
+        editorialColecao: editorial.editorialColecao,
+        editorialTitulo: editorial.editorialTitulo,
+        editorialChamada: editorial.editorialChamada,
+        editorialProdutoId: editorial.produtos[0].id
+      } : {})
+    }
   }, produtosDaLoja);
   renderizarDestaques(produtosDaLoja.filter(emDestaque));
   mostrarProdutosDaLoja(produtosDaLoja);

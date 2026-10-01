@@ -345,7 +345,7 @@ function instalarEditorEditorial() {
     <div id="camposEditorial" class="seller-editorial-fields" hidden>
       <p class="seller-editorial-tip">Use na capa uma imagem vertical (proporção 4:5) para mostrar melhor vestidos, looks ou produtos. A imagem de capa da loja será usada aqui.</p>
       <label><span>Nome da edição / coleção</span><input id="perfilEditorialColecao" name="editorialColecao" maxlength="80" placeholder="Ex.: Coleção Primavera 2026"></label>
-      <label><span>Produto principal</span><select id="perfilEditorialProdutoId" name="editorialProdutoId"><option value="">Selecionar produto publicado</option></select></label>
+      <label><span>Primeiro produto da coleção</span><select id="perfilEditorialProdutoId" name="editorialProdutoId"><option value="">Selecionar produto publicado</option></select></label>
       <label class="seller-editorial-span"><span>Título da capa</span><input id="perfilEditorialTitulo" name="editorialTitulo" maxlength="120" placeholder="Ex.: Vestidos para ser vista por inteiro"></label>
       <label class="seller-editorial-span"><span>Texto da capa</span><textarea id="perfilEditorialChamada" name="editorialChamada" maxlength="320" placeholder="Explique em poucas palavras a coleção ou a rotina de produtos."></textarea></label>
     </div>`;

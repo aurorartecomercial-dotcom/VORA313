@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vora313-cache-v58-vitrine-editorial';
+const CACHE_NAME = 'vora313-cache-v59-vitrine-colecao-cinco';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html',
   './style.css','./loja-editorial.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
