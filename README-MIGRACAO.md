@@ -112,6 +112,14 @@ O checkout por transferência com comprovativo continua operacional. Visa,
 Multicaixa, BAI, BFA e BIC só devem ser ativados depois de contrato, credenciais
 guardadas como Secrets e webhook assinado pelo parceiro de pagamento.
 
+## Temas de categoria das lojas
+
+Execute `022_temas_categoria_lojas.sql` depois da `020_vitrine_editorial_lojas.sql`
+e publique novamente a Edge Function `api`. A Central do Vendedor passa a aceitar
+o estilo **Tema da categoria**, que aplica uma paleta interna e segura para
+Tecnologia, Automotivo, Games, Moda, Beleza, Casa e Livros. Não existem cores
+livres gravadas pelo vendedor e o tema não altera produtos, carrinho ou checkout.
+
 ## Dados antigos
 
 Os scripts em `tools/` continuam disponíveis somente como ferramentas de importação única dos dados históricos do Firebase. Eles não fazem parte do runtime da aplicação.

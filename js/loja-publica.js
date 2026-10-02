@@ -132,6 +132,39 @@ function aplicarCapa(url) {
 
 const ESTILOS_EDITORIAIS = new Set(['editorial_moda', 'editorial_beleza', 'editorial_livros']);
 
+// Os temas não vêm de texto ou CSS enviado pelo vendedor. A lista é fechada e
+// é calculada a partir da categoria já guardada na loja. Assim a vitrine ganha
+// personalidade sem abrir espaço para cores, HTML ou estilos arbitrários.
+function normalizarCategoria(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+}
+
+function temaDaCategoria(categoria) {
+  const valor = normalizarCategoria(categoria);
+  if (/(moda|roupa|calcado|vestuario|bolsa)/.test(valor)) return 'moda';
+  if (/(beleza|cosmetico|maquiagem|perfume)/.test(valor)) return 'beleza';
+  if (/(livro|papelaria|cultura)/.test(valor)) return 'livros';
+  if (/(automotivo|automovel|carro|moto|veiculo)/.test(valor)) return 'automovel';
+  if (/(game|jogo|console|gamer)/.test(valor)) return 'games';
+  if (/(eletron|tecnolog|computador|smartphone|celular|acessorio)/.test(valor)) return 'tecnologia';
+  if (/(casa|movel|decoracao|cozinha)/.test(valor)) return 'casa';
+  return '';
+}
+
+function aplicarTemaCategoria(categoria, estilo) {
+  // O tema é opcional para não alterar as lojas atuais sem decisão do vendedor.
+  // As vitrines editoriais, por sua vez, recebem automaticamente a paleta da
+  // própria categoria, para que Moda/Beleza/Livros tenham apresentação coerente.
+  const usarTema = estilo === 'tema_categoria' || ESTILOS_EDITORIAIS.has(estilo);
+  const tema = usarTema ? temaDaCategoria(categoria) : '';
+  if (tema) document.body.dataset.temaCategoria = tema;
+  else delete document.body.dataset.temaCategoria;
+}
+
 function temaEditorial(estilo) {
   return ({
     editorial_moda: {
@@ -458,6 +491,8 @@ function preencherPerfil(vendedor, produtos) {
   const destaque = perfil.destaque || '';
   const instagram = linkInstagram(perfil.instagram);
   const telefone = String(vendedor?.telefone || '').replace(/[^0-9+]/g, '');
+
+  aplicarTemaCategoria(categoria, String(perfil.estiloVitrine || 'padrao').toLowerCase());
 
   texto('nome', nomeLoja);
   texto('desc', vendedor?.descricao || 'Conheça os produtos selecionados desta loja parceira da VORA 313.');

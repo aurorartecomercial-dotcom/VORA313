@@ -340,8 +340,9 @@ function instalarEditorEditorial() {
   const bloco = document.createElement('section');
   bloco.className = 'seller-editorial-config seller-span-2';
   bloco.innerHTML = `
-    <div class="seller-editorial-head"><div><span class="seller-eyebrow">Nova apresentação</span><h2>Vitrine editorial</h2><p>Transforme a página pública num lookbook de moda, revista de beleza ou seleção de livros. Apenas produtos já publicados podem ser destacados.</p></div><span class="seller-editorial-mark" aria-hidden="true">✦</span></div>
-    <label><span>Estilo da loja</span><select id="perfilEstiloVitrine" name="estiloVitrine"><option value="padrao">Padrão — catálogo tradicional</option><option value="editorial_moda">Editorial — Moda e roupa</option><option value="editorial_beleza">Editorial — Beleza e cosméticos</option><option value="editorial_livros">Editorial — Livros e cultura</option></select></label>
+    <div class="seller-editorial-head"><div><span class="seller-eyebrow">Nova apresentação</span><h2>Vitrine da loja</h2><p>Escolha o padrão VORA, um tema automático da categoria ou uma apresentação editorial. Apenas produtos já publicados podem ser destacados.</p></div><span class="seller-editorial-mark" aria-hidden="true">✦</span></div>
+    <label><span>Estilo da loja</span><select id="perfilEstiloVitrine" name="estiloVitrine"><option value="padrao">Padrão VORA — catálogo tradicional</option><option value="tema_categoria">Tema da categoria — cores automáticas</option><option value="editorial_moda">Editorial — Moda e roupa</option><option value="editorial_beleza">Editorial — Beleza e cosméticos</option><option value="editorial_livros">Editorial — Livros e cultura</option></select></label>
+    <p id="temaCategoriaInfo" class="seller-tema-info" hidden></p>
     <div id="camposEditorial" class="seller-editorial-fields" hidden>
       <p class="seller-editorial-tip">Use na capa uma imagem vertical (proporção 4:5) para mostrar melhor vestidos, looks ou produtos. A imagem de capa da loja será usada aqui.</p>
       <label><span>Nome da edição / coleção</span><input id="perfilEditorialColecao" name="editorialColecao" maxlength="80" placeholder="Ex.: Coleção Primavera 2026"></label>
@@ -355,7 +356,20 @@ function instalarEditorEditorial() {
 function atualizarEditorEditorial() {
   const estilo = $('perfilEstiloVitrine')?.value || 'padrao';
   const campos = $('camposEditorial');
-  if (campos) campos.hidden = estilo === 'padrao';
+  if (campos) campos.hidden = !estilo.startsWith('editorial_');
+  const informacao = $('temaCategoriaInfo');
+  if (!informacao) return;
+  const categoria = $('perfilCategoria')?.value || vendedor?.categoria || 'a sua categoria';
+  const descricoes = {
+    Eletrónicos: 'Tecnologia: azul e grafite, com aparência limpa e moderna.',
+    Moda: 'Moda: vinho, rosa suave e tons creme, com aparência editorial.',
+    Beleza: 'Beleza: rosa e lilás, com aparência leve e elegante.',
+    Casa: 'Casa: verde oliva, areia e tons acolhedores.',
+    Automotivo: 'Automotivo: grafite e vermelho profundo, com aparência de showroom.',
+    Games: 'Games: azul escuro e roxo, com contraste energético.'
+  };
+  informacao.hidden = estilo !== 'tema_categoria';
+  informacao.textContent = descricoes[categoria] || `Será aplicado um tema seguro de acordo com a categoria “${categoria}”.`;
 }
 
 function preencherProdutosEditorial(idSelecionado = '') {
@@ -821,6 +835,7 @@ function ligarEventos() {
   $('filtroPedidosPeriodo').addEventListener('change', renderizarPedidos);
   $('perfilLogoUrl').addEventListener('input', () => mostrarImagem('perfilLogoPreview', 'perfilLogoFallback', $('perfilLogoUrl').value, iniciais($('perfilNomeLoja').value || vendedor?.nomeLoja)));
   $('perfilEstiloVitrine')?.addEventListener('change', atualizarEditorEditorial);
+  $('perfilCategoria')?.addEventListener('change', atualizarEditorEditorial);
   $('btnMenuVendedor').addEventListener('click', () => { const aberto = $('sellerSidebar').classList.toggle('open'); $('btnMenuVendedor').setAttribute('aria-expanded', String(aberto)); });
   document.addEventListener('click', (evento) => {
     const nav = evento.target.closest('[data-view]');

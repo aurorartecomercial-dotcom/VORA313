@@ -1,0 +1,53 @@
+/* Temas opcionais da vitrine pública.
+   A paleta é interna e fechada: nenhuma cor é recebida do vendedor. Isto evita
+   quebrar o contraste da VORA ou permitir CSS arbitrário no marketplace. */
+body.loja-publica-body[data-tema-categoria] {
+  --tema-fundo: #f5f7f6;
+  --tema-tinta: #173f35;
+  --tema-primaria: #075946;
+  --tema-primaria-escura: #003d32;
+  --tema-acento: #d4af37;
+  --tema-suave: #e8f5f0;
+  --tema-borda: #d4e4de;
+  background: var(--tema-fundo);
+}
+
+body.loja-publica-body[data-tema-categoria="moda"] { --tema-fundo:#fff7f8; --tema-tinta:#4a2137; --tema-primaria:#74284b; --tema-primaria-escura:#43162d; --tema-acento:#cb7b98; --tema-suave:#fdebf1; --tema-borda:#efd1dc; }
+body.loja-publica-body[data-tema-categoria="beleza"] { --tema-fundo:#fff6fb; --tema-tinta:#582447; --tema-primaria:#842c62; --tema-primaria-escura:#551a40; --tema-acento:#dc72a3; --tema-suave:#fdeaf4; --tema-borda:#f0cfdf; }
+body.loja-publica-body[data-tema-categoria="livros"] { --tema-fundo:#fbf7ef; --tema-tinta:#493425; --tema-primaria:#68452c; --tema-primaria-escura:#3a261b; --tema-acento:#bd8549; --tema-suave:#f7eddc; --tema-borda:#e7d4b9; }
+body.loja-publica-body[data-tema-categoria="automovel"] { --tema-fundo:#f3f5f7; --tema-tinta:#1b252e; --tema-primaria:#303b46; --tema-primaria-escura:#171f26; --tema-acento:#d85c45; --tema-suave:#e8edf1; --tema-borda:#ced9e0; }
+body.loja-publica-body[data-tema-categoria="games"] { --tema-fundo:#f5f3ff; --tema-tinta:#282052; --tema-primaria:#473496; --tema-primaria-escura:#28205b; --tema-acento:#886af0; --tema-suave:#ede9ff; --tema-borda:#d9d0fb; }
+body.loja-publica-body[data-tema-categoria="tecnologia"] { --tema-fundo:#f2f8fc; --tema-tinta:#173d60; --tema-primaria:#1d5e96; --tema-primaria-escura:#103d65; --tema-acento:#4b98c8; --tema-suave:#e5f2fa; --tema-borda:#cde2f0; }
+body.loja-publica-body[data-tema-categoria="casa"] { --tema-fundo:#f8f8f1; --tema-tinta:#3e4c32; --tema-primaria:#586d46; --tema-primaria-escura:#35452b; --tema-acento:#a58a5c; --tema-suave:#edf1df; --tema-borda:#dbe3c6; }
+
+body.loja-publica-body[data-tema-categoria] .loja-hero-publico {
+  background: linear-gradient(135deg,var(--tema-primaria-escura),var(--tema-primaria));
+  border-color: var(--tema-acento);
+  box-shadow: 0 16px 45px rgba(0,0,0,.14);
+  background: linear-gradient(135deg,var(--tema-primaria-escura),var(--tema-primaria) 56%,color-mix(in srgb,var(--tema-primaria) 72%,var(--tema-acento)));
+  border-color: color-mix(in srgb,var(--tema-acento) 66%,#fff);
+  box-shadow: 0 16px 45px color-mix(in srgb,var(--tema-primaria-escura) 18%,transparent);
+}
+body.loja-publica-body[data-tema-categoria] .loja-capa-demo:after { background:linear-gradient(180deg,rgba(0,0,0,.08),color-mix(in srgb,var(--tema-primaria-escura) 85%,transparent)); }
+body.loja-publica-body[data-tema-categoria] .loja-avatar-grande { background:linear-gradient(135deg,var(--tema-acento),#fff); color:var(--tema-primaria-escura); }
+body.loja-publica-body[data-tema-categoria] .loja-estatistica strong { color:var(--tema-acento); }
+body.loja-publica-body[data-tema-categoria] .loja-acoes a:not(.secundario) { background:var(--tema-acento); color:var(--tema-primaria-escura); }
+body.loja-publica-body[data-tema-categoria] .loja-acoes a.secundario { color:var(--tema-primaria); }
+body.loja-publica-body[data-tema-categoria] #btnPartilharLoja { color:var(--tema-primaria)!important; }
+body.loja-publica-body[data-tema-categoria] .loja-confiança { background:var(--tema-suave); border-color:var(--tema-borda); }
+body.loja-publica-body[data-tema-categoria] .loja-confiança span { color:var(--tema-primaria); border-color:var(--tema-borda); }
+body.loja-publica-body[data-tema-categoria] .loja-navegacao a.ativo,
+body.loja-publica-body[data-tema-categoria] .loja-carregar-mais button:hover:not(:disabled) { background:var(--tema-primaria); color:#fff; }
+body.loja-publica-body[data-tema-categoria] .loja-categoria { color:var(--tema-primaria); border-color:var(--tema-borda); background:#fff; }
+body.loja-publica-body[data-tema-categoria] .loja-categoria.ativo { background:var(--tema-acento); border-color:var(--tema-acento); color:var(--tema-primaria-escura); }
+body.loja-publica-body[data-tema-categoria] .loja-busca:focus { border-color:var(--tema-acento); box-shadow:0 0 0 3px rgba(7,89,70,.14); box-shadow:0 0 0 3px color-mix(in srgb,var(--tema-acento) 22%,transparent); }
+body.loja-publica-body[data-tema-categoria] .loja-promo-strip { background:linear-gradient(90deg,var(--tema-suave),#fff); border-color:var(--tema-borda); color:var(--tema-tinta); }
+body.loja-publica-body[data-tema-categoria] .loja-promo-strip strong,
+body.loja-publica-body[data-tema-categoria] .loja-promo-strip a,
+body.loja-publica-body[data-tema-categoria] .loja-painel h2 { color:var(--tema-primaria); }
+body.loja-publica-body[data-tema-categoria] .loja-carregar-mais button { border-color:var(--tema-primaria); color:var(--tema-primaria); }
+body.loja-publica-body[data-tema-categoria] .loja-editorial[data-tema="editorial_moda"] { --editorial-ink:var(--tema-primaria-escura); --editorial-accent:var(--tema-acento); --editorial-paper:var(--tema-fundo); }
+
+@media (prefers-reduced-motion:reduce) {
+  body.loja-publica-body[data-tema-categoria] .loja-hero-publico { transition:none; }
+}

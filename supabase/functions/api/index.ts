@@ -69,7 +69,7 @@ function instagramSeguro(valor: unknown) {
 function perfilPublicoSeguro(valor: unknown) {
   const perfil = valor && typeof valor === 'object' && !Array.isArray(valor) ? valor as Record<string, unknown> : {};
   const estiloVitrine = text(perfil.estiloVitrine, 'Estilo da vitrine', 40, false).toLowerCase() || 'padrao';
-  if (!['padrao', 'editorial_moda', 'editorial_beleza', 'editorial_livros'].includes(estiloVitrine)) {
+  if (!['padrao', 'tema_categoria', 'editorial_moda', 'editorial_beleza', 'editorial_livros'].includes(estiloVitrine)) {
     err('Estilo da vitrine inválido.');
   }
   const editorialProdutoId = text(perfil.editorialProdutoId, 'Produto editorial', 128, false);

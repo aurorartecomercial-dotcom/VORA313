@@ -1,9 +1,9 @@
-const CACHE_NAME = 'vora313-cache-v60-operacao-compras';
+const CACHE_NAME = 'vora313-cache-v61-temas-categoria';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html','./meus-pedidos.html',
-  './style.css','./loja-editorial.css','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
+  './style.css','./loja-editorial.css','./loja-editorial.css?v=3-temas-categoria','./loja-temas-categoria.css','./loja-temas-categoria.css?v=1','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
   './js/app.js','./js/lojas-publicas.js','./js/carrinho.js','./js/catalogo.js','./js/config.js',
-  './js/utils.js','./js/menu.js','./js/monetizacao.js','./vendedor.html','./vendedor-v25.css','./loja.html','./admin-vendedores.html','./js/vendedor.js','./js/loja-publica.js','./assets/visual/vora-vendedor-hero.svg','./assets/visual/vora-admin-hero.svg','./assets/visual/vora-login-hero.svg','./js/avaliacoes.js','./js/blog.js','./js/post.js','./js/detalhe-app.js','./js/meus-pedidos.js','./blog.json',
+  './js/utils.js','./js/menu.js','./js/monetizacao.js','./vendedor.html','./vendedor-v25.css','./loja.html','./admin-vendedores.html','./js/vendedor.js','./js/loja-publica.js','./js/loja-publica.js?v=15-temas-categoria','./assets/visual/vora-vendedor-hero.svg','./assets/visual/vora-admin-hero.svg','./assets/visual/vora-login-hero.svg','./js/avaliacoes.js','./js/blog.js','./js/post.js','./js/detalhe-app.js','./js/meus-pedidos.js','./blog.json',
   './js/categoria.js','./js/fidelidade.js','./js/favoritos.js','./js/chatbot.js','./js/perfil.js','./js/fase3.js',
 ];
 self.addEventListener('install', event => event.waitUntil(caches.open(CACHE_NAME).then(async cache => { await Promise.allSettled(APP_SHELL.map(u => cache.add(u).catch(()=>null))); await self.skipWaiting(); })));
