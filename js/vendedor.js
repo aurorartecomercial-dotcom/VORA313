@@ -1,6 +1,7 @@
 import { auth, db, storage, functions, supabase } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where, limit, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, httpsCallable, ref, uploadToSignedUrl, getDownloadURL, validarPalavraPasseSegura } from './supabase-compat.js';
 import { escapeHTML, extrairValorNumerico, imagemProdutoSegura, urlSegura } from './utils.js';
+import { preencherCategoriaVendedor, preencherSubcategoria, preencherCategoriaProduto, nomeSubcategoria } from './categorias-vora.js';
 
 const $ = (id) => document.getElementById(id);
 const call = (name) => httpsCallable(functions, name);
@@ -104,7 +105,7 @@ function mostrarImagem(idImagem, idFallback, url, fallback) {
 
 function guardarRascunho(dados) {
   try {
-    const seguro = { nome: dados.nome || '', nomeLoja: dados.nomeLoja || '', telefone: dados.telefone || '', morada: dados.morada || '', categoria: dados.categoria || '', descricao: dados.descricao || '', email: String(dados.email || '').trim().toLowerCase() };
+    const seguro = { nome: dados.nome || '', nomeLoja: dados.nomeLoja || '', telefone: dados.telefone || '', morada: dados.morada || '', categoria: dados.categoria || '', categoriaSubcategoria: dados.categoriaSubcategoria || '', descricao: dados.descricao || '', email: String(dados.email || '').trim().toLowerCase() };
     sessionStorage.setItem(RASCUNHO_CHAVE, JSON.stringify(seguro));
   } catch (_) {}
 }
@@ -139,6 +140,27 @@ function mostrarRecuperacao() {
   alterarVisibilidade('vendRecuperacao', true);
 }
 
+function prepararCategoriasVendedor() {
+  const candidatura = $('vendCategoria');
+  const perfil = $('perfilCategoria');
+  if (candidatura && !candidatura.dataset.taxonomia) {
+    preencherCategoriaVendedor(candidatura, candidatura.value);
+    candidatura.dataset.taxonomia = '1';
+  }
+  if (perfil && !perfil.dataset.taxonomia) {
+    preencherCategoriaVendedor(perfil, perfil.value);
+    perfil.dataset.taxonomia = '1';
+  }
+  preencherSubcategoria($('vendCategoriaSubcategoria'), candidatura?.value || '', $('vendCategoriaSubcategoria')?.value || '');
+  preencherSubcategoria($('perfilCategoriaSubcategoria'), perfil?.value || '', $('perfilCategoriaSubcategoria')?.value || '');
+  const produto = document.querySelector('#formProdutoVendedor select[name="categoria"]');
+  if (produto && !produto.dataset.taxonomia) {
+    preencherCategoriaProduto(produto, produto.value);
+    produto.dataset.taxonomia = '1';
+  }
+  preencherSubcategoria($('vendProdutoSubcategoria'), produto?.value || '', $('vendProdutoSubcategoria')?.value || '');
+}
+
 function prepararFormularioCandidatura() {
   const user = auth.currentUser;
   const email = $('vendCadastroEmail');
@@ -155,6 +177,9 @@ function prepararFormularioCandidatura() {
       setValor('vendTelefone', rascunho.telefone);
       setValor('vendMorada', rascunho.morada);
       setValor('vendCategoria', rascunho.categoria);
+      preencherCategoriaVendedor($('vendCategoria'), rascunho.categoria || '');
+      setValor('vendCategoriaSubcategoria', rascunho.categoriaSubcategoria || '');
+      preencherSubcategoria($('vendCategoriaSubcategoria'), rascunho.categoria || '', rascunho.categoriaSubcategoria || '');
       setValor('vendDescricao', rascunho.descricao);
     }
     email.value = user.email;
@@ -176,6 +201,26 @@ function prepararFormularioCandidatura() {
     if (!form.dataset.preenchido) form.reset();
   }
   form.dataset.preenchido = '1';
+}
+
+async function guardarTaxonomiaVendedor(subcategoria = '') {
+  const valor = String(subcategoria || '').trim();
+  if (!auth.currentUser?.id) return;
+  try {
+    await supabase.rpc('guardar_taxonomia_vendedor', { p_subcategoria: valor });
+  } catch (_) {
+    // Compatibilidade: se a migration de taxonomia ainda não foi publicada,
+    // a categoria principal continua a funcionar normalmente.
+  }
+}
+
+async function guardarSubcategoriaProduto(produtoId, subcategoria = '') {
+  if (!produtoId) return;
+  try {
+    await supabase.rpc('guardar_subcategoria_produto_vendedor', { p_produto_id: String(produtoId), p_subcategoria: String(subcategoria || '').trim() });
+  } catch (_) {
+    // A subcategoria é opcional; falha da migration não impede guardar o produto.
+  }
 }
 
 async function solicitarCandidatura(dados) {
@@ -309,12 +354,15 @@ function renderizarCentral() {
 }
 
 function preencherPerfil() {
+  prepararCategoriasVendedor();
   const perfil = perfilPublico();
   setValor('perfilNome', vendedor.nome);
   setValor('perfilNomeLoja', vendedor.nomeLoja);
   setValor('perfilTelefone', vendedor.telefone);
   setValor('perfilMorada', vendedor.morada);
   setValor('perfilCategoria', vendedor.categoria || 'Outros');
+  preencherCategoriaVendedor($('perfilCategoria'), vendedor.categoria || 'Outros');
+  preencherSubcategoria($('perfilCategoriaSubcategoria'), vendedor.categoria || 'Outros', perfil.categoriaSubcategoria || '');
   setValor('perfilDescricao', vendedor.descricao);
   setValor('perfilLogoUrl', perfil.logoUrl);
   setValor('perfilCapaUrl', perfil.capaUrl);
@@ -443,7 +491,7 @@ function renderizarProdutos() {
     const motivo = produto.motivoRecusa || produto.motivo_recusa;
     const podeAlternar = ['aprovado', 'desativado'].includes(estado);
     const variacoes = Array.isArray(produto.variacoes) ? produto.variacoes.filter((grupo) => grupo?.nome).map((grupo) => grupo.nome).join(', ') : '';
-    return `<article class="seller-product-row"><div class="seller-product-thumb">${imagem ? `<img src="${escapeHTML(imagem)}" alt="">` : '📦'}</div><div><h3>${escapeHTML(produto.nome || 'Produto sem nome')}</h3><p>${escapeHTML(produto.categoria || 'Sem categoria')} · ${escapeHTML(moeda(extrairValorNumerico(produto.preco || 0)))} · estoque ${escapeHTML(produto.estoque ?? 0)}</p><div class="seller-product-meta"><span class="seller-chip ${classeEstado(estado)}">${escapeHTML(nomeEstado(estado))}</span>${variacoes ? `<span class="seller-chip">Opções: ${escapeHTML(variacoes)}</span>` : ''}${produto.freteGratis ? '<span class="seller-chip">Frete grátis</span>' : ''}</div></div><div class="seller-product-actions"><a href="detalhe.html?id=${encodeURIComponent(produto.id)}" target="_blank" rel="noopener">Ver</a><button type="button" data-editar-produto="${escapeHTML(produto.id)}">Editar</button>${estado === 'aprovado' ? `<button type="button" data-destacar-produto="${escapeHTML(produto.id)}">Destacar</button>` : ''}${podeAlternar ? `<button type="button" data-alternar-produto="${escapeHTML(produto.id)}" data-produto-ativo="${estado === 'desativado' ? 'true' : 'false'}">${estado === 'desativado' ? 'Ativar' : 'Desativar'}</button>` : ''}</div>${estado === 'recusado' && motivo ? `<p class="seller-product-reason"><strong>Motivo da recusa:</strong> ${escapeHTML(motivo)}</p>` : ''}</article>`;
+    return `<article class="seller-product-row"><div class="seller-product-thumb">${imagem ? `<img src="${escapeHTML(imagem)}" alt="">` : '📦'}</div><div><h3>${escapeHTML(produto.nome || 'Produto sem nome')}</h3><p>${escapeHTML(produto.categoria || 'Sem categoria')}${produto.subcategoria ? ` · ${escapeHTML(nomeSubcategoria(produto.subcategoria))}` : ''} · ${escapeHTML(moeda(extrairValorNumerico(produto.preco || 0)))} · estoque ${escapeHTML(produto.estoque ?? 0)}</p><div class="seller-product-meta"><span class="seller-chip ${classeEstado(estado)}">${escapeHTML(nomeEstado(estado))}</span>${variacoes ? `<span class="seller-chip">Opções: ${escapeHTML(variacoes)}</span>` : ''}${produto.freteGratis ? '<span class="seller-chip">Frete grátis</span>' : ''}</div></div><div class="seller-product-actions"><a href="detalhe.html?id=${encodeURIComponent(produto.id)}" target="_blank" rel="noopener">Ver</a><button type="button" data-editar-produto="${escapeHTML(produto.id)}">Editar</button>${estado === 'aprovado' ? `<button type="button" data-destacar-produto="${escapeHTML(produto.id)}">Destacar</button>` : ''}${podeAlternar ? `<button type="button" data-alternar-produto="${escapeHTML(produto.id)}" data-produto-ativo="${estado === 'desativado' ? 'true' : 'false'}">${estado === 'desativado' ? 'Ativar' : 'Desativar'}</button>` : ''}</div>${estado === 'recusado' && motivo ? `<p class="seller-product-reason"><strong>Motivo da recusa:</strong> ${escapeHTML(motivo)}</p>` : ''}</article>`;
   }).join('');
 }
 
@@ -580,6 +628,7 @@ async function enviarCadastro(evento) {
     }
     if (!user?.id) throw new Error('Não foi possível iniciar a sessão. Entre novamente para enviar a candidatura.');
     await solicitarCandidatura(dados);
+    await guardarTaxonomiaVendedor(dados.categoriaSubcategoria || '');
     limparRascunho();
     mensagem('Candidatura enviada com sucesso. Aguarde a aprovação da VORA 313.');
     await carregarCentral();
@@ -679,7 +728,7 @@ function abrirEditorProduto(produto = null) {
   form.elements.namedItem('estoque').value = '1';
   setTexto('vendFormProdutoTitulo', produto ? 'Editar produto' : 'Novo produto');
   if (produto) {
-    const dados = { nome: produto.nome, categoria: produto.categoria, preco: produto.preco, precoAntigo: produto.precoAntigo, marca: produto.marca, sku: produto.sku, desconto: produto.desconto, parcelas: produto.parcelas, tag: produto.tag, estoque: produto.estoque, descricao: produto.descricao, imagens: (produto.imagens || []).join(', '), variacoes: variacoesParaTexto(produto.variacoes) };
+    const dados = { nome: produto.nome, categoria: produto.categoria, subcategoria: produto.subcategoria || produto.categoriaSubcategoria || '', preco: produto.preco, precoAntigo: produto.precoAntigo, marca: produto.marca, sku: produto.sku, desconto: produto.desconto, parcelas: produto.parcelas, tag: produto.tag, estoque: produto.estoque, descricao: produto.descricao, imagens: (produto.imagens || []).join(', '), variacoes: variacoesParaTexto(produto.variacoes) };
     Object.entries(dados).forEach(([nome, valor]) => { const campo = form.elements.namedItem(nome); if (campo) campo.value = valor || ''; });
     form.elements.namedItem('freteGratis').checked = produto.freteGratis === true;
     form.dataset.editId = produto.id;
@@ -700,9 +749,11 @@ async function salvarProduto(evento) {
   let variacoes;
   try { variacoes = variacoesDoTexto(dados.variacoes); }
   catch (erro) { return mensagem(erroTexto(erro), false); }
-  const produto = { nome: dados.nome, categoria: dados.categoria, preco: dados.preco, precoAntigo: dados.precoAntigo, desconto: dados.desconto, parcelas: dados.parcelas, marca: dados.marca, sku: dados.sku, tag: dados.tag, estoque: Number(dados.estoque), descricao: dados.descricao, imagens: String(dados.imagens || '').split(',').map((valor) => valor.trim()).filter(Boolean), variacoes, freteGratis: form.elements.namedItem('freteGratis').checked };
+  const produto = { nome: dados.nome, categoria: dados.categoria, subcategoria: dados.subcategoria || '', preco: dados.preco, precoAntigo: dados.precoAntigo, desconto: dados.desconto, parcelas: dados.parcelas, marca: dados.marca, sku: dados.sku, tag: dados.tag, estoque: Number(dados.estoque), descricao: dados.descricao, imagens: String(dados.imagens || '').split(',').map((valor) => valor.trim()).filter(Boolean), variacoes, freteGratis: form.elements.namedItem('freteGratis').checked };
   try {
-    await guardarProduto(produto, form.dataset.editId || null);
+    const resultado = await guardarProduto(produto, form.dataset.editId || null);
+    const produtoId = form.dataset.editId || resultado?.data?.produtoId || resultado?.data?.id || resultado?.produtoId || resultado?.id;
+    await guardarSubcategoriaProduto(produtoId, dados.subcategoria || '');
     fecharEditorProduto();
     mensagem('Produto enviado para aprovação. Ele será publicado após a validação da VORA 313.');
     await carregarCentral();
@@ -751,7 +802,8 @@ async function salvarPerfil(evento) {
   const perfil = {
     logoUrl: dados.logoUrl || '', capaUrl: dados.capaUrl || '', horario: dados.horario || '', instagram: dados.instagram || '', destaque: dados.destaque || '',
     estiloVitrine: dados.estiloVitrine || 'padrao', editorialColecao: dados.editorialColecao || '', editorialTitulo: dados.editorialTitulo || '',
-    editorialChamada: dados.editorialChamada || '', editorialProdutoId: dados.editorialProdutoId || ''
+    editorialChamada: dados.editorialChamada || '', editorialProdutoId: dados.editorialProdutoId || '',
+    categoriaSubcategoria: dados.categoriaSubcategoria || ''
   };
   const parametros = { p_nome: dados.nome, p_nome_loja: dados.nomeLoja, p_telefone: dados.telefone, p_morada: dados.morada || '', p_categoria: dados.categoria, p_descricao: dados.descricao || '', p_perfil_publico: perfil };
   try {
@@ -759,6 +811,7 @@ async function salvarPerfil(evento) {
     if (error) {
       await call('atualizarPerfilVendedor')({ nome: dados.nome, nomeLoja: dados.nomeLoja, telefone: dados.telefone, morada: dados.morada || '', categoria: dados.categoria, descricao: dados.descricao || '', perfilPublico: perfil });
     }
+    await guardarTaxonomiaVendedor(dados.categoriaSubcategoria || '');
     mensagem('Informações da loja atualizadas.');
     await carregarCentral();
   } catch (erro) { mensagem(erroTexto(erro), false); }
@@ -809,6 +862,7 @@ async function alterarDisponibilidadeProduto(produtoId, ativo) {
 }
 
 function ligarEventos() {
+  prepararCategoriasVendedor();
   instalarEditorEditorial();
   $('formVendedor').addEventListener('submit', enviarCadastro);
   $('formLoginVendedor').addEventListener('submit', entrar);
@@ -835,7 +889,12 @@ function ligarEventos() {
   $('filtroPedidosPeriodo').addEventListener('change', renderizarPedidos);
   $('perfilLogoUrl').addEventListener('input', () => mostrarImagem('perfilLogoPreview', 'perfilLogoFallback', $('perfilLogoUrl').value, iniciais($('perfilNomeLoja').value || vendedor?.nomeLoja)));
   $('perfilEstiloVitrine')?.addEventListener('change', atualizarEditorEditorial);
-  $('perfilCategoria')?.addEventListener('change', atualizarEditorEditorial);
+  $('perfilCategoria')?.addEventListener('change', () => {
+    preencherSubcategoria($('perfilCategoriaSubcategoria'), $('perfilCategoria').value);
+    atualizarEditorEditorial();
+  });
+  $('vendCategoria')?.addEventListener('change', () => preencherSubcategoria($('vendCategoriaSubcategoria'), $('vendCategoria').value));
+  document.querySelector('#formProdutoVendedor select[name="categoria"]')?.addEventListener('change', (evento) => preencherSubcategoria($('vendProdutoSubcategoria'), evento.currentTarget.value));
   $('btnMenuVendedor').addEventListener('click', () => { const aberto = $('sellerSidebar').classList.toggle('open'); $('btnMenuVendedor').setAttribute('aria-expanded', String(aberto)); });
   document.addEventListener('click', (evento) => {
     const nav = evento.target.closest('[data-view]');
