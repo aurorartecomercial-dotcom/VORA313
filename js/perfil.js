@@ -1,7 +1,7 @@
 import { auth, db } from './config.js';
 import { collection, getDocs, query, where, doc, getDoc } from './supabase-compat.js';
 import { onAuthStateChanged } from './supabase-compat.js';
-import { mostrarToast, escapeHTML, urlSegura, IMAGEM_FALLBACK } from './utils.js';
+import { mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, async (user) => {
@@ -89,7 +89,7 @@ async function carregarFavoritos() {
                 const item = document.createElement('div');
                 item.className = 'favorito-item';
                 const img = document.createElement('img');
-                img.src = urlSegura(prod.imagens?.[0], IMAGEM_FALLBACK);
+                img.src = imagemProdutoSegura(prod.imagens?.[0], IMAGEM_FALLBACK);
                 img.alt = String(prod.nome || 'Produto');
                 img.addEventListener('error', () => { img.src = IMAGEM_FALLBACK; }, { once: true });
                 const link = document.createElement('a');

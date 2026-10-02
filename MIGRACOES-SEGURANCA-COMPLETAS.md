@@ -26,18 +26,21 @@ apenas os ficheiros em falta, pela ordem abaixo.
 18. `018_seguranca_p2_auditoria.sql`
 19. `019_seguranca_p3_manutencao.sql`
 20. `020_vitrine_editorial_lojas.sql`
+21. `021_operacao_compras_variacoes.sql`
 
 ## Para o projeto já em funcionamento
 
 1. Confirme que `007_security_hardening.sql` e `010_production_safety.sql`
    foram executadas. Elas impedem promoção de conta, alteração de pontos e
    manipulação de campos financeiros pelo navegador.
-2. Execute `016`, `017`, `018`, `019` e `020`, uma a uma, e confirme a mensagem de
+2. Execute `016`, `017`, `018`, `019`, `020` e `021`, uma a uma, e confirme a mensagem de
    sucesso de cada uma antes de continuar.
    A `017` limpa links públicos antigos que não obedecem à política HTTPS; ela
    não remove produtos nem o registo interno de morada do vendedor.
    A `020` só acrescenta opções seguras de apresentação editorial ao perfil
    público da loja; não altera produtos, pedidos nem valores financeiros.
+   A `021` acrescenta os campos de opções de produto e a cópia da opção no item
+   comprado; ela não altera preços, estoques existentes ou pagamentos.
 3. Publique a Edge Function `api` e depois o frontend. A ordem é importante
    porque a migration 016 bloqueia o upload antigo direto ao bucket.
 4. Faça os testes indicados em `SEGURANCA-P0-DEPLOY.md`.

@@ -27,3 +27,12 @@ export async function adicionarAvaliacao(prodId, nota) {
   const adicionar = httpsCallable(functions, 'adicionarAvaliacao');
   await adicionar({ produtoId: String(prodId), nota: valor });
 }
+
+export async function consultarElegibilidadeAvaliacao(prodId) {
+  if (!auth.currentUser || auth.currentUser.is_anonymous) {
+    return { elegivel: false, motivo: 'Inicie sessão com a sua conta para avaliar uma compra entregue.' };
+  }
+  const consultar = httpsCallable(functions, 'consultarElegibilidadeAvaliacao');
+  const resposta = await consultar({ produtoId: String(prodId) });
+  return resposta?.data || { elegivel: false, motivo: 'A avaliação fica disponível após a entrega.' };
+}

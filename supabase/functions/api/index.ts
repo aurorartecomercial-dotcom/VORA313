@@ -93,6 +93,47 @@ function imagensSeguras(valor: unknown) {
   if (!Array.isArray(valor) || valor.length > 8) err('Envie no máximo 8 imagens válidas.');
   return valor.map((item, indice) => urlHttps(item, `Imagem ${indice + 1}`));
 }
+function variacoesSeguras(valor: unknown) {
+  if (valor === undefined || valor === null || valor === '') return [];
+  if (!Array.isArray(valor) || valor.length > 3) err('Envie no máximo 3 tipos de variação.');
+  const nomes = new Set<string>();
+  return valor.map((grupo, indice) => {
+    if (!grupo || typeof grupo !== 'object' || Array.isArray(grupo)) err(`Variação ${indice + 1} inválida.`);
+    const dados = grupo as Record<string, unknown>;
+    const nome = text(dados.nome, `Nome da variação ${indice + 1}`, 40);
+    const chave = nome.toLocaleLowerCase('pt-AO');
+    if (nomes.has(chave)) err('Não repita o mesmo tipo de variação.');
+    nomes.add(chave);
+    if (!Array.isArray(dados.opcoes) || !dados.opcoes.length || dados.opcoes.length > 20) {
+      err(`${nome} deve ter entre 1 e 20 opções.`);
+    }
+    const opcoesUsadas = new Set<string>();
+    const opcoes = dados.opcoes.map((opcao, opIndice) => {
+      const valorOpcao = typeof opcao === 'string' ? opcao : (opcao && typeof opcao === 'object' ? (opcao as Record<string, unknown>).nome : '');
+      const opcaoNome = text(valorOpcao, `Opção ${opIndice + 1} de ${nome}`, 40);
+      const opcaoChave = opcaoNome.toLocaleLowerCase('pt-AO');
+      if (opcoesUsadas.has(opcaoChave)) err(`Não repita uma opção de ${nome}.`);
+      opcoesUsadas.add(opcaoChave);
+      return { nome: opcaoNome };
+    });
+    return { nome, obrigatoria: dados.obrigatoria !== false, opcoes };
+  });
+}
+function selecaoVariacaoSegura(configuradas: unknown, recebida: unknown) {
+  const grupos = variacoesSeguras(configuradas);
+  if (!grupos.length) return [];
+  const entrada = recebida && typeof recebida === 'object' && !Array.isArray(recebida) ? recebida as Record<string, unknown> : {};
+  const usadas = new Set(Object.keys(entrada).map((chave) => chave.toLocaleLowerCase('pt-AO')));
+  for (const grupo of grupos) usadas.delete(grupo.nome.toLocaleLowerCase('pt-AO'));
+  if (usadas.size) err('A seleção de variações contém uma opção desconhecida.');
+  return grupos.map((grupo) => {
+    const valor = text(entrada[grupo.nome], grupo.nome, 40, grupo.obrigatoria);
+    if (!valor) return null;
+    const opcao = grupo.opcoes.find((item) => item.nome.toLocaleLowerCase('pt-AO') === valor.toLocaleLowerCase('pt-AO'));
+    if (!opcao) err(`A opção escolhida para ${grupo.nome} não existe.`);
+    return { nome: grupo.nome, valor: opcao.nome };
+  }).filter(Boolean);
+}
 async function lerCorpo(req: Request) {
   const tamanhoInformado = Number(req.headers.get('content-length') || 0);
   if (Number.isFinite(tamanhoInformado) && tamanhoInformado > LIMITE_CORPO_BYTES) err('Pedido demasiado grande.', 'payload_too_large');
@@ -226,16 +267,38 @@ async function criarPedido(req:Request, input:any){
   if(existente)return pedidoResposta(existente);
   const cliente={nome:text(input.cliente?.nome,'Nome',120),telefone:text(input.cliente?.telefone,'Telefone',15),nif:text(input.cliente?.nif,'NIF',10),morada:text(input.cliente?.morada,'Morada',300,false),bairro:text(input.cliente?.bairro,'Bairro',80),observacao:text(input.cliente?.observacao,'Observação',500,false)};
   if(!/^\d{9,15}$/.test(cliente.telefone))err('Telefone inválido.'); if(!/^\d{10}$/.test(cliente.nif))err('NIF inválido.'); if(!(cliente.bairro in FRETES))err('Bairro não atendido.');
-  const grouped=new Map<string,number>(); for(const item of input.itens){const id=text(item?.produtoId,'Produto',128);const q=intPos(item?.quantidade,'Quantidade',20);grouped.set(id,(grouped.get(id)||0)+q);} if([...grouped.values()].some(x=>x>20))err('Quantidade máxima por produto excedida.');
+  const entradas = input.itens.map((item: any) => ({
+    produtoId: text(item?.produtoId, 'Produto', 128),
+    quantidade: intPos(item?.quantidade, 'Quantidade', 20),
+    variacao: item?.variacao
+  }));
+  const grouped=new Map<string,number>(); for(const item of entradas){grouped.set(item.produtoId,(grouped.get(item.produtoId)||0)+item.quantidade);} if([...grouped.values()].some(x=>x>20))err('Quantidade máxima por produto excedida.');
   const ids=[...grouped.keys()]; const {data:products,error:pe}=await db.from('produtos').select('*').in('id',ids).eq('ativo',true).eq('vendedor_ativo',true).eq('status_aprovacao','aprovado'); if(pe)throw pe;
   if((products||[]).length!==ids.length)err('Um produto do carrinho já não existe.','not_found');
   let subtotal=0; const itens:any[]=[];
-  for(const p of products||[]){const q=grouped.get(p.id)||0;const estoque=Number(p.estoque||0);const precoNumerico=p.preco_valor===null||p.preco_valor===undefined?null:Number(p.preco_valor);const pc=Number.isFinite(precoNumerico)&&precoNumerico>0?Math.round(precoNumerico*100):priceCents(p.preco);if(!Number.isInteger(estoque)||estoque<q)err(`${p.nome||'Produto'} não possui estoque suficiente.`,'failed_precondition');const percentual=Number(p.monetizacao?.percentualComissao??p.percentual_comissao??COMISSAO_PADRAO);if(!Number.isFinite(percentual)||percentual<0||percentual>COMISSAO_MAX)err(`Comissão inválida para ${p.nome||'produto'}.`,'failed_precondition');const bruto=pc*q;const com=Math.round(bruto*percentual/100);subtotal+=bruto;itens.push({produtoId:p.id,nome:text(p.nome,'Nome do produto',160),quantidade:q,preco:money(pc),observacao:'',vendedorId:p.vendedor_id||'vora313',vendedorNome:p.vendedor_nome||'VORA 313',comissaoPercentual:percentual,valorBruto:money(bruto),comissaoVora:money(com),valorVendedor:money(bruto-com)});}
+  for(const p of products||[]){
+    const entradasProduto=entradas.filter((item) => item.produtoId===p.id);
+    const quantidadeTotal=grouped.get(p.id)||0;
+    const estoque=Number(p.estoque||0);
+    const precoNumerico=p.preco_valor===null||p.preco_valor===undefined?null:Number(p.preco_valor);
+    const pc=Number.isFinite(precoNumerico)&&precoNumerico>0?Math.round(precoNumerico*100):priceCents(p.preco);
+    if(!Number.isInteger(estoque)||estoque<quantidadeTotal)err(`${p.nome||'Produto'} não possui estoque suficiente.`,'failed_precondition');
+    const percentual=Number(p.monetizacao?.percentualComissao??p.percentual_comissao??COMISSAO_PADRAO);
+    if(!Number.isFinite(percentual)||percentual<0||percentual>COMISSAO_MAX)err(`Comissão inválida para ${p.nome||'produto'}.`,'failed_precondition');
+    const configuradas=variacoesSeguras(p.variacoes);
+    for(const entrada of entradasProduto){
+      const q=entrada.quantidade;
+      const bruto=pc*q;
+      const com=Math.round(bruto*percentual/100);
+      subtotal+=bruto;
+      itens.push({produtoId:p.id,nome:text(p.nome,'Nome do produto',160),quantidade:q,preco:money(pc),observacao:'',variacao:selecaoVariacaoSegura(configuradas,entrada.variacao),vendedorId:p.vendedor_id||'vora313',vendedorNome:p.vendedor_nome||'VORA 313',comissaoPercentual:percentual,valorBruto:money(bruto),comissaoVora:money(com),valorVendedor:money(bruto-com)});
+    }
+  }
   const codigoCupom=text(input.cupom,'Cupom',60,false).toUpperCase();let desconto=0;let cupomAplicado:any=null;
   if(codigoCupom){const {data:cupom}=await db.from('cupons').select('*').eq('codigo',codigoCupom).maybeSingle();if(!cupom||cupom.ativo!==true)err('Cupom inválido.','failed_precondition');if(cupom.uid_cliente&&cupom.uid_cliente!==user.id)err('Cupom indisponível.','failed_precondition');if(cupom.validade&&new Date(cupom.validade)<new Date())err('Cupom expirado.','failed_precondition');if(Number.isFinite(cupom.max_usos)&&Number(cupom.usos||0)>=Number(cupom.max_usos))err('Cupom atingiu o limite de uso.','failed_precondition');desconto=Math.round(subtotal*Number(cupom.percentual)/100);cupomAplicado={codigo:codigoCupom,percentual:Number(cupom.percentual)};}
   const frete=FRETES[cliente.bairro]*100;const total=subtotal-desconto+frete;const comissao=itens.reduce((s,i)=>s+Math.round(Number(i.comissaoVora||0)*100),0);const receita=comissao+frete;const valorVend=subtotal-comissao;const id=crypto.randomUUID();const rastreio=code('VORA');const fatura=code('FR');const now=new Date();
   const venda={id,codigo_rastreio:rastreio,numero_fatura:fatura,uid_cliente:user.id,status:'aguardando_pagamento',pagamento:{metodo:'multicaixa_manual',status:'pendente'},nome_cliente:cliente.nome,telefone_cliente:cliente.telefone,nif_cliente:cliente.nif,morada_cliente:cliente.morada,bairro:cliente.bairro,observacao:cliente.observacao,itens,produtos_resumo:itens.map(i=>`${i.nome} (x${i.quantidade})`).join(', '),total_itens:itens.reduce((s,i)=>s+i.quantidade,0),subtotal:money(subtotal),frete:money(frete),valor_desconto:money(desconto),valor_total:money(total),cupom_aplicado:cupomAplicado,monetizacao:{modelo:'comissao_por_venda',comissaoProdutos:money(comissao),receitaVora:money(receita),valorVendedores:money(valorVend),comissaoGerada:false},data_hora:now.toLocaleString('pt-AO',{timeZone:'Africa/Luanda'}),expira_em:new Date(now.getTime()+2*60*60*1000).toISOString(),idempotency_key:idempotencyKey,criado_em:now.toISOString(),atualizado_em:now.toISOString()};
-  const itemRows=itens.map(i=>({...dbRow(i),id:crypto.randomUUID(),venda_id:id,produto_id:i.produtoId,nome:i.nome,quantidade:i.quantidade,preco:i.preco,observacao:i.observacao,vendedor_id:i.vendedorId==='vora313'?null:i.vendedorId,vendedor_nome:i.vendedorNome,comissao_percentual:i.comissaoPercentual,valor_bruto:i.valorBruto,comissao_vora:i.comissaoVora,valor_vendedor:i.valorVendedor}));
+  const itemRows=itens.map(i=>({...dbRow(i),id:crypto.randomUUID(),venda_id:id,produto_id:i.produtoId,nome:i.nome,quantidade:i.quantidade,preco:i.preco,observacao:i.observacao,variacao:i.variacao,vendedor_id:i.vendedorId==='vora313'?null:i.vendedorId,vendedor_nome:i.vendedorNome,comissao_percentual:i.comissaoPercentual,valor_bruto:i.valorBruto,comissao_vora:i.comissaoVora,valor_vendedor:i.valorVendedor}));
   const rastreioRow={codigo:rastreio,status:'aguardando_pagamento',criado_em:now.toISOString(),atualizado_em:now.toISOString()};
   const {error:saveError}=await db.rpc('criar_pedido_atomico',{p_venda:venda,p_itens:itemRows,p_rastreio:rastreioRow});
   if(saveError){
@@ -379,6 +442,41 @@ async function consultarPagamentoPedido(req: Request, input: any) {
   return respostaPagamento(data);
 }
 
+async function listarMeusPedidos(req: Request) {
+  const user = await requireUser(req);
+  const { data: vendas, error: vendasErro } = await db.from('vendas')
+    .select('id,codigo_rastreio,numero_fatura,status,pagamento,subtotal,frete,valor_desconto,valor_total,expira_em,criado_em,atualizado_em,entregue_em,nome_cliente,telefone_cliente,nif_cliente,morada_cliente,bairro')
+    .eq('uid_cliente', user.id).order('criado_em', { ascending: false }).limit(50);
+  if (vendasErro) throw vendasErro;
+  const ids = (vendas || []).map((venda: any) => venda.id);
+  if (!ids.length) return { pedidos: [] };
+  const [{ data: itens, error: itensErro }, { data: pagamentos, error: pagamentosErro }] = await Promise.all([
+    db.from('venda_itens').select('*').in('venda_id', ids),
+    db.from('pagamentos').select('id,venda_id,metodo,provedor,status,referencia,valor,moeda,expira_em,pago_em,criado_em').eq('uid_cliente', user.id).in('venda_id', ids).order('criado_em', { ascending: false })
+  ]);
+  if (itensErro) throw itensErro;
+  if (pagamentosErro) throw pagamentosErro;
+  const porVenda = new Map<string, any[]>();
+  (itens || []).forEach((item: any) => porVenda.set(item.venda_id, [...(porVenda.get(item.venda_id) || []), camelRow(item)]));
+  const pagamentoPorVenda = new Map<string, any>();
+  (pagamentos || []).forEach((pagamento: any) => {
+    if (!pagamentoPorVenda.has(pagamento.venda_id)) pagamentoPorVenda.set(pagamento.venda_id, camelRow(pagamento));
+  });
+  return { pedidos: (vendas || []).map((venda: any) => ({ ...camelRow(venda), itens: porVenda.get(venda.id) || [], pagamentoDetalhe: pagamentoPorVenda.get(venda.id) || null })) };
+}
+
+async function consultarElegibilidadeAvaliacao(req: Request, input: any) {
+  const user = await requireUser(req);
+  const produtoId = text(input?.produtoId, 'Produto', 128);
+  if (!user.email) return { elegivel: false, motivo: 'Inicie sessão com a sua conta para avaliar uma compra entregue.' };
+  const { data: pedidos, error: pedidosErro } = await db.from('vendas').select('id').eq('uid_cliente', user.id).eq('status', 'entregue').limit(100);
+  if (pedidosErro) throw pedidosErro;
+  if (!(pedidos || []).length) return { elegivel: false, motivo: 'A avaliação fica disponível após a entrega do pedido.' };
+  const { data: item, error: itemErro } = await db.from('venda_itens').select('id').eq('produto_id', produtoId).in('venda_id', pedidos.map((pedido: any) => pedido.id)).limit(1).maybeSingle();
+  if (itemErro) throw itemErro;
+  return item ? { elegivel: true, motivo: '' } : { elegivel: false, motivo: 'Só pode avaliar produtos que comprou e recebeu.' };
+}
+
 async function confirmarPagamentoManual(req: Request, input: any) {
   const admin = await requireAdmin(req);
   const pagamentoId = text(input?.pagamentoId, 'Pagamento', 128);
@@ -478,6 +576,8 @@ async function handle(req:Request,name:string,input:any){
     criarPedido: [5, 15 * 60],
     iniciarPagamentoPedido: [10, 15 * 60],
     consultarPagamentoPedido: [60, 60 * 60],
+    listarMeusPedidos: [60, 60 * 60],
+    consultarElegibilidadeAvaliacao: [60, 60 * 60],
     solicitarVendedor: [3, 24 * 60 * 60],
     atualizarPerfilVendedor: [20, 60 * 60],
     atualizarDadosRecebimento: [10, 24 * 60 * 60],
@@ -498,6 +598,8 @@ async function handle(req:Request,name:string,input:any){
     case 'criarPedido': return criarPedido(req,input);
     case 'iniciarPagamentoPedido': return iniciarPagamentoPedido(req,input);
     case 'consultarPagamentoPedido': return consultarPagamentoPedido(req,input);
+    case 'listarMeusPedidos': return listarMeusPedidos(req);
+    case 'consultarElegibilidadeAvaliacao': return consultarElegibilidadeAvaliacao(req,input);
     case 'confirmarPagamentoManual': return confirmarPagamentoManual(req,input);
     case 'atualizarEstadoPedido': return atualizarEstadoPedido(req,input);
     case 'liberarSaldosVencidos': return liberarSaldosVencidos(req);
@@ -508,8 +610,8 @@ async function handle(req:Request,name:string,input:any){
     case 'solicitarVendedor': {const u=await requireUser(req);const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),email:text(u.email,'Email',160),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),status:'pendente',ativo:false,plano:'basico',uid:u.id};const {data:old}=await db.from('vendedores').select('status').eq('id',u.id).maybeSingle();if(old?.status==='aprovado'||old?.status==='pendente')return {ok:true,status:old.status};if(old?.status==='suspenso')err('A sua loja está suspensa. Contacte a VORA 313.','failed_precondition');const {error}=await db.from('vendedores').upsert({id:u.id,...d},{onConflict:'id'});if(error)throw error;return {ok:true,status:'pendente'};}
     case 'atualizarPerfilVendedor': {const u=await requireSeller(req);const perfilPublico=perfilPublicoSeguro(input?.perfilPublico);if(perfilPublico.editorialProdutoId){const {data:produto}=await db.from('produtos').select('id,vendedor_id,status_aprovacao,ativo').eq('id',perfilPublico.editorialProdutoId).maybeSingle();if(!produto||produto.vendedor_id!==u.id||produto.status_aprovacao!=='aprovado'||produto.ativo===false)err('O produto editorial deve ser um produto publicado da sua própria loja.','permission_denied');}const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),perfilPublico,atualizado_em:new Date().toISOString()};const {error}=await db.from('vendedores').update(dbRow(d)).eq('id',u.id);if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','perfil_publico_atualizado',u.id,{perfilPublico:true,estiloVitrine:perfilPublico.estiloVitrine});return {ok:true};}
     case 'atualizarDadosRecebimento': {const u=await requireSeller(req);const metodo=text(input?.metodo,'Método de recebimento',40),titular=text(input?.titular,'Titular',160),referencia=text(input?.referencia,'Conta/IBAN/telefone',160);if(!['transferencia_bancaria','multicaixa_express','outro'].includes(metodo))err('Método de recebimento inválido.');const {error}=await db.from('vendedores').update({dados_recebimento:{metodo,titular,referencia,atualizadoEm:new Date().toISOString()},atualizado_em:new Date().toISOString()}).eq('id',u.id);if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','dados_recebimento_atualizados',u.id,{metodo});return {ok:true};}
-    case 'criarProdutoVendedor': {const u=await requireSeller(req);const {data:v}=await db.from('vendedores').select('*').eq('id',u.id).maybeSingle();const estoque=Number(input?.estoque);if(!Number.isInteger(estoque)||estoque<0||estoque>100000)err('Estoque inválido.');const id=crypto.randomUUID();const preco=text(input?.preco,'Preço',60);const p={id,ordem:999999,nome:text(input?.nome,'Nome',160),categoria:text(input?.categoria,'Categoria',80),preco,preco_valor:money(priceCents(preco)),preco_antigo:text(input?.precoAntigo,'Preço antigo',60,false),desconto:text(input?.desconto,'Desconto',30,false),parcelas:text(input?.parcelas,'Parcelas',80,false),frete_gratis:input?.freteGratis===true,descricao:text(input?.descricao,'Descrição',3000),imagens:Array.isArray(input?.imagens)?input.imagens.slice(0,8):[],marca:text(input?.marca,'Marca',120,false),sku:text(input?.sku,'SKU',80,false),tag:text(input?.tag||input?.categoria,'Tag',80,false),estoque,vendedor_id:u.id,vendedor_nome:v?.nome_loja||v?.nome,status_aprovacao:'aguardando_aprovacao',ativo:false,vendedor_ativo:true,monetizacao:{destaque:false}};const {error}=await db.from('produtos').insert(p);if(error)throw error;await db.from('vendedores').update({total_produtos:Number(v?.total_produtos||0)+1}).eq('id',u.id);return {ok:true,produtoId:id,status:p.status_aprovacao};}
-    case 'atualizarProdutoVendedor': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128);const {data:p}=await db.from('produtos').select('*').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id)err('Produto não pertence à sua loja.','permission_denied');const x=input?.produto||{};const estoque=Number(x.estoque);if(!Number.isInteger(estoque)||estoque<0||estoque>100000)err('Estoque inválido.');const preco=text(x.preco,'Preço',60);const patch={nome:text(x.nome,'Nome',160),categoria:text(x.categoria,'Categoria',80),preco,preco_valor:money(priceCents(preco)),preco_antigo:text(x.precoAntigo,'Preço antigo',60,false),desconto:text(x.desconto,'Desconto',30,false),parcelas:text(x.parcelas,'Parcelas',80,false),frete_gratis:x.freteGratis===true,descricao:text(x.descricao,'Descrição',3000),imagens:Array.isArray(x.imagens)?x.imagens.slice(0,8):[],marca:text(x.marca,'Marca',120,false),sku:text(x.sku,'SKU',80,false),tag:text(x.tag,'Tag',80,false),estoque,status_aprovacao:'aguardando_aprovacao',ativo:false,vendedor_ativo:true,motivo_recusa:null,revisado_em:null,revisado_por:null,revisado_por_email:null,revisao_notas:null,revisao_checklist:null,atualizado_em:new Date().toISOString()};const {error}=await db.from('produtos').update(patch).eq('id',id);if(error)throw error;return {ok:true,status:'aguardando_aprovacao'};}
+    case 'criarProdutoVendedor': {const u=await requireSeller(req);const {data:v}=await db.from('vendedores').select('*').eq('id',u.id).maybeSingle();const estoque=Number(input?.estoque);if(!Number.isInteger(estoque)||estoque<0||estoque>100000)err('Estoque inválido.');const id=crypto.randomUUID();const preco=text(input?.preco,'Preço',60);const p={id,ordem:999999,nome:text(input?.nome,'Nome',160),categoria:text(input?.categoria,'Categoria',80),preco,preco_valor:money(priceCents(preco)),preco_antigo:text(input?.precoAntigo,'Preço antigo',60,false),desconto:text(input?.desconto,'Desconto',30,false),parcelas:text(input?.parcelas,'Parcelas',80,false),frete_gratis:input?.freteGratis===true,descricao:text(input?.descricao,'Descrição',3000),imagens:Array.isArray(input?.imagens)?input.imagens.slice(0,8):[],marca:text(input?.marca,'Marca',120,false),sku:text(input?.sku,'SKU',80,false),tag:text(input?.tag||input?.categoria,'Tag',80,false),estoque,variacoes:variacoesSeguras(input?.variacoes),vendedor_id:u.id,vendedor_nome:v?.nome_loja||v?.nome,status_aprovacao:'aguardando_aprovacao',ativo:false,vendedor_ativo:true,monetizacao:{destaque:false}};const {error}=await db.from('produtos').insert(p);if(error)throw error;await db.from('vendedores').update({total_produtos:Number(v?.total_produtos||0)+1}).eq('id',u.id);return {ok:true,produtoId:id,status:p.status_aprovacao};}
+    case 'atualizarProdutoVendedor': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128);const {data:p}=await db.from('produtos').select('*').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id)err('Produto não pertence à sua loja.','permission_denied');const x=input?.produto||{};const estoque=Number(x.estoque);if(!Number.isInteger(estoque)||estoque<0||estoque>100000)err('Estoque inválido.');const preco=text(x.preco,'Preço',60);const patch={nome:text(x.nome,'Nome',160),categoria:text(x.categoria,'Categoria',80),preco,preco_valor:money(priceCents(preco)),preco_antigo:text(x.precoAntigo,'Preço antigo',60,false),desconto:text(x.desconto,'Desconto',30,false),parcelas:text(x.parcelas,'Parcelas',80,false),frete_gratis:x.freteGratis===true,descricao:text(x.descricao,'Descrição',3000),imagens:Array.isArray(x.imagens)?x.imagens.slice(0,8):[],marca:text(x.marca,'Marca',120,false),sku:text(x.sku,'SKU',80,false),tag:text(x.tag,'Tag',80,false),estoque,variacoes:variacoesSeguras(x.variacoes),status_aprovacao:'aguardando_aprovacao',ativo:false,vendedor_ativo:true,motivo_recusa:null,revisado_em:null,revisado_por:null,revisado_por_email:null,revisao_notas:null,revisao_checklist:null,atualizado_em:new Date().toISOString()};const {error}=await db.from('produtos').update(patch).eq('id',id);if(error)throw error;return {ok:true,status:'aguardando_aprovacao'};}
     case 'solicitarDestaque': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128),dias=Number(input?.dias),precos:any={7:5000,15:9000,30:15000};if(!precos[dias])err('Período de destaque inválido.');const {data:p}=await db.from('produtos').select('*').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id||p.status_aprovacao!=='aprovado'||p.ativo!==true)err('Produto não está aprovado e publicado.','permission_denied');const {data:exist}=await db.from('destaques_solicitados').select('*').eq('uid_vendedor',u.id).eq('produto_id',id);if((exist||[]).some((d:any)=>['aguardando_pagamento','pendente'].includes(d.status)||(d.status==='ativo'&&d.fim&&new Date(d.fim)>new Date())))err('Já existe uma solicitação ativa ou pendente.','already_exists');const {data:row,error}=await db.from('destaques_solicitados').insert({uid_vendedor:u.id,produto_id:id,nome_produto:p.nome,dias,valor:precos[dias],status:'aguardando_pagamento'}).select('id,valor').single();if(error)throw error;return {ok:true,requestId:row.id,valor:row.valor};}
     case 'solicitarLevantamento': {const u=await requireSeller(req);const informado=input?.valor;const valor=informado===undefined||informado===null||informado===''?null:Number(informado);if(valor!==null&&(!Number.isFinite(valor)||valor<=0))err('Valor de levantamento inválido.','failed_precondition');const {data,error}=await db.rpc('solicitar_levantamento_atomico',{p_vendedor:u.id,p_valor:valor});if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','levantamento_solicitado',u.id,{});return camelRow(data);}
     case 'gerirVendedor': {const admin=await requireAdmin(req);const uid=text(input?.uid,'Vendedor',128),acao=text(input?.acao,'Ação',30),motivoRecusa=text(input?.motivoRecusa,'Motivo da recusa',600,false);if(!['aprovar','reativar','recusar','suspender'].includes(acao))err('Ação inválida.');const status=acao==='aprovar'||acao==='reativar'?'aprovado':acao==='recusar'?'recusado':'suspenso';const ativo=status==='aprovado';const {error}=await db.from('vendedores').update({status,ativo,motivo_recusa:acao==='recusar'?motivoRecusa:null,atualizado_em:new Date().toISOString()}).eq('id',uid);if(error)throw error;await db.from('produtos').update({vendedor_ativo:ativo}).eq('vendedor_id',uid);await registarEventoSeguranca(admin.id,'vendedor','estado_vendedor_alterado',uid,{acao,status});return {ok:true,status};}

@@ -1,4 +1,4 @@
-import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=9';
+import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=10';
 import { carregarCatalogo, filtrarEOrdenar, renderizarGrade, criarCardProduto } from './catalogo.js?v=3';
 import { initMobileMenu } from './menu.js';
 import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';
@@ -174,7 +174,10 @@ document.addEventListener('click', async function(e) {
                 produto = catalogo.find((item) => String(item.id) === String(btnAdd.dataset.produtoId));
             } catch (_) {}
         }
-        if (produto && extrairValorNumerico(produto.preco) > 0) {
+        if (produto && Array.isArray(produto.variacoes) && produto.variacoes.some((grupo) => grupo?.nome && Array.isArray(grupo?.opcoes) && grupo.opcoes.length)) {
+            mostrarToast('Escolha as opções do produto antes de adicionar à sacola.', 'info');
+            window.location.href = `detalhe.html?id=${encodeURIComponent(produto.id)}`;
+        } else if (produto && extrairValorNumerico(produto.preco) > 0) {
             adicionarProdutoCarrinho(produto);
         } else {
             mostrarToast('Erro ao adicionar produto.', 'info');

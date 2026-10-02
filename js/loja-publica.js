@@ -2,7 +2,7 @@ import { db, CONFIG, supabase } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where } from './supabase-compat.js';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
 import { escapeHTML, imagemProdutoSegura, urlSegura } from './utils.js';
-import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=9';
+import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=10';
 
 const params = new URLSearchParams(location.search);
 const vendedorId = params.get('id');
@@ -46,7 +46,10 @@ document.addEventListener('click', (event) => {
   if (!produto) return;
   event.preventDefault();
   event.stopPropagation();
-  if (adicionarProdutoCarrinho(produto)) {
+  if (Array.isArray(produto.variacoes) && produto.variacoes.some((grupo) => grupo?.nome && Array.isArray(grupo?.opcoes) && grupo.opcoes.length)) {
+    atualizarAtalhoSacola('Escolha as opções do produto antes de adicionar à sacola.');
+    window.location.href = `detalhe.html?id=${encodeURIComponent(produto.id)}`;
+  } else if (adicionarProdutoCarrinho(produto)) {
     atualizarAtalhoSacola('✓ Produto adicionado à sacola. Pode finalizar a compra quando quiser.');
   }
 });
@@ -307,7 +310,9 @@ function renderizarEditorial(perfil, listaProdutos) {
     adicionar.textContent = 'Adicionar';
     adicionar.setAttribute('aria-label', 'Adicionar ' + String(produto.nome || 'produto') + ' ao carrinho');
     adicionar.addEventListener('click', () => {
-      if (adicionarProdutoCarrinho(produto)) {
+      if (Array.isArray(produto.variacoes) && produto.variacoes.some((grupo) => grupo?.nome && Array.isArray(grupo?.opcoes) && grupo.opcoes.length)) {
+        window.location.href = `detalhe.html?id=${encodeURIComponent(produto.id)}`;
+      } else if (adicionarProdutoCarrinho(produto)) {
         atualizarAtalhoSacola('✓ Produto da coleção adicionado à sacola.');
       }
     });

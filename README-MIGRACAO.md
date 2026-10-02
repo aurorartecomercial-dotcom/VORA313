@@ -99,6 +99,19 @@ migration preserva a política de perfil público: apenas campos controlados,
 uma capa HTTPS e um produto publicado da própria loja podem ser usados. Veja
 `VITRINE-EDITORIAL.md` para configurar uma loja.
 
+## Operação de compras: opções, pedidos e avaliações
+
+Execute `021_operacao_compras_variacoes.sql` depois da migration `020` e
+publique novamente a Edge Function `api`. Ela acrescenta tamanho, cor e outras
+opções aos produtos, grava a opção escolhida no pedido e habilita a página
+privada **Meus pedidos**. As avaliações continuam bloqueadas até a entrega ser
+confirmada. Não execute a migration se a `015_pagamentos_vora_pay.sql` ainda
+não estiver aplicada, pois os pedidos e pagamentos precisam da mesma base.
+
+O checkout por transferência com comprovativo continua operacional. Visa,
+Multicaixa, BAI, BFA e BIC só devem ser ativados depois de contrato, credenciais
+guardadas como Secrets e webhook assinado pelo parceiro de pagamento.
+
 ## Dados antigos
 
 Os scripts em `tools/` continuam disponíveis somente como ferramentas de importação única dos dados históricos do Firebase. Eles não fazem parte do runtime da aplicação.

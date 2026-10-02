@@ -1,6 +1,6 @@
 import { auth, db, storage, functions, supabase } from './config.js';
 import { collection, doc, getDoc, getDocs, query, where, limit, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, sendPasswordResetEmail, updatePassword, httpsCallable, ref, uploadToSignedUrl, getDownloadURL, validarPalavraPasseSegura } from './supabase-compat.js';
-import { escapeHTML, extrairValorNumerico, urlSegura } from './utils.js';
+import { escapeHTML, extrairValorNumerico, imagemProdutoSegura, urlSegura } from './utils.js';
 
 const $ = (id) => document.getElementById(id);
 const call = (name) => httpsCallable(functions, name);
@@ -424,11 +424,12 @@ function renderizarProdutos() {
   const box = $('vendProdutos');
   if (!lista.length) { box.innerHTML = vazio(produtos.length ? 'Nenhum produto corresponde ao filtro.' : 'Ainda não há produtos. Adicione o primeiro produto quando a loja for aprovada.'); return; }
   box.innerHTML = lista.map((produto) => {
-    const imagem = urlSegura(Array.isArray(produto.imagens) ? produto.imagens[0] : '', '');
+    const imagem = imagemProdutoSegura(Array.isArray(produto.imagens) ? produto.imagens[0] : '', '');
     const estado = estadoProduto(produto);
     const motivo = produto.motivoRecusa || produto.motivo_recusa;
     const podeAlternar = ['aprovado', 'desativado'].includes(estado);
-    return `<article class="seller-product-row"><div class="seller-product-thumb">${imagem ? `<img src="${escapeHTML(imagem)}" alt="">` : '📦'}</div><div><h3>${escapeHTML(produto.nome || 'Produto sem nome')}</h3><p>${escapeHTML(produto.categoria || 'Sem categoria')} · ${escapeHTML(moeda(extrairValorNumerico(produto.preco || 0)))} · estoque ${escapeHTML(produto.estoque ?? 0)}</p><div class="seller-product-meta"><span class="seller-chip ${classeEstado(estado)}">${escapeHTML(nomeEstado(estado))}</span>${produto.freteGratis ? '<span class="seller-chip">Frete grátis</span>' : ''}</div></div><div class="seller-product-actions"><a href="detalhe.html?id=${encodeURIComponent(produto.id)}" target="_blank" rel="noopener">Ver</a><button type="button" data-editar-produto="${escapeHTML(produto.id)}">Editar</button>${estado === 'aprovado' ? `<button type="button" data-destacar-produto="${escapeHTML(produto.id)}">Destacar</button>` : ''}${podeAlternar ? `<button type="button" data-alternar-produto="${escapeHTML(produto.id)}" data-produto-ativo="${estado === 'desativado' ? 'true' : 'false'}">${estado === 'desativado' ? 'Ativar' : 'Desativar'}</button>` : ''}</div>${estado === 'recusado' && motivo ? `<p class="seller-product-reason"><strong>Motivo da recusa:</strong> ${escapeHTML(motivo)}</p>` : ''}</article>`;
+    const variacoes = Array.isArray(produto.variacoes) ? produto.variacoes.filter((grupo) => grupo?.nome).map((grupo) => grupo.nome).join(', ') : '';
+    return `<article class="seller-product-row"><div class="seller-product-thumb">${imagem ? `<img src="${escapeHTML(imagem)}" alt="">` : '📦'}</div><div><h3>${escapeHTML(produto.nome || 'Produto sem nome')}</h3><p>${escapeHTML(produto.categoria || 'Sem categoria')} · ${escapeHTML(moeda(extrairValorNumerico(produto.preco || 0)))} · estoque ${escapeHTML(produto.estoque ?? 0)}</p><div class="seller-product-meta"><span class="seller-chip ${classeEstado(estado)}">${escapeHTML(nomeEstado(estado))}</span>${variacoes ? `<span class="seller-chip">Opções: ${escapeHTML(variacoes)}</span>` : ''}${produto.freteGratis ? '<span class="seller-chip">Frete grátis</span>' : ''}</div></div><div class="seller-product-actions"><a href="detalhe.html?id=${encodeURIComponent(produto.id)}" target="_blank" rel="noopener">Ver</a><button type="button" data-editar-produto="${escapeHTML(produto.id)}">Editar</button>${estado === 'aprovado' ? `<button type="button" data-destacar-produto="${escapeHTML(produto.id)}">Destacar</button>` : ''}${podeAlternar ? `<button type="button" data-alternar-produto="${escapeHTML(produto.id)}" data-produto-ativo="${estado === 'desativado' ? 'true' : 'false'}">${estado === 'desativado' ? 'Ativar' : 'Desativar'}</button>` : ''}</div>${estado === 'recusado' && motivo ? `<p class="seller-product-reason"><strong>Motivo da recusa:</strong> ${escapeHTML(motivo)}</p>` : ''}</article>`;
   }).join('');
 }
 
@@ -619,15 +620,52 @@ async function redefinirSenha(evento) {
   } catch (_) { mensagem('O link de recuperação expirou ou não é válido. Peça um novo link.', false); }
 }
 
+function variacoesParaTexto(variacoes) {
+  if (!Array.isArray(variacoes)) return '';
+  return variacoes.map((grupo) => {
+    const nome = String(grupo?.nome || '').trim();
+    const opcoes = Array.isArray(grupo?.opcoes) ? grupo.opcoes.map((opcao) => String(opcao?.nome || opcao || '').trim()).filter(Boolean) : [];
+    return nome && opcoes.length ? `${nome}: ${opcoes.join(' | ')}` : '';
+  }).filter(Boolean).join('\n');
+}
+
+function variacoesDoTexto(valor) {
+  const nomes = new Set();
+  const grupos = String(valor || '').split(/\r?\n/).map((linha) => linha.trim()).filter(Boolean).map((linha) => {
+    const separador = linha.indexOf(':');
+    if (separador < 1) throw new Error('Use o formato “Tamanho: P | M | G” para as variações.');
+    const nome = linha.slice(0, separador).trim();
+    const opcoes = linha.slice(separador + 1).split('|').map((opcao) => opcao.trim()).filter(Boolean);
+    if (!nome || !opcoes.length) throw new Error('Cada variação deve ter um nome e pelo menos uma opção.');
+    const chave = nome.toLocaleLowerCase('pt-AO');
+    if (nomes.has(chave)) throw new Error('Não repita o mesmo tipo de variação.');
+    nomes.add(chave);
+    return { nome, obrigatoria: true, opcoes: opcoes.map((opcao) => ({ nome: opcao })) };
+  });
+  if (grupos.length > 3) throw new Error('Use no máximo três tipos de variação por produto.');
+  return grupos;
+}
+
+function instalarCampoVariacoes(form) {
+  if (!form || form.elements.namedItem('variacoes')) return;
+  const descricao = form.elements.namedItem('descricao')?.closest('label');
+  if (!descricao) return;
+  const label = document.createElement('label');
+  label.className = 'seller-span-2';
+  label.innerHTML = '<span>Variações (opcional)</span><textarea name="variacoes" maxlength="500" placeholder="Uma linha por tipo. Ex.: Tamanho: P | M | G&#10;Cor: Preto | Branco | Azul"></textarea><small>O cliente escolhe as opções antes de adicionar. Nesta fase o estoque é total do produto.</small>';
+  descricao.before(label);
+}
+
 function abrirEditorProduto(produto = null) {
   if (!lojaAtiva()) return mensagem('A loja precisa estar aprovada para gerir produtos.', false);
   const editor = $('produtoEditor'); const form = $('formProdutoVendedor');
+  instalarCampoVariacoes(form);
   editor.hidden = false;
   form.reset(); form.dataset.editId = '';
   form.elements.namedItem('estoque').value = '1';
   setTexto('vendFormProdutoTitulo', produto ? 'Editar produto' : 'Novo produto');
   if (produto) {
-    const dados = { nome: produto.nome, categoria: produto.categoria, preco: produto.preco, precoAntigo: produto.precoAntigo, marca: produto.marca, sku: produto.sku, desconto: produto.desconto, parcelas: produto.parcelas, tag: produto.tag, estoque: produto.estoque, descricao: produto.descricao, imagens: (produto.imagens || []).join(', ') };
+    const dados = { nome: produto.nome, categoria: produto.categoria, preco: produto.preco, precoAntigo: produto.precoAntigo, marca: produto.marca, sku: produto.sku, desconto: produto.desconto, parcelas: produto.parcelas, tag: produto.tag, estoque: produto.estoque, descricao: produto.descricao, imagens: (produto.imagens || []).join(', '), variacoes: variacoesParaTexto(produto.variacoes) };
     Object.entries(dados).forEach(([nome, valor]) => { const campo = form.elements.namedItem(nome); if (campo) campo.value = valor || ''; });
     form.elements.namedItem('freteGratis').checked = produto.freteGratis === true;
     form.dataset.editId = produto.id;
@@ -645,7 +683,10 @@ async function salvarProduto(evento) {
   evento.preventDefault();
   if (!lojaAtiva()) return mensagem('A loja precisa estar aprovada para guardar produtos.', false);
   const form = evento.currentTarget; const dados = Object.fromEntries(new FormData(form));
-  const produto = { nome: dados.nome, categoria: dados.categoria, preco: dados.preco, precoAntigo: dados.precoAntigo, desconto: dados.desconto, parcelas: dados.parcelas, marca: dados.marca, sku: dados.sku, tag: dados.tag, estoque: Number(dados.estoque), descricao: dados.descricao, imagens: String(dados.imagens || '').split(',').map((valor) => valor.trim()).filter(Boolean), freteGratis: form.elements.namedItem('freteGratis').checked };
+  let variacoes;
+  try { variacoes = variacoesDoTexto(dados.variacoes); }
+  catch (erro) { return mensagem(erroTexto(erro), false); }
+  const produto = { nome: dados.nome, categoria: dados.categoria, preco: dados.preco, precoAntigo: dados.precoAntigo, desconto: dados.desconto, parcelas: dados.parcelas, marca: dados.marca, sku: dados.sku, tag: dados.tag, estoque: Number(dados.estoque), descricao: dados.descricao, imagens: String(dados.imagens || '').split(',').map((valor) => valor.trim()).filter(Boolean), variacoes, freteGratis: form.elements.namedItem('freteGratis').checked };
   try {
     await guardarProduto(produto, form.dataset.editId || null);
     fecharEditorProduto();

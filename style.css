@@ -3076,3 +3076,16 @@ body:has(.carrinho-sidebar.ativo) .carrinho-overlay{
   .vora-payment-visa:after{right:4px;bottom:4px;width:16px;height:2px}.vora-payment-bfa:after{bottom:3px;width:18px}
   .vora-payment-status{min-width:0;font-size:8px;white-space:nowrap}.vora-payment-status>span{font-size:13px}
 }
+
+/* Opções de produto — não dependem de bibliotecas externas e mantêm a escolha
+   visível antes de o cliente colocar tamanho/cor na sacola. */
+.detalhe-variacoes{margin:13px 0 10px;padding:12px;border:1px solid #dce8e3;border-radius:12px;background:#fff}
+.detalhe-variacoes>p{margin:0 0 8px;color:#315f53;font-size:12px;font-weight:800}
+.detalhe-variacao-grupo+.detalhe-variacao-grupo{margin-top:10px}
+.detalhe-variacao-grupo>strong{display:block;margin-bottom:6px;color:#173f35;font-size:13px}
+.detalhe-variacao-grupo>strong span{color:#ba452d}
+.detalhe-variacao-opcoes{display:flex;flex-wrap:wrap;gap:7px}
+.detalhe-variacao-opcoes button{min-height:34px;border:1px solid #cdded8;border-radius:8px;background:#fff;color:#244c41;padding:6px 10px;font:inherit;font-size:12px;font-weight:750;cursor:pointer}
+.detalhe-variacao-opcoes button[aria-pressed="true"]{border-color:#007b63;background:#e8f6f0;color:#00674f;box-shadow:0 0 0 2px rgba(0,123,99,.11)}
+.detalhe-variacoes small{display:block;margin-top:9px;color:#677e76;font-size:11px}
+body.modo-escuro .detalhe-variacoes{background:#171f1d;border-color:#33453f}body.modo-escuro .detalhe-variacao-grupo>strong{color:#edf6f2}body.modo-escuro .detalhe-variacao-opcoes button{background:#202b28;border-color:#405650;color:#e2efe9}

@@ -1,13 +1,14 @@
-import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=9';
+import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=10';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
 import { initMobileMenu } from './menu.js';
-import { adicionarAvaliacao, obterAvaliacao } from './avaliacoes.js';
+import { adicionarAvaliacao, consultarElegibilidadeAvaliacao, obterAvaliacao } from './avaliacoes.js';
 import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, imagemProdutoSegura, urlSegura } from './utils.js';
 import { registrarVista } from './fase3.js';
 
 let catalogoAtual = [];
 let produtoAtual = null;
 let quantidadeSelecionada = 1;
+let variacaoSelecionada = {};
 
 const normalizar = (valor) => String(valor || '').trim().toLocaleLowerCase();
 
@@ -60,6 +61,11 @@ document.addEventListener('click', (event) => {
     if (!produto) return;
     event.preventDefault();
     event.stopPropagation();
+    if (gruposVariacao(produto).length) {
+        mostrarToast('Escolha as opções do produto antes de adicionar à sacola.', 'info');
+        window.location.href = `detalhe.html?id=${encodeURIComponent(produto.id)}`;
+        return;
+    }
     adicionarProdutoCarrinho(produto);
 });
 
@@ -72,6 +78,53 @@ function mostrarErro(mensagem) {
             <p>${escapeHTML(mensagem)}</p>
             <p style="margin-top:20px;"><a href="index.html" style="color:var(--cor-esmeralda);font-weight:700;">Voltar para a loja</a></p>
         </div>`;
+}
+
+function gruposVariacao(produto) {
+    if (!Array.isArray(produto?.variacoes)) return [];
+    return produto.variacoes.map((grupo) => {
+        const nome = String(grupo?.nome || '').trim();
+        const opcoes = Array.isArray(grupo?.opcoes) ? grupo.opcoes.map((opcao) => String(opcao?.nome || opcao || '').trim()).filter(Boolean).slice(0, 20) : [];
+        return nome && opcoes.length ? { nome, obrigatoria: grupo.obrigatoria !== false, opcoes } : null;
+    }).filter(Boolean).slice(0, 3);
+}
+
+function renderizarVariacoes(produto) {
+    const grupos = gruposVariacao(produto);
+    if (!grupos.length) return '';
+    return `<section class="detalhe-variacoes" aria-label="Opções do produto"><p>Escolha antes de adicionar:</p>${grupos.map((grupo) => `<div class="detalhe-variacao-grupo"><strong>${escaparAtributo(grupo.nome)}${grupo.obrigatoria ? ' <span aria-hidden="true">*</span>' : ''}</strong><div class="detalhe-variacao-opcoes">${grupo.opcoes.map((opcao) => `<button type="button" data-variacao-nome="${escaparAtributo(grupo.nome)}" data-variacao-valor="${escaparAtributo(opcao)}" aria-pressed="false">${escaparAtributo(opcao)}</button>`).join('')}</div></div>`).join('')}<small id="avisoVariacao">Selecione as opções obrigatórias para continuar.</small></section>`;
+}
+
+function configurarVariacoes(produto) {
+    const grupos = gruposVariacao(produto);
+    variacaoSelecionada = {};
+    if (!grupos.length) return;
+    document.querySelectorAll('[data-variacao-nome][data-variacao-valor]').forEach((botao) => {
+        botao.addEventListener('click', () => {
+            const nome = botao.dataset.variacaoNome;
+            const valor = botao.dataset.variacaoValor;
+            if (!nome || !valor) return;
+            variacaoSelecionada[nome] = valor;
+            document.querySelectorAll('[data-variacao-nome]').forEach((item) => {
+                if (item.dataset.variacaoNome === nome) item.setAttribute('aria-pressed', String(item.dataset.variacaoValor === valor));
+            });
+            const aviso = document.getElementById('avisoVariacao');
+            if (aviso) aviso.textContent = selecaoVariacaoCompleta(produto) ? 'Opções selecionadas.' : 'Selecione as opções obrigatórias para continuar.';
+        });
+    });
+}
+
+function selecaoVariacaoCompleta(produto) {
+    return gruposVariacao(produto).every((grupo) => !grupo.obrigatoria || Boolean(variacaoSelecionada[grupo.nome]));
+}
+
+function selecaoVariacaoParaCarrinho(produto) {
+    if (!selecaoVariacaoCompleta(produto)) {
+        const pendente = gruposVariacao(produto).find((grupo) => grupo.obrigatoria && !variacaoSelecionada[grupo.nome]);
+        mostrarToast(`Escolha ${pendente?.nome || 'as opções do produto'} antes de continuar.`, 'info');
+        return null;
+    }
+    return { ...variacaoSelecionada };
 }
 
 function renderizarDetalhes(prod) {
@@ -98,6 +151,7 @@ function renderizarDetalhes(prod) {
         ? `<div class="video-container"><iframe src="${escaparAtributo(videoUrl)}" title="Vídeo do produto" frameborder="0" allowfullscreen loading="lazy"></iframe></div>` : '';
 
     quantidadeSelecionada = 1;
+    variacaoSelecionada = {};
 
     const miniaturasHtml = imagens.map((src, i) => `
         <button type="button" class="miniatura-produto ${i === 0 ? 'ativa' : ''}" data-index="${i}" aria-label="Ver imagem ${i + 1}">
@@ -132,6 +186,7 @@ function renderizarDetalhes(prod) {
                     ${prod.parcelas ? `<div class="parcelas">${escaparAtributo(prod.parcelas)}</div>` : ''}
                     ${prod.freteGratis ? `<div class="frete-gratis">🚚 Frete grátis</div>` : ''}
                     ${stockConhecido ? `<div class="detalhe-stock ${esgotado ? 'esgotado' : ''}">${esgotado ? '🚫 Produto esgotado' : `✓ ${stock} unidade${stock === 1 ? '' : 's'} disponível${stock === 1 ? '' : 'is'}`}</div>` : '<div class="detalhe-stock">✓ Disponibilidade confirmada no carrinho</div>'}
+                    ${renderizarVariacoes(prod)}
                     <div class="detalhe-quantidade" aria-label="Quantidade">
                         <span class="quantidade-label">Quantidade</span>
                         <div class="quantidade-controle">
@@ -164,13 +219,13 @@ function renderizarDetalhes(prod) {
     `;
 
     configurarGaleria(imagens, prod.nome);
+    configurarVariacoes(prod);
     adicionarBarraCompraMobile(prod, esgotado);
     document.getElementById('diminuirQtd')?.addEventListener('click', () => alterarQuantidade(-1));
     document.getElementById('aumentarQtd')?.addEventListener('click', () => alterarQuantidade(1));
     document.getElementById('btnAdicionarDetalhe')?.addEventListener('click', () => adicionarQuantidadeAoCarrinho(prod));
     document.getElementById('btnComprarDetalhe')?.addEventListener('click', () => {
-        adicionarQuantidadeAoCarrinho(prod);
-        abrirSacola();
+        if (adicionarQuantidadeAoCarrinho(prod)) abrirSacola();
     });
     document.getElementById('btnPartilharDetalhe')?.addEventListener('click', () => partilharProduto(prod));
 }
@@ -235,9 +290,13 @@ function alterarQuantidade(delta) {
 }
 
 function adicionarQuantidadeAoCarrinho(prod) {
-    if (!prod) return;
-    for (let i = 0; i < quantidadeSelecionada; i += 1) adicionarProdutoCarrinho(prod);
+    if (!prod) return false;
+    const variacao = selecaoVariacaoParaCarrinho(prod);
+    if (variacao === null) return false;
+    let adicionado = false;
+    for (let i = 0; i < quantidadeSelecionada; i += 1) adicionado = adicionarProdutoCarrinho(prod, '', variacao) || adicionado;
     if (quantidadeSelecionada > 1) mostrarToast(`${quantidadeSelecionada} unidades adicionadas à sacola.`, 'sucesso');
+    return adicionado;
 }
 
 function partilharProduto(prod) {
@@ -283,11 +342,13 @@ function renderizarRecomendacoes(prod) {
 
 async function carregarAvaliacaoAsync(prodId) {
     try {
-        const avaliacao = await obterAvaliacao(prodId);
+        const [avaliacao, elegibilidade] = await Promise.all([obterAvaliacao(prodId), consultarElegibilidadeAvaliacao(prodId)]);
         const container = document.getElementById('avaliacaoContainer');
         if (!container) return;
-        container.innerHTML = `<span>⭐ ${Number(avaliacao.media || 0).toFixed(1)} (${avaliacao.total || 0} avaliações)</span>
-            <div class="avaliar-form"><label for="notaAvaliacao">Sua nota:</label><select id="notaAvaliacao"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option></select><button id="btnAvaliar" class="btn-avaliar">Avaliar</button></div>`;
+        const formulario = elegibilidade?.elegivel
+            ? '<div class="avaliar-form"><label for="notaAvaliacao">Sua nota:</label><select id="notaAvaliacao"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option></select><button id="btnAvaliar" class="btn-avaliar">Avaliar</button></div>'
+            : `<small class="avaliacao-aviso">${escapeHTML(elegibilidade?.motivo || 'A avaliação fica disponível após a entrega.')}</small>`;
+        container.innerHTML = `<span>⭐ ${Number(avaliacao.media || 0).toFixed(1)} (${avaliacao.total || 0} avaliações)</span>${formulario}`;
         document.getElementById('btnAvaliar')?.addEventListener('click', async () => {
             const nota = Number.parseInt(document.getElementById('notaAvaliacao')?.value || '5', 10);
             await adicionarAvaliacao(prodId, nota);

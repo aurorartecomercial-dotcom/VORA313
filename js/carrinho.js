@@ -26,6 +26,24 @@ let metodoPagamentoSelecionado = 'transferencia_manual';
 const CHECKOUT_IDEMPOTENCY_KEY = 'vora313_checkout_idempotency';
 const PAYMENT_IDEMPOTENCY_PREFIX = 'vora313_payment_idempotency_';
 
+function normalizarVariacaoCarrinho(variacao) {
+  if (!variacao || typeof variacao !== 'object' || Array.isArray(variacao)) return {};
+  return Object.entries(variacao).reduce((saida, [nome, valor]) => {
+    const chave = String(nome || '').trim();
+    const opcao = String(valor || '').trim();
+    if (chave && opcao) saida[chave] = opcao;
+    return saida;
+  }, {});
+}
+
+function chaveVariacaoCarrinho(variacao) {
+  return JSON.stringify(Object.entries(normalizarVariacaoCarrinho(variacao)).sort(([a], [b]) => a.localeCompare(b, 'pt-AO')));
+}
+
+function textoVariacaoCarrinho(variacao) {
+  return Object.entries(normalizarVariacaoCarrinho(variacao)).map(([nome, valor]) => `${nome}: ${valor}`).join(' · ');
+}
+
 function invalidarTentativaCheckout() {
   localStorage.removeItem(CHECKOUT_IDEMPOTENCY_KEY);
 }
@@ -225,6 +243,13 @@ export function atualizarCarrinho() {
       observacao.textContent = `📝 ${item.observacao}`;
       info.append(observacao);
     }
+    const variacao = textoVariacaoCarrinho(item.variacao);
+    if (variacao) {
+      const opcoes = document.createElement('small');
+      opcoes.style.color = '#477168';
+      opcoes.textContent = `Opções: ${variacao}`;
+      info.append(opcoes);
+    }
     const controles = document.createElement('div');
     controles.className = 'item-controles';
     controles.style.cssText = 'display:flex;align-items:center;gap:4px;background:#f0f0f0;padding:4px 8px;border-radius:20px;';
@@ -271,7 +296,7 @@ function alterarQuantidade(index, mudanca) {
   atualizarCarrinho();
 }
 
-export function adicionarProdutoCarrinho(produto, observacao = '') {
+export function adicionarProdutoCarrinho(produto, observacao = '', variacao = {}) {
   carregarCarrinho();
   const produtoId = String(produto?.id || '').trim();
   if (!produtoId) {
@@ -287,7 +312,9 @@ export function adicionarProdutoCarrinho(produto, observacao = '') {
     mostrarToast('🚫 Produto esgotado!', 'info');
     return false;
   }
-  const existente = carrinho.find((item) => item.produtoId === produtoId && item.observacao === observacao);
+  const variacaoSegura = normalizarVariacaoCarrinho(variacao);
+  const chaveVariacao = chaveVariacaoCarrinho(variacaoSegura);
+  const existente = carrinho.find((item) => item.produtoId === produtoId && item.observacao === observacao && chaveVariacaoCarrinho(item.variacao) === chaveVariacao);
   if (existente && estoqueConhecido && existente.quantidade >= estoque) {
     mostrarToast('🚫 Estoque esgotado!', 'info');
     return false;
@@ -299,7 +326,8 @@ export function adicionarProdutoCarrinho(produto, observacao = '') {
     preco: String(produto.preco || ''),
     imagem: imagemProdutoSegura(produto.imagem || produto.imagemUrl || produto.foto || produto.image || produto.imagens?.[0] || '', ''),
     quantidade: 1,
-    observacao: String(observacao || '').slice(0, 500)
+    observacao: String(observacao || '').slice(0, 500),
+    variacao: variacaoSegura
   });
   invalidarTentativaCheckout();
   atualizarCarrinho();
@@ -382,7 +410,7 @@ async function finalizarPedido() {
     await garantirSessao();
     const criarPedido = httpsCallable(functions, 'criarPedido');
     const resposta = await criarPedido({
-      itens: carrinho.map(({ produtoId, quantidade }) => ({ produtoId, quantidade })),
+      itens: carrinho.map(({ produtoId, quantidade, variacao }) => ({ produtoId, quantidade, variacao: normalizarVariacaoCarrinho(variacao) })),
       cliente,
       cupom: cupomAplicado,
       idempotencyKey: obterChavePedido()
@@ -522,7 +550,11 @@ export function gerarFaturaHTML(pedido) {
   const linhas = (pedido.itens || []).map((item, indice) => {
     const subtotal = Number(item.preco || 0) * Number(item.quantidade || 0);
     const vendedor = item.vendedorNome ? `<small>Vendido por: ${escapeHTML(item.vendedorNome)}</small>` : '';
-    return `<tr><td class="linha-numero">${indice + 1}</td><td><strong>${escapeHTML(item.nome || 'Produto')}</strong>${vendedor}</td><td class="centro">${Number(item.quantidade || 0)}</td><td class="valor">${escapeHTML(formatarMoeda(item.preco || 0))}</td><td class="valor"><strong>${escapeHTML(formatarMoeda(subtotal))}</strong></td></tr>`;
+    const variacoes = Array.isArray(item.variacao)
+      ? item.variacao.map((opcao) => `${opcao?.nome || ''}: ${opcao?.valor || ''}`).filter(Boolean).join(' · ')
+      : textoVariacaoCarrinho(item.variacao);
+    const opcoes = variacoes ? `<small>Opções: ${escapeHTML(variacoes)}</small>` : '';
+    return `<tr><td class="linha-numero">${indice + 1}</td><td><strong>${escapeHTML(item.nome || 'Produto')}</strong>${opcoes}${vendedor}</td><td class="centro">${Number(item.quantidade || 0)}</td><td class="valor">${escapeHTML(formatarMoeda(item.preco || 0))}</td><td class="valor"><strong>${escapeHTML(formatarMoeda(subtotal))}</strong></td></tr>`;
   }).join('');
   const desconto = Number(pedido.valorDesconto || 0);
   const cupom = pedido.cupomAplicado?.codigo ? `<div class="total-row desconto"><span>Desconto (${escapeHTML(pedido.cupomAplicado.codigo)})</span><strong>− ${escapeHTML(formatarMoeda(desconto))}</strong></div>` : '';
