@@ -48,23 +48,29 @@ const TAMANHO_VIDEO_MAXIMO = 100 * 1024 * 1024;
 const DURACAO_VIDEO_MAXIMA = 60;
 
 function err(message: string, code = 'bad_request'): never { throw Object.assign(new Error(message), { code }); }
-function configuracaoDeVideoEmFalta(causa: unknown) {
+function detalhesErroParaLog(causa: unknown) {
   const erro = causa as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown } | null;
-  const codigo = typeof erro?.code === 'string' ? erro.code : '';
-  const detalhe = [erro?.message, erro?.details, erro?.hint]
-    .filter((valor) => typeof valor === 'string')
-    .join(' ')
-    .toLowerCase();
-  return codigo === '42P01'
-    || detalhe.includes('videos_vendedores')
-    || detalhe.includes('vora-public')
-    || (detalhe.includes('bucket') && (detalhe.includes('not found') || detalhe.includes('does not exist')));
+  return {
+    codigo: typeof erro?.code === 'string' ? erro.code : '',
+    mensagem: typeof erro?.message === 'string' ? erro.message : '',
+    detalhes: typeof erro?.details === 'string' ? erro.details : '',
+    sugestao: typeof erro?.hint === 'string' ? erro.hint : ''
+  };
 }
-function avisarConfiguracaoDeVideo(causa: unknown): never {
+function configuracaoDeVideoEmFalta(causa: unknown) {
+  const erro = detalhesErroParaLog(causa);
+  const detalhe = `${erro.mensagem} ${erro.detalhes} ${erro.sugestao}`.toLowerCase();
+  return erro.codigo === '42P01'
+    || /relation .*videos_vendedores.*does not exist/.test(detalhe)
+    || /bucket (not found|does not exist)|((not found|does not exist).*bucket)/.test(detalhe);
+}
+function falhaInfraestruturaVideo(causa: unknown, etapa: string): never {
+  // Só é registado nos Logs privados da Edge Function: nunca expõe detalhes ao cliente.
+  console.error(`Falha de vídeo na etapa: ${etapa}`, detalhesErroParaLog(causa));
   if (configuracaoDeVideoEmFalta(causa)) {
     err('A área de vídeos ainda não está configurada no Supabase. Execute primeiro a migration 016 e depois a 024, e publique novamente a Edge Function api.', 'failed_precondition');
   }
-  throw causa;
+  err('O servidor não conseguiu preparar a publicação do vídeo. Abra os Logs privados da Edge Function api para identificar a configuração pendente.', 'failed_precondition');
 }
 function text(v: unknown, field: string, max: number, required = true) { const x = typeof v === 'string' ? v.trim() : ''; if (required && !x) err(`${field} é obrigatório.`); if (x.length > max) err(`${field} excede o limite permitido.`); return x; }
 function intPos(v: unknown, field: string, max = 100) { const x = Number(v); if (!Number.isInteger(x) || x < 1 || x > max) err(`${field} é inválido.`); return x; }
@@ -276,7 +282,7 @@ async function criarUploadAssinado(req: Request, input: any) {
   const caminho = `${pasta}/${crypto.randomUUID()}.${extensao}`;
   const { data, error } = await db.storage.from('vora-public').createSignedUploadUrl(caminho);
   if (error || !data?.token) {
-    if (tipo === 'video') avisarConfiguracaoDeVideo(error || new Error('Token de upload não recebido.'));
+    if (tipo === 'video') falhaInfraestruturaVideo(error || new Error('Token de upload não recebido.'), 'criação da URL de upload');
     throw error || new Error('Não foi possível preparar o upload seguro.');
   }
   return { caminho, token: data.token };
@@ -330,7 +336,7 @@ async function criarVideoVendedor(req: Request, input: any) {
     } catch (_) {
       // A gravação do vídeo já falhou; a mensagem útil ao vendedor tem prioridade.
     }
-    avisarConfiguracaoDeVideo(error);
+    falhaInfraestruturaVideo(error, 'registo do vídeo no banco');
   }
   await registarEventoSeguranca(user.id, 'vendedor', 'video_publicado', video.id, { produtoId: produto?.id || null });
   return camelRow(video);

@@ -4,7 +4,7 @@
 
 select
   to_regclass('public.videos_vendedores') is not null as tabela_videos_existe,
-  to_regprocedure('public.consumir_limite_api(uuid,text,integer,integer)') is not null as limite_api_existe;
+  to_regprocedure('public.consumir_limite_api(text,text,integer,integer)') as limite_api;
 
 select
   id,

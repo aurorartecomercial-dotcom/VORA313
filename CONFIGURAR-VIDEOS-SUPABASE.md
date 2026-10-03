@@ -22,7 +22,7 @@ No SQL Editor, execute `supabase/VERIFICAR-VIDEOS-SUPABASE.sql`.
 O resultado correto é:
 
 - `tabela_videos_existe = true`
-- `limite_api_existe = true`
+- `limite_api` preenchido como `consumir_limite_api(text,text,integer,integer)`.
 - uma linha para o bucket `vora-public`, com `video/mp4` e `video/webm` em `allowed_mime_types`, e limite igual ou superior a `104857600`.
 
 ## 4. Testar no site
