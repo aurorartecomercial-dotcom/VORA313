@@ -12,6 +12,8 @@ let pedidos = [];
 let movimentos = [];
 let levantamentos = [];
 let destaques = [];
+let videos = [];
+let videoPreviewUrl = '';
 let avaliacaoDaLoja = { media: 0, total: 0 };
 let viewAtual = 'resumo';
 let modoRecuperacao = /(?:^|[?&#])type=recovery(?:&|#|$)/.test(location.href) || new URLSearchParams(location.search).has('code');
@@ -265,9 +267,10 @@ async function carregarDadosLoja() {
     lerColecao('vendasVendedor', [where('uidVendedor', '==', vendedorId)]),
     lerColecao('movimentosVendedores', [where('uidVendedor', '==', vendedorId)]),
     lerColecao('levantamentos', [where('uidVendedor', '==', vendedorId)]),
-    lerColecao('destaquesSolicitados', [where('uidVendedor', '==', vendedorId)])
+    lerColecao('destaquesSolicitados', [where('uidVendedor', '==', vendedorId)]),
+    supabase.from('videos_vendedores').select('*').eq('vendedor_id', vendedorId).order('criado_em', { ascending: false })
   ]);
-  const nomes = ['produtos', 'pedidos', 'movimentos', 'levantamentos', 'destaques'];
+  const nomes = ['produtos', 'pedidos', 'movimentos', 'levantamentos', 'destaques', 'videos'];
   const falhas = [];
   resultados.forEach((resultado, indice) => {
     if (resultado.status === 'fulfilled') {
@@ -276,6 +279,7 @@ async function carregarDadosLoja() {
       if (nomes[indice] === 'movimentos') movimentos = resultado.value;
       if (nomes[indice] === 'levantamentos') levantamentos = resultado.value;
       if (nomes[indice] === 'destaques') destaques = resultado.value;
+      if (nomes[indice] === 'videos') videos = Array.isArray(resultado.value?.data) ? resultado.value.data : [];
     } else falhas.push(nomes[indice]);
   });
   if (falhas.length) mensagem(`Alguns dados não puderam ser atualizados agora: ${falhas.join(', ')}. Atualize a página dentro de instantes.`, false);
@@ -312,7 +316,7 @@ async function carregarCentral() {
   alterarVisibilidade('vendAuth', false);
   alterarVisibilidade('vendRecuperacao', false);
   alterarVisibilidade('vendDashboard', true);
-  produtos = []; pedidos = []; movimentos = []; levantamentos = []; destaques = []; avaliacaoDaLoja = { media: 0, total: 0 };
+  produtos = []; pedidos = []; movimentos = []; levantamentos = []; destaques = []; videos = []; avaliacaoDaLoja = { media: 0, total: 0 };
   await carregarDadosLoja();
   renderizarCentral();
   abrirView(viewAtual, true);
@@ -345,6 +349,7 @@ function renderizarCentral() {
   preencherPerfil();
   renderizarResumo();
   renderizarProdutos();
+  renderizarVideos();
   renderizarPedidos();
   renderizarFinancas();
   renderizarPromocoes();
@@ -495,6 +500,187 @@ function renderizarProdutos() {
   }).join('');
 }
 
+function preencherProdutosVideo(produtoSelecionado = '') {
+  const seletor = $('vendVideoProduto');
+  if (!seletor) return;
+  const publicados = produtos
+    .filter((produto) => estadoProduto(produto) === 'aprovado' && produto.ativo !== false)
+    .sort((a, b) => String(a.nome || '').localeCompare(String(b.nome || ''), 'pt-AO'));
+  seletor.innerHTML = '<option value="">Sem produto específico</option>' + publicados
+    .map((produto) => `<option value="${escapeHTML(produto.id)}">${escapeHTML(produto.nome || 'Produto')}</option>`)
+    .join('');
+  if (produtoSelecionado && publicados.some((produto) => String(produto.id) === String(produtoSelecionado))) seletor.value = produtoSelecionado;
+}
+
+function limparPreviewVideo() {
+  const preview = $('vendVideoPreview');
+  if (preview) {
+    preview.pause();
+    preview.removeAttribute('src');
+    preview.load();
+  }
+  if (videoPreviewUrl) {
+    URL.revokeObjectURL(videoPreviewUrl);
+    videoPreviewUrl = '';
+  }
+  const wrap = $('vendVideoPreviewWrap');
+  if (wrap) wrap.hidden = true;
+  setTexto('vendVideoMeta', 'Pré-visualização');
+}
+
+function configurarPreviewVideo() {
+  const input = $('vendVideoUpload');
+  const preview = $('vendVideoPreview');
+  if (!input || !preview) return;
+  input.addEventListener('change', () => {
+    limparPreviewVideo();
+    const arquivo = input.files?.[0];
+    if (!arquivo) return;
+    if (!['video/mp4', 'video/webm'].includes(arquivo.type)) {
+      input.value = '';
+      return mensagem('Escolha um vídeo MP4 ou WEBM.', false);
+    }
+    if (arquivo.size > 100 * 1024 * 1024) {
+      input.value = '';
+      return mensagem('O vídeo deve ter no máximo 100 MB.', false);
+    }
+    videoPreviewUrl = URL.createObjectURL(arquivo);
+    preview.src = videoPreviewUrl;
+    preview.onloadedmetadata = () => {
+      const duracao = Number(preview.duration);
+      if (!Number.isFinite(duracao) || duracao <= 0 || duracao > 60) {
+        limparPreviewVideo();
+        input.value = '';
+        mensagem('O vídeo deve ter entre 1 e 60 segundos.', false);
+        return;
+      }
+      const minutos = Math.floor(duracao / 60);
+      const segundos = Math.round(duracao % 60).toString().padStart(2, '0');
+      setTexto('vendVideoMeta', `Duração: ${minutos}:${segundos} · ${(arquivo.size / 1024 / 1024).toFixed(1)} MB`);
+      $('vendVideoPreviewWrap').hidden = false;
+    };
+    preview.onerror = () => {
+      limparPreviewVideo();
+      input.value = '';
+      mensagem('Não foi possível ler este vídeo. Tente outro ficheiro MP4 ou WEBM.', false);
+    };
+  });
+}
+
+function abrirEditorVideo() {
+  if (!lojaAtiva()) return mensagem('A loja precisa estar aprovada para publicar vídeos.', false);
+  const editor = $('videoEditor');
+  const form = $('formVideoVendedor');
+  if (!editor || !form) return;
+  form.reset();
+  limparPreviewVideo();
+  preencherProdutosVideo();
+  editor.hidden = false;
+  $('vendVideoUpload')?.focus();
+}
+
+function fecharEditorVideo() {
+  const editor = $('videoEditor');
+  const form = $('formVideoVendedor');
+  limparPreviewVideo();
+  if (form) form.reset();
+  if (editor) editor.hidden = true;
+}
+
+function renderizarVideos() {
+  const lista = $('vendVideos');
+  const contador = $('navVideosCount');
+  const kpi = $('kpiVideos');
+  const total = Array.isArray(videos) ? videos.length : 0;
+  if (contador) contador.textContent = String(total);
+  if (kpi) kpi.textContent = String(total);
+  preencherProdutosVideo();
+  if (!lista) return;
+  if (!total) {
+    lista.innerHTML = '<div class="seller-empty"><strong>🎥 Ainda não publicou vídeos.</strong><span>Mostre os seus produtos em vídeos curtos e ligue cada vídeo a um produto publicado.</span></div>';
+    return;
+  }
+  lista.replaceChildren(...videos.map((video) => {
+    const artigo = document.createElement('article');
+    artigo.className = 'seller-video-card';
+    const media = document.createElement('div');
+    media.className = 'seller-video-media';
+    const player = document.createElement('video');
+    player.controls = true;
+    player.playsInline = true;
+    player.preload = 'metadata';
+    const seguro = urlSegura(video.video_url || video.videoUrl, '');
+    if (seguro) player.src = seguro;
+    player.setAttribute('aria-label', String(video.titulo || 'Vídeo da loja'));
+    media.append(player);
+    const corpo = document.createElement('div');
+    corpo.className = 'seller-video-card-body';
+    const titulo = document.createElement('h3');
+    titulo.textContent = String(video.titulo || 'Vídeo');
+    const produto = produtos.find((item) => String(item.id) === String(video.produto_id || video.produtoId || ''));
+    const meta = document.createElement('p');
+    meta.textContent = produto ? `🛒 ${produto.nome}` : '🎥 Vídeo da loja';
+    const data = document.createElement('small');
+    data.textContent = dataHora(video.criado_em || video.criadoEm);
+    const excluir = document.createElement('button');
+    excluir.type = 'button';
+    excluir.className = 'seller-btn seller-btn-text seller-video-delete';
+    excluir.dataset.eliminarVideo = String(video.id);
+    excluir.textContent = 'Eliminar';
+    corpo.append(titulo, meta, data, excluir);
+    artigo.append(media, corpo);
+    return artigo;
+  }));
+}
+
+async function publicarVideo(evento) {
+  evento.preventDefault();
+  if (!lojaAtiva()) return mensagem('A loja precisa estar aprovada para publicar vídeos.', false);
+  const form = evento.currentTarget;
+  const dados = Object.fromEntries(new FormData(form));
+  const arquivo = $('vendVideoUpload')?.files?.[0];
+  if (!arquivo) return mensagem('Selecione um vídeo.', false);
+  if (!['video/mp4', 'video/webm'].includes(arquivo.type)) return mensagem('Use um vídeo MP4 ou WEBM.', false);
+  if (arquivo.size > 100 * 1024 * 1024) return mensagem('O vídeo deve ter no máximo 100 MB.', false);
+  const preview = $('vendVideoPreview');
+  const duracao = Number(preview?.duration);
+  if (!Number.isFinite(duracao) || duracao < 1 || duracao > 60) return mensagem('O vídeo deve ter entre 1 e 60 segundos. Aguarde a pré-visualização carregar.', false);
+  try {
+    const botao = form.querySelector('button[type="submit"]');
+    if (botao) { botao.disabled = true; botao.textContent = 'A enviar vídeo…'; }
+    const { data: autorizacao } = await call('criarUploadAssinado')({ tipo: 'video', mimeType: arquivo.type, tamanho: arquivo.size });
+    const destino = ref(storage, autorizacao.caminho);
+    await uploadToSignedUrl(destino, autorizacao.token, arquivo, { contentType: arquivo.type });
+    await call('criarVideoVendedor')({
+      titulo: dados.titulo,
+      descricao: dados.descricao || '',
+      produtoId: dados.produtoId || '',
+      caminho: autorizacao.caminho,
+      mimeType: arquivo.type,
+      tamanho: arquivo.size,
+      duracaoSegundos: Math.round(duracao)
+    });
+    fecharEditorVideo();
+    mensagem('Vídeo publicado na sua loja.');
+    await carregarCentral();
+  } catch (erro) {
+    mensagem(erroTexto(erro), false);
+  } finally {
+    const botao = form.querySelector('button[type="submit"]');
+    if (botao) { botao.disabled = false; botao.textContent = 'Publicar vídeo'; }
+  }
+}
+
+async function eliminarVideo(videoId) {
+  if (!videoId) return;
+  if (!window.confirm('Eliminar este vídeo da sua loja?')) return;
+  try {
+    await call('eliminarVideoVendedor')({ videoId });
+    mensagem('Vídeo eliminado.');
+    await carregarCentral();
+  } catch (erro) { mensagem(erroTexto(erro), false); }
+}
+
 function renderizarPedidos() {
   const estadoFiltro = $('filtroPedidosStatus')?.value || 'todos';
   const dias = Number($('filtroPedidosPeriodo')?.value || 0);
@@ -593,7 +779,7 @@ function renderizarConfiguracoes() {
 function abrirView(nome, silencioso = false) {
   const existe = document.querySelector(`[data-view-panel="${nome}"]`);
   if (!existe) return;
-  const exigeAprovacao = ['produtos', 'pedidos', 'financas', 'promocoes', 'estatisticas', 'configuracoes'].includes(nome);
+  const exigeAprovacao = ['produtos', 'videos', 'pedidos', 'financas', 'promocoes', 'estatisticas', 'configuracoes'].includes(nome);
   if (vendedor && exigeAprovacao && !lojaAtiva()) {
     if (!silencioso) mensagem('Esta área será liberada quando a loja for aprovada e ativada pela VORA 313.', false);
     nome = 'loja';
@@ -604,6 +790,7 @@ function abrirView(nome, silencioso = false) {
   $('sellerSidebar').classList.remove('open');
   $('btnMenuVendedor').setAttribute('aria-expanded', 'false');
   if (nome === 'produtos') renderizarProdutos();
+  if (nome === 'videos') renderizarVideos();
   if (nome === 'pedidos') renderizarPedidos();
 }
 
@@ -883,6 +1070,11 @@ function ligarEventos() {
   $('btnLogoUpload').addEventListener('click', enviarLogo);
   $('btnLevantamento').addEventListener('click', solicitarLevantamento);
   $('btnSolicitarDestaque').addEventListener('click', solicitarDestaque);
+  $('btnNovoVideo').addEventListener('click', abrirEditorVideo);
+  $('btnFecharVideo').addEventListener('click', fecharEditorVideo);
+  $('btnCancelarVideo').addEventListener('click', fecharEditorVideo);
+  $('formVideoVendedor').addEventListener('submit', publicarVideo);
+  configurarPreviewVideo();
   $('filtroProdutosVendedor').addEventListener('input', renderizarProdutos);
   $('filtroEstadoProduto').addEventListener('change', renderizarProdutos);
   $('filtroPedidosStatus').addEventListener('change', renderizarPedidos);
@@ -902,11 +1094,13 @@ function ligarEventos() {
     const editar = evento.target.closest('[data-editar-produto]');
     const destacar = evento.target.closest('[data-destacar-produto]');
     const alternar = evento.target.closest('[data-alternar-produto]');
+    const eliminarVideoBotao = evento.target.closest('[data-eliminar-video]');
     if (nav) abrirView(nav.dataset.view);
     if (ir) abrirView(ir.dataset.go);
     if (editar) { const produto = produtos.find((item) => String(item.id) === String(editar.dataset.editarProduto)); if (produto) { abrirView('produtos'); abrirEditorProduto(produto); } }
     if (destacar) { abrirView('promocoes'); $('vendProdutoDestaque').value = destacar.dataset.destacarProduto; }
     if (alternar) alterarDisponibilidadeProduto(alternar.dataset.alternarProduto, alternar.dataset.produtoAtivo === 'true');
+    if (eliminarVideoBotao) eliminarVideo(eliminarVideoBotao.dataset.eliminarVideo);
   });
 }
 

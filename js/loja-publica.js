@@ -8,6 +8,7 @@ const params = new URLSearchParams(location.search);
 const vendedorId = params.get('id');
 const $ = (id) => document.getElementById(id);
 let produtosDaLoja = [];
+let videosDaLoja = [];
 let avaliacaoDaLoja = { media: 0, total: 0 };
 let tentativaExtraAgendada = false;
 let produtosFiltradosDaLoja = [];
@@ -359,6 +360,104 @@ function renderizarEditorial(perfil, listaProdutos) {
   blocoProduto.append(cabecalho, galeria);
 }
 
+function formatarDuracaoVideo(segundos) {
+  const valor = Number(segundos);
+  if (!Number.isFinite(valor) || valor <= 0) return '';
+  const total = Math.round(valor);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`;
+}
+
+function renderizarVideosDaLoja(lista = []) {
+  const secao = $('videosLoja');
+  const navegacao = $('lojaVideosNav');
+  const alvo = $('videosDaLoja');
+  const badge = $('lojaVideosEstado');
+  const videos = Array.isArray(lista) ? lista : [];
+  if (badge) badge.textContent = `${videos.length} ${videos.length === 1 ? 'vídeo' : 'vídeos'}`;
+  if (secao) secao.hidden = !videos.length;
+  if (navegacao) navegacao.hidden = !videos.length;
+  if (!alvo) return;
+  alvo.replaceChildren();
+  if (!videos.length) return;
+
+  videos.forEach((video) => {
+    const artigo = document.createElement('article');
+    artigo.className = 'loja-video-card';
+
+    const media = document.createElement('div');
+    media.className = 'loja-video-media';
+    const player = document.createElement('video');
+    player.controls = true;
+    player.playsInline = true;
+    player.preload = 'metadata';
+    player.muted = false;
+    const url = urlSegura(video.video_url || video.videoUrl, '');
+    if (url) player.src = url;
+    player.setAttribute('aria-label', String(video.titulo || 'Vídeo do produto'));
+    media.append(player);
+
+    const corpo = document.createElement('div');
+    corpo.className = 'loja-video-card-body';
+    const titulo = document.createElement('h3');
+    titulo.textContent = String(video.titulo || 'Vídeo da loja');
+    corpo.append(titulo);
+
+    const descricao = String(video.descricao || '').trim();
+    if (descricao) {
+      const textoDescricao = document.createElement('p');
+      textoDescricao.textContent = descricao;
+      corpo.append(textoDescricao);
+    }
+
+    const produto = produtosDaLoja.find((item) => String(item.id) === String(video.produto_id || video.produtoId || ''));
+    if (produto) {
+      const produtoLinha = document.createElement('div');
+      produtoLinha.className = 'loja-video-produto';
+      const produtoNome = document.createElement('strong');
+      produtoNome.textContent = String(produto.nome || 'Produto');
+      const preco = document.createElement('span');
+      preco.textContent = String(produto.preco || 'Ver preço');
+      const link = document.createElement('a');
+      link.href = `detalhe.html?id=${encodeURIComponent(produto.id)}`;
+      link.textContent = 'Ver produto →';
+      produtoLinha.append(produtoNome, preco, link);
+      corpo.append(produtoLinha);
+    }
+
+    const meta = document.createElement('small');
+    const duracao = formatarDuracaoVideo(video.duracao_segundos || video.duracaoSegundos);
+    const data = video.criado_em || video.criadoEm ? new Date(video.criado_em || video.criadoEm) : null;
+    const dataTexto = data && !Number.isNaN(data.getTime()) ? data.toLocaleDateString('pt-AO', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+    meta.textContent = [duracao, dataTexto].filter(Boolean).join(' · ') || 'Vídeo da loja';
+    corpo.append(meta);
+
+    artigo.append(media, corpo);
+    alvo.append(artigo);
+  });
+}
+
+async function carregarVideosDaLoja() {
+  videosDaLoja = [];
+  if (!vendedorId || params.get('demo') === '1') {
+    renderizarVideosDaLoja([]);
+    return;
+  }
+  const { data, error } = await supabase
+    .from('videos_vendedores')
+    .select('id,titulo,descricao,video_url,produto_id,duracao_segundos,visualizacoes,curtidas,criado_em')
+    .eq('vendedor_id', vendedorId)
+    .eq('status', 'publicado')
+    .order('criado_em', { ascending: false })
+    .limit(24);
+  if (error) {
+    console.warn('[VORA 313] Vídeos da loja indisponíveis:', error.message);
+    renderizarVideosDaLoja([]);
+    return;
+  }
+  videosDaLoja = Array.isArray(data) ? data : [];
+  renderizarVideosDaLoja(videosDaLoja);
+}
+
 function linkInstagram(valor) {
   const original = String(valor || '').trim();
   if (!original) return '';
@@ -607,6 +706,7 @@ function carregarDemo() {
       } : {})
     }
   }, produtosDaLoja);
+  renderizarVideosDaLoja([]);
   renderizarDestaques(produtosDaLoja.filter(emDestaque));
   mostrarProdutosDaLoja(produtosDaLoja);
   configurarFiltros();
@@ -641,6 +741,7 @@ async function carregarLojaReal() {
     return produto.ativo !== false && produto.vendedorAtivo !== false && (!estado || estado === 'aprovado' || estado === 'published');
   });
   await carregarAvaliacaoDaLoja();
+  await carregarVideosDaLoja();
 
   if ((!vendedorSnap || !vendedorSnap.exists()) && !produtosDaLoja.length) {
     texto('nome', 'Loja indisponível');

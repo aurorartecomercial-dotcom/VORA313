@@ -43,6 +43,9 @@ const COMISSAO_MAX = 30;
 
 const LIMITE_CORPO_BYTES = 64 * 1024;
 const MIME_IMAGEM = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const MIME_VIDEO = new Set(['video/mp4', 'video/webm']);
+const TAMANHO_VIDEO_MAXIMO = 100 * 1024 * 1024;
+const DURACAO_VIDEO_MAXIMA = 60;
 
 function err(message: string, code = 'bad_request'): never { throw Object.assign(new Error(message), { code }); }
 function text(v: unknown, field: string, max: number, required = true) { const x = typeof v === 'string' ? v.trim() : ''; if (required && !x) err(`${field} é obrigatório.`); if (x.length > max) err(`${field} excede o limite permitido.`); return x; }
@@ -218,34 +221,109 @@ async function criarUploadAssinado(req: Request, input: any) {
   const tipo = text(input?.tipo, 'Tipo de upload', 24).toLowerCase();
   const mimeType = text(input?.mimeType, 'Tipo do ficheiro', 60).toLowerCase();
   const tamanho = Number(input?.tamanho);
-  if (!MIME_IMAGEM.has(mimeType)) err('Formato não permitido. Use JPG, PNG, WEBP ou GIF.');
   if (!Number.isInteger(tamanho) || tamanho < 1) err('Tamanho do ficheiro inválido.');
 
   let pasta: string;
   let maximo: number;
   if (tipo === 'produto') {
+    if (!MIME_IMAGEM.has(mimeType)) err('Formato não permitido. Use JPG, PNG, WEBP ou GIF.');
     if (!(await isSeller(req, user.id))) err('Conta de vendedor aprovada necessária.', 'permission_denied');
     pasta = `vendedores/${user.id}/produtos`;
     maximo = 5 * 1024 * 1024;
   } else if (tipo === 'logo') {
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(mimeType)) err('Use imagem JPG, PNG ou WEBP para o logótipo.');
     if (!(await isSeller(req, user.id))) err('Conta de vendedor aprovada necessária.', 'permission_denied');
     pasta = `vendedores/${user.id}/perfil`;
     maximo = 2 * 1024 * 1024;
   } else if (tipo === 'produto_admin') {
+    if (!MIME_IMAGEM.has(mimeType)) err('Formato não permitido. Use JPG, PNG, WEBP ou GIF.');
     if (!(await isAdmin(req, user.id))) err('Acesso administrativo necessário.', 'permission_denied');
     pasta = `admin/${user.id}/produtos`;
     maximo = 5 * 1024 * 1024;
+  } else if (tipo === 'video') {
+    if (!MIME_VIDEO.has(mimeType)) err('Formato de vídeo não permitido. Use MP4 ou WEBM.');
+    if (!(await isSeller(req, user.id))) err('Conta de vendedor aprovada necessária.', 'permission_denied');
+    pasta = `vendedores/${user.id}/videos`;
+    maximo = TAMANHO_VIDEO_MAXIMO;
   } else {
     err('Tipo de upload inválido.');
   }
-  if (tamanho > maximo) err(`A imagem deve ter no máximo ${Math.round(maximo / 1024 / 1024)} MB.`);
-  await consumirLimite(user.id, `upload:${tipo}`, 30, 60 * 60);
+  if (tamanho > maximo) {
+    const unidade = tipo === 'video' ? 'vídeo' : 'imagem';
+    err(`O ${unidade} deve ter no máximo ${Math.round(maximo / 1024 / 1024)} MB.`);
+  }
+  await consumirLimite(user.id, `upload:${tipo}`, tipo === 'video' ? 8 : 30, 60 * 60);
 
-  const extensao = mimeType === 'image/jpeg' ? 'jpg' : mimeType.split('/')[1];
+  const extensao = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'video/mp4' ? 'mp4' : mimeType.split('/')[1];
   const caminho = `${pasta}/${crypto.randomUUID()}.${extensao}`;
   const { data, error } = await db.storage.from('vora-public').createSignedUploadUrl(caminho);
   if (error || !data?.token) throw error || new Error('Não foi possível preparar o upload seguro.');
   return { caminho, token: data.token };
+}
+
+async function criarVideoVendedor(req: Request, input: any) {
+  const user = await requireSeller(req);
+  const titulo = text(input?.titulo, 'Título do vídeo', 100);
+  const descricao = text(input?.descricao, 'Descrição', 600, false);
+  const caminho = text(input?.caminho, 'Vídeo', 300);
+  const mimeType = text(input?.mimeType, 'Tipo do vídeo', 60).toLowerCase();
+  const tamanho = Number(input?.tamanho);
+  const duracao = input?.duracaoSegundos === undefined || input?.duracaoSegundos === null || input?.duracaoSegundos === ''
+    ? null : Number(input?.duracaoSegundos);
+  const produtoId = text(input?.produtoId, 'Produto relacionado', 128, false);
+
+  if (!MIME_VIDEO.has(mimeType)) err('Formato de vídeo não permitido. Use MP4 ou WEBM.');
+  if (!/^vendedores\/[0-9a-f-]{36}\/videos\/[0-9a-f-]{36}\.(mp4|webm)$/.test(caminho) || !caminho.startsWith(`vendedores/${user.id}/videos/`)) {
+    err('Ficheiro de vídeo inválido ou não pertence à sua conta.', 'permission_denied');
+  }
+  if (!Number.isInteger(tamanho) || tamanho < 1 || tamanho > TAMANHO_VIDEO_MAXIMO) err('Tamanho do vídeo inválido.');
+  if (duracao !== null && (!Number.isInteger(duracao) || duracao < 1 || duracao > DURACAO_VIDEO_MAXIMA)) err('O vídeo deve ter no máximo 60 segundos.');
+
+  let produto = null;
+  if (produtoId) {
+    const { data, error } = await db.from('produtos')
+      .select('id,vendedor_id,nome,status_aprovacao,ativo,vendedor_ativo,imagens,preco')
+      .eq('id', produtoId).maybeSingle();
+    if (error) throw error;
+    if (!data || data.vendedor_id !== user.id || data.status_aprovacao !== 'aprovado' || data.ativo !== true || data.vendedor_ativo === false) {
+      err('O produto relacionado precisa estar publicado na sua própria loja.', 'permission_denied');
+    }
+    produto = data;
+  }
+
+  const { data: video, error } = await db.from('videos_vendedores').insert({
+    vendedor_id: user.id,
+    produto_id: produto?.id || null,
+    titulo,
+    descricao,
+    caminho_storage: caminho,
+    video_url: db.storage.from('vora-public').getPublicUrl(caminho).data.publicUrl,
+    mime_type: mimeType,
+    tamanho_bytes: tamanho,
+    duracao_segundos: duracao,
+    status: 'publicado'
+  }).select('*').single();
+  if (error) {
+    await db.storage.from('vora-public').remove([caminho]);
+    throw error;
+  }
+  await registarEventoSeguranca(user.id, 'vendedor', 'video_publicado', video.id, { produtoId: produto?.id || null });
+  return camelRow(video);
+}
+
+async function eliminarVideoVendedor(req: Request, input: any) {
+  const user = await requireSeller(req);
+  const id = text(input?.videoId, 'Vídeo', 128);
+  const { data: video, error: leituraErro } = await db.from('videos_vendedores').select('*').eq('id', id).maybeSingle();
+  if (leituraErro) throw leituraErro;
+  if (!video || video.vendedor_id !== user.id) err('Vídeo não encontrado ou sem permissão.', 'permission_denied');
+
+  const { error: storageErro } = await db.storage.from('vora-public').remove([video.caminho_storage]);
+  if (storageErro) throw storageErro;
+  const { error } = await db.from('videos_vendedores').delete().eq('id', id).eq('vendedor_id', user.id);
+  if (error) throw error;
+  await registarEventoSeguranca(user.id, 'vendedor', 'video_eliminado', id, {});
+  return { ok: true };
 }
 
 async function criarPedido(req:Request, input:any){
@@ -583,6 +661,8 @@ async function handle(req:Request,name:string,input:any){
     atualizarDadosRecebimento: [10, 24 * 60 * 60],
     criarProdutoVendedor: [30, 60 * 60],
     atualizarProdutoVendedor: [60, 60 * 60],
+    criarVideoVendedor: [20, 60 * 60],
+    eliminarVideoVendedor: [30, 60 * 60],
     alterarDisponibilidadeProdutoVendedor: [60, 60 * 60],
     solicitarDestaque: [10, 24 * 60 * 60],
     solicitarLevantamento: [5, 24 * 60 * 60],
@@ -606,6 +686,8 @@ async function handle(req:Request,name:string,input:any){
     case 'abrirDisputaFinanceira': return abrirDisputaFinanceira(req,input);
     case 'resolverDisputaFinanceira': return resolverDisputaFinanceira(req,input);
     case 'criarUploadAssinado': return criarUploadAssinado(req,input);
+    case 'criarVideoVendedor': return criarVideoVendedor(req,input);
+    case 'eliminarVideoVendedor': return eliminarVideoVendedor(req,input);
     case 'alterarDisponibilidadeProdutoVendedor': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128),ativo=input?.ativo===true;const {data:p}=await db.from('produtos').select('id,vendedor_id,status_aprovacao').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id||p.status_aprovacao!=='aprovado')err('Produto não encontrado, não aprovado ou sem permissão.','permission_denied');const {error}=await db.from('produtos').update({ativo,atualizado_em:new Date().toISOString()}).eq('id',id).eq('vendedor_id',u.id);if(error)throw error;return {ok:true,ativo};}
     case 'solicitarVendedor': {const u=await requireUser(req);const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),email:text(u.email,'Email',160),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),status:'pendente',ativo:false,plano:'basico',uid:u.id};const {data:old}=await db.from('vendedores').select('status').eq('id',u.id).maybeSingle();if(old?.status==='aprovado'||old?.status==='pendente')return {ok:true,status:old.status};if(old?.status==='suspenso')err('A sua loja está suspensa. Contacte a VORA 313.','failed_precondition');const {error}=await db.from('vendedores').upsert({id:u.id,...d},{onConflict:'id'});if(error)throw error;return {ok:true,status:'pendente'};}
     case 'atualizarPerfilVendedor': {const u=await requireSeller(req);const perfilPublico=perfilPublicoSeguro(input?.perfilPublico);if(perfilPublico.editorialProdutoId){const {data:produto}=await db.from('produtos').select('id,vendedor_id,status_aprovacao,ativo').eq('id',perfilPublico.editorialProdutoId).maybeSingle();if(!produto||produto.vendedor_id!==u.id||produto.status_aprovacao!=='aprovado'||produto.ativo===false)err('O produto editorial deve ser um produto publicado da sua própria loja.','permission_denied');}const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),perfilPublico,atualizado_em:new Date().toISOString()};const {error}=await db.from('vendedores').update(dbRow(d)).eq('id',u.id);if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','perfil_publico_atualizado',u.id,{perfilPublico:true,estiloVitrine:perfilPublico.estiloVitrine});return {ok:true};}

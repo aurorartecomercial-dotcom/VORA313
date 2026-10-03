@@ -57,7 +57,8 @@
   <p id="lojaFeedbackSacola" class="loja-feedback-sacola" role="status" hidden></p>
   <div id="demoNote" class="loja-demo-note" style="display:none"><strong>🧪 Modo demonstração:</strong> esta loja é apenas um exemplo visual. Nenhum vendedor real foi criado e nada é gravado no Supabase.</div>
   <div id="lojaFaixaPromocional" class="loja-promo-strip loja-faixa-promocional" hidden><span id="lojaFaixaIcone">🛍️ Produtos da loja</span><strong id="lojaFaixa">Veja os produtos selecionados por este vendedor.</strong><a href="#produtosSecao">Ver produtos →</a></div>
-  <nav class="loja-navegacao" aria-label="Navegação da loja"><a id="lojaEditorialNav" href="#lojaEditorial" hidden>Coleção</a><a class="ativo" href="#produtosSecao">Produtos</a><a href="#sobreLoja">Sobre a loja</a><a href="#avaliacoesLoja">Avaliações</a><a href="vendedor.html">Vender na VORA</a></nav>
+  <nav class="loja-navegacao" aria-label="Navegação da loja"><a id="lojaEditorialNav" href="#lojaEditorial" hidden>Coleção</a><a class="ativo" href="#produtosSecao">Produtos</a><a id="lojaVideosNav" href="#videosLoja">🎥 Vídeos</a><a href="#sobreLoja">Sobre a loja</a><a href="#avaliacoesLoja">Avaliações</a><a href="vendedor.html">Vender na VORA</a></nav>
+  <section class="loja-painel loja-videos" id="videosLoja" hidden><div class="loja-painel-top"><div><h2>🎥 Vídeos da loja</h2><small>Veja os produtos em ação</small></div><span id="lojaVideosEstado" class="loja-videos-badge">0 vídeos</span></div><div id="videosDaLoja" class="loja-video-grid"></div></section>
   <section class="loja-painel loja-destaques" id="destaquesSecao">
     <div class="loja-painel-top"><h2>⭐ Produtos em destaque</h2><small id="estadoDestaques">Escolhas da loja</small></div>
     <div id="destaquesLoja" class="loja-grid-publica"></div>
@@ -72,6 +73,6 @@
   <section class="loja-painel" id="sobreLoja"><div class="loja-painel-top"><h2>🏪 Sobre a loja</h2></div><p id="sobreTexto" style="margin:0;color:#5e6d67;line-height:1.6">Esta loja está a preparar a sua apresentação.</p><div id="sobreDetalhes" class="loja-sobre-grid"></div></section>
   <section class="loja-painel" id="avaliacoesLoja"><div class="loja-painel-top"><div><h2>⭐ Avaliações da loja</h2><small>Experiências de clientes verificadas</small></div><strong id="notaLoja" class="loja-rating-grande">—</strong></div><div id="avaliacoesConteudo" class="loja-review-grid"><article><strong>Ainda não há avaliações verificadas.</strong><p>As avaliações aparecerão aqui após compras concluídas através da VORA 313.</p></article></div></section>
 </main>
-<script type="module" src="js/loja-publica.js?v=15-temas-categoria"></script>
+<script type="module" src="js/loja-publica.js?v=16-videos-vendedor"></script>
 </body>
 </html>

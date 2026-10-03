@@ -1,0 +1,25 @@
+# Checklist de teste — Vídeos do Vendedor
+
+## Banco / Supabase
+- [ ] Executar `024_videos_vendedores.sql`.
+- [ ] Confirmar que o bucket `vora-public` aceita `video/mp4` e `video/webm`.
+- [ ] Publicar a Edge Function `api`.
+
+## Vendedor
+- [ ] Entrar com uma loja aprovada.
+- [ ] Abrir **Meus Vídeos**.
+- [ ] Publicar um MP4 curto.
+- [ ] Relacionar o vídeo a um produto publicado.
+- [ ] Confirmar que o vídeo aparece na lista do painel.
+- [ ] Eliminar o vídeo e confirmar que desaparece.
+- [ ] Tentar um vídeo >60 segundos: deve ser recusado.
+- [ ] Tentar um ficheiro >100 MB: deve ser recusado.
+- [ ] Tentar AVI/MKV: deve ser recusado.
+
+## Cliente
+- [ ] Abrir `loja.html?id=ID_DO_VENDEDOR`.
+- [ ] Confirmar que a aba **🎥 Vídeos** só aparece quando há vídeos.
+- [ ] Reproduzir o vídeo.
+- [ ] Abrir **Ver produto** e confirmar que vai para o produto correto.
+- [ ] Testar no telemóvel.
+- [ ] Confirmar que a loja continua a mostrar produtos, avaliações e restantes áreas normalmente.
