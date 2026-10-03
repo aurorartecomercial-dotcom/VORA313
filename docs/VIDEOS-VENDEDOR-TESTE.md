@@ -1,9 +1,12 @@
 # Checklist de teste — Vídeos do Vendedor
 
 ## Banco / Supabase
-- [ ] Executar `024_videos_vendedores.sql`.
-- [ ] Confirmar que o bucket `vora-public` aceita `video/mp4` e `video/webm`.
-- [ ] Publicar a Edge Function `api`.
+- [ ] Executar primeiro `016_seguranca_p0_uploads_e_limites.sql` e depois `024_videos_vendedores.sql` no SQL Editor do Supabase.
+- [ ] Confirmar que o bucket `vora-public` aceita `video/mp4` e `video/webm` e permite até 100 MB.
+- [ ] Publicar a Edge Function `api` usando **Deploy updates**.
+- [ ] Executar `supabase/VERIFICAR-VIDEOS-SUPABASE.sql`; os dois campos da primeira consulta devem ser `true` e o bucket deve aparecer na segunda.
+
+> Importante: enviar o ZIP ou fazer `git push` atualiza só o site. As migrations e a Edge Function também precisam ser aplicadas no projeto Supabase para a publicação de vídeos funcionar.
 
 ## Vendedor
 - [ ] Entrar com uma loja aprovada.

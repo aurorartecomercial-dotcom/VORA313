@@ -48,6 +48,24 @@ const TAMANHO_VIDEO_MAXIMO = 100 * 1024 * 1024;
 const DURACAO_VIDEO_MAXIMA = 60;
 
 function err(message: string, code = 'bad_request'): never { throw Object.assign(new Error(message), { code }); }
+function configuracaoDeVideoEmFalta(causa: unknown) {
+  const erro = causa as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown } | null;
+  const codigo = typeof erro?.code === 'string' ? erro.code : '';
+  const detalhe = [erro?.message, erro?.details, erro?.hint]
+    .filter((valor) => typeof valor === 'string')
+    .join(' ')
+    .toLowerCase();
+  return codigo === '42P01'
+    || detalhe.includes('videos_vendedores')
+    || detalhe.includes('vora-public')
+    || (detalhe.includes('bucket') && (detalhe.includes('not found') || detalhe.includes('does not exist')));
+}
+function avisarConfiguracaoDeVideo(causa: unknown): never {
+  if (configuracaoDeVideoEmFalta(causa)) {
+    err('A área de vídeos ainda não está configurada no Supabase. Execute primeiro a migration 016 e depois a 024, e publique novamente a Edge Function api.', 'failed_precondition');
+  }
+  throw causa;
+}
 function text(v: unknown, field: string, max: number, required = true) { const x = typeof v === 'string' ? v.trim() : ''; if (required && !x) err(`${field} é obrigatório.`); if (x.length > max) err(`${field} excede o limite permitido.`); return x; }
 function intPos(v: unknown, field: string, max = 100) { const x = Number(v); if (!Number.isInteger(x) || x < 1 || x > max) err(`${field} é inválido.`); return x; }
 function urlHttps(valor: unknown, field: string, max = 1200) {
@@ -257,7 +275,10 @@ async function criarUploadAssinado(req: Request, input: any) {
   const extensao = mimeType === 'image/jpeg' ? 'jpg' : mimeType === 'video/mp4' ? 'mp4' : mimeType.split('/')[1];
   const caminho = `${pasta}/${crypto.randomUUID()}.${extensao}`;
   const { data, error } = await db.storage.from('vora-public').createSignedUploadUrl(caminho);
-  if (error || !data?.token) throw error || new Error('Não foi possível preparar o upload seguro.');
+  if (error || !data?.token) {
+    if (tipo === 'video') avisarConfiguracaoDeVideo(error || new Error('Token de upload não recebido.'));
+    throw error || new Error('Não foi possível preparar o upload seguro.');
+  }
   return { caminho, token: data.token };
 }
 
@@ -304,8 +325,12 @@ async function criarVideoVendedor(req: Request, input: any) {
     status: 'publicado'
   }).select('*').single();
   if (error) {
-    await db.storage.from('vora-public').remove([caminho]);
-    throw error;
+    try {
+      await db.storage.from('vora-public').remove([caminho]);
+    } catch (_) {
+      // A gravação do vídeo já falhou; a mensagem útil ao vendedor tem prioridade.
+    }
+    avisarConfiguracaoDeVideo(error);
   }
   await registarEventoSeguranca(user.id, 'vendedor', 'video_publicado', video.id, { produtoId: produto?.id || null });
   return camelRow(video);
