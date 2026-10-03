@@ -149,19 +149,23 @@ function temaDaCategoria(categoria) {
   if (/(moda|roupa|calcado|vestuario|bolsa)/.test(valor)) return 'moda';
   if (/(beleza|cosmetico|maquiagem|perfume)/.test(valor)) return 'beleza';
   if (/(livro|papelaria|cultura)/.test(valor)) return 'livros';
-  if (/(automotivo|automovel|carro|moto|veiculo)/.test(valor)) return 'automovel';
+  if (/(automotiv|automovel|carro|moto|veiculo|pecas-auto)/.test(valor)) return 'automovel';
   if (/(game|jogo|console|gamer)/.test(valor)) return 'games';
   if (/(eletron|tecnolog|computador|smartphone|celular|acessorio)/.test(valor)) return 'tecnologia';
   if (/(casa|movel|decoracao|cozinha)/.test(valor)) return 'casa';
+  if (/(ferrament|construc|oficina|bricolage|equipamento)/.test(valor)) return 'ferramentas';
+  if (/(saude|medic|farmac|bem-estar|bem estar|fitness|suplement)/.test(valor)) return 'saude';
+  if (/(jardim|jardinagem|exterior|planta|agricol)/.test(valor)) return 'jardim';
+  if (/(artesanato|festa|presente)/.test(valor)) return 'artesanato';
+  if (/(viagem|mala|mochila)/.test(valor)) return 'viagem';
   return '';
 }
 
 function aplicarTemaCategoria(categoria, estilo) {
-  // O tema é opcional para não alterar as lojas atuais sem decisão do vendedor.
-  // As vitrines editoriais, por sua vez, recebem automaticamente a paleta da
-  // própria categoria, para que Moda/Beleza/Livros tenham apresentação coerente.
-  const usarTema = estilo === 'tema_categoria' || ESTILOS_EDITORIAIS.has(estilo);
-  const tema = usarTema ? temaDaCategoria(categoria) : '';
+  // A identidade da categoria é aplicada automaticamente às lojas públicas.
+  // A paleta continua fechada no código (não vem do vendedor) e usa contrastes
+  // já verificados para que preços, nomes e ações continuem legíveis.
+  const tema = temaDaCategoria(categoria);
   if (tema) document.body.dataset.temaCategoria = tema;
   else delete document.body.dataset.temaCategoria;
 }

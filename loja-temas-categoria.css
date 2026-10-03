@@ -6,19 +6,35 @@ body.loja-publica-body[data-tema-categoria] {
   --tema-tinta: #173f35;
   --tema-primaria: #075946;
   --tema-primaria-escura: #003d32;
-  --tema-acento: #d4af37;
+  --tema-acento: #f8dc8b;
   --tema-suave: #e8f5f0;
   --tema-borda: #d4e4de;
+  --tema-texto-suave: #526961;
+  --tema-em-primaria: #ffffff;
+  --tema-em-acento: #173f35;
+  --cor-esmeralda: var(--tema-primaria);
+  --cor-esmeralda-escuro: var(--tema-primaria-escura);
+  --cor-fundo: var(--tema-fundo);
+  --cor-texto: var(--tema-tinta);
+  --cor-preco: var(--tema-primaria-escura);
+  --cor-texto-claro: var(--tema-texto-suave);
+  --cor-borda: var(--tema-borda);
   background: var(--tema-fundo);
+  color: var(--tema-tinta);
 }
 
-body.loja-publica-body[data-tema-categoria="moda"] { --tema-fundo:#fff7f8; --tema-tinta:#4a2137; --tema-primaria:#74284b; --tema-primaria-escura:#43162d; --tema-acento:#cb7b98; --tema-suave:#fdebf1; --tema-borda:#efd1dc; }
-body.loja-publica-body[data-tema-categoria="beleza"] { --tema-fundo:#fff6fb; --tema-tinta:#582447; --tema-primaria:#842c62; --tema-primaria-escura:#551a40; --tema-acento:#dc72a3; --tema-suave:#fdeaf4; --tema-borda:#f0cfdf; }
-body.loja-publica-body[data-tema-categoria="livros"] { --tema-fundo:#fbf7ef; --tema-tinta:#493425; --tema-primaria:#68452c; --tema-primaria-escura:#3a261b; --tema-acento:#bd8549; --tema-suave:#f7eddc; --tema-borda:#e7d4b9; }
-body.loja-publica-body[data-tema-categoria="automovel"] { --tema-fundo:#f3f5f7; --tema-tinta:#1b252e; --tema-primaria:#303b46; --tema-primaria-escura:#171f26; --tema-acento:#d85c45; --tema-suave:#e8edf1; --tema-borda:#ced9e0; }
-body.loja-publica-body[data-tema-categoria="games"] { --tema-fundo:#f5f3ff; --tema-tinta:#282052; --tema-primaria:#473496; --tema-primaria-escura:#28205b; --tema-acento:#886af0; --tema-suave:#ede9ff; --tema-borda:#d9d0fb; }
-body.loja-publica-body[data-tema-categoria="tecnologia"] { --tema-fundo:#f2f8fc; --tema-tinta:#173d60; --tema-primaria:#1d5e96; --tema-primaria-escura:#103d65; --tema-acento:#4b98c8; --tema-suave:#e5f2fa; --tema-borda:#cde2f0; }
-body.loja-publica-body[data-tema-categoria="casa"] { --tema-fundo:#f8f8f1; --tema-tinta:#3e4c32; --tema-primaria:#586d46; --tema-primaria-escura:#35452b; --tema-acento:#a58a5c; --tema-suave:#edf1df; --tema-borda:#dbe3c6; }
+body.loja-publica-body[data-tema-categoria="moda"] { --tema-fundo:#fff7fa; --tema-tinta:#461a30; --tema-primaria:#7a234d; --tema-primaria-escura:#4a102c; --tema-acento:#ffd2df; --tema-suave:#fdebf2; --tema-borda:#efd0dc; --tema-texto-suave:#755164; --tema-em-acento:#461a30; }
+body.loja-publica-body[data-tema-categoria="beleza"] { --tema-fundo:#fff6fb; --tema-tinta:#55213f; --tema-primaria:#8b235f; --tema-primaria-escura:#561338; --tema-acento:#ffd0e3; --tema-suave:#fde9f3; --tema-borda:#f0cede; --tema-texto-suave:#785267; --tema-em-acento:#55213f; }
+body.loja-publica-body[data-tema-categoria="livros"] { --tema-fundo:#fcf8ef; --tema-tinta:#493522; --tema-primaria:#72502a; --tema-primaria-escura:#442f1a; --tema-acento:#ffe0a8; --tema-suave:#f8eddb; --tema-borda:#e8d3ae; --tema-texto-suave:#6b5a47; --tema-em-acento:#493522; }
+body.loja-publica-body[data-tema-categoria="automovel"] { --tema-fundo:#f3f6f8; --tema-tinta:#1b2933; --tema-primaria:#2c4354; --tema-primaria-escura:#172936; --tema-acento:#ffd1c5; --tema-suave:#e6edf1; --tema-borda:#cbd8df; --tema-texto-suave:#52636e; --tema-em-acento:#1b2933; }
+body.loja-publica-body[data-tema-categoria="games"] { --tema-fundo:#f6f3ff; --tema-tinta:#282052; --tema-primaria:#49369a; --tema-primaria-escura:#2c2062; --tema-acento:#ded3ff; --tema-suave:#ece7ff; --tema-borda:#d6cdf8; --tema-texto-suave:#5f5880; --tema-em-acento:#282052; }
+body.loja-publica-body[data-tema-categoria="tecnologia"] { --tema-fundo:#f2f8fc; --tema-tinta:#173d60; --tema-primaria:#075f96; --tema-primaria-escura:#073d66; --tema-acento:#ccecff; --tema-suave:#e3f2fb; --tema-borda:#c9e2f1; --tema-texto-suave:#4d6f89; --tema-em-acento:#173d60; }
+body.loja-publica-body[data-tema-categoria="casa"] { --tema-fundo:#f8f9f0; --tema-tinta:#39492e; --tema-primaria:#4f6c3e; --tema-primaria-escura:#314828; --tema-acento:#dcecc9; --tema-suave:#edf3e1; --tema-borda:#d6e1c4; --tema-texto-suave:#5b6a51; --tema-em-acento:#39492e; }
+body.loja-publica-body[data-tema-categoria="ferramentas"] { --tema-fundo:#fff8ef; --tema-tinta:#553617; --tema-primaria:#8c500e; --tema-primaria-escura:#593008; --tema-acento:#ffe0ae; --tema-suave:#fff0d9; --tema-borda:#eed4a8; --tema-texto-suave:#76583b; --tema-em-acento:#553617; }
+body.loja-publica-body[data-tema-categoria="saude"] { --tema-fundo:#f1fbf8; --tema-tinta:#124b46; --tema-primaria:#08746a; --tema-primaria-escura:#004b45; --tema-acento:#bfeee4; --tema-suave:#dff5ef; --tema-borda:#bde1d8; --tema-texto-suave:#47736d; --tema-em-acento:#124b46; }
+body.loja-publica-body[data-tema-categoria="jardim"] { --tema-fundo:#f4faef; --tema-tinta:#294d2d; --tema-primaria:#39713b; --tema-primaria-escura:#224c29; --tema-acento:#d3eec4; --tema-suave:#e6f4dc; --tema-borda:#cbe2bd; --tema-texto-suave:#567259; --tema-em-acento:#294d2d; }
+body.loja-publica-body[data-tema-categoria="artesanato"] { --tema-fundo:#fff8f2; --tema-tinta:#643b2c; --tema-primaria:#9a573c; --tema-primaria-escura:#653724; --tema-acento:#ffd7bd; --tema-suave:#fbeadd; --tema-borda:#ead0bd; --tema-texto-suave:#7c5a4b; --tema-em-acento:#643b2c; }
+body.loja-publica-body[data-tema-categoria="viagem"] { --tema-fundo:#f2f8fa; --tema-tinta:#16485a; --tema-primaria:#1a6f85; --tema-primaria-escura:#10485a; --tema-acento:#c9ebf4; --tema-suave:#e0f2f6; --tema-borda:#c3e0e8; --tema-texto-suave:#4b737e; --tema-em-acento:#16485a; }
 
 body.loja-publica-body[data-tema-categoria] .loja-hero-publico {
   background: linear-gradient(135deg,var(--tema-primaria-escura),var(--tema-primaria));
@@ -30,8 +46,15 @@ body.loja-publica-body[data-tema-categoria] .loja-hero-publico {
 }
 body.loja-publica-body[data-tema-categoria] .loja-capa-demo:after { background:linear-gradient(180deg,rgba(0,0,0,.08),color-mix(in srgb,var(--tema-primaria-escura) 85%,transparent)); }
 body.loja-publica-body[data-tema-categoria] .loja-avatar-grande { background:linear-gradient(135deg,var(--tema-acento),#fff); color:var(--tema-primaria-escura); }
+body.loja-publica-body[data-tema-categoria] .loja-hero-publico,
+body.loja-publica-body[data-tema-categoria] .loja-hero-publico h1,
+body.loja-publica-body[data-tema-categoria] .loja-hero-publico p,
+body.loja-publica-body[data-tema-categoria] .loja-selo,
+body.loja-publica-body[data-tema-categoria] .loja-info-extra,
+body.loja-publica-body[data-tema-categoria] .loja-estatistica span { color:var(--tema-em-primaria); }
+body.loja-publica-body[data-tema-categoria] .loja-selo { background:rgba(255,255,255,.14); border-color:rgba(255,255,255,.34); }
 body.loja-publica-body[data-tema-categoria] .loja-estatistica strong { color:var(--tema-acento); }
-body.loja-publica-body[data-tema-categoria] .loja-acoes a:not(.secundario) { background:var(--tema-acento); color:var(--tema-primaria-escura); }
+body.loja-publica-body[data-tema-categoria] .loja-acoes a:not(.secundario) { background:var(--tema-acento); color:var(--tema-em-acento); }
 body.loja-publica-body[data-tema-categoria] .loja-acoes a.secundario { color:var(--tema-primaria); }
 body.loja-publica-body[data-tema-categoria] #btnPartilharLoja { color:var(--tema-primaria)!important; }
 body.loja-publica-body[data-tema-categoria] .loja-confiança { background:var(--tema-suave); border-color:var(--tema-borda); }
@@ -47,6 +70,17 @@ body.loja-publica-body[data-tema-categoria] .loja-promo-strip a,
 body.loja-publica-body[data-tema-categoria] .loja-painel h2 { color:var(--tema-primaria); }
 body.loja-publica-body[data-tema-categoria] .loja-carregar-mais button { border-color:var(--tema-primaria); color:var(--tema-primaria); }
 body.loja-publica-body[data-tema-categoria] .loja-editorial[data-tema="editorial_moda"] { --editorial-ink:var(--tema-primaria-escura); --editorial-accent:var(--tema-acento); --editorial-paper:var(--tema-fundo); }
+body.loja-publica-body[data-tema-categoria] .loja-painel,
+body.loja-publica-body[data-tema-categoria] .loja-navegacao,
+body.loja-publica-body[data-tema-categoria] .loja-sobre-dado,
+body.loja-publica-body[data-tema-categoria] .produto-card { border-color:var(--tema-borda); }
+body.loja-publica-body[data-tema-categoria] #sobreTexto,
+body.loja-publica-body[data-tema-categoria] .loja-painel small,
+body.loja-publica-body[data-tema-categoria] .loja-sobre-dado span { color:var(--tema-texto-suave)!important; }
+body.loja-publica-body[data-tema-categoria] .produto-info h3,
+body.loja-publica-body[data-tema-categoria] .preco { color:var(--tema-tinta); }
+body.loja-publica-body[data-tema-categoria] .btn-add-carrinho-card { background:var(--tema-primaria); color:var(--tema-em-primaria); }
+body.loja-publica-body[data-tema-categoria] :is(.loja-acoes a,.loja-navegacao a,.loja-categoria,.loja-carregar-mais button,.btn-add-carrinho-card,.loja-busca):focus-visible { outline:3px solid var(--tema-acento); outline-offset:2px; }
 
 @media (prefers-reduced-motion:reduce) {
   body.loja-publica-body[data-tema-categoria] .loja-hero-publico { transition:none; }

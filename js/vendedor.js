@@ -393,8 +393,8 @@ function instalarEditorEditorial() {
   const bloco = document.createElement('section');
   bloco.className = 'seller-editorial-config seller-span-2';
   bloco.innerHTML = `
-    <div class="seller-editorial-head"><div><span class="seller-eyebrow">Nova apresentação</span><h2>Vitrine da loja</h2><p>Escolha o padrão VORA, um tema automático da categoria ou uma apresentação editorial. Apenas produtos já publicados podem ser destacados.</p></div><span class="seller-editorial-mark" aria-hidden="true">✦</span></div>
-    <label><span>Estilo da loja</span><select id="perfilEstiloVitrine" name="estiloVitrine"><option value="padrao">Padrão VORA — catálogo tradicional</option><option value="tema_categoria">Tema da categoria — cores automáticas</option><option value="editorial_moda">Editorial — Moda e roupa</option><option value="editorial_beleza">Editorial — Beleza e cosméticos</option><option value="editorial_livros">Editorial — Livros e cultura</option></select></label>
+    <div class="seller-editorial-head"><div><span class="seller-eyebrow">Nova apresentação</span><h2>Vitrine da loja</h2><p>A cor da categoria é aplicada automaticamente à sua loja pública, com contraste protegido. Escolha o catálogo padrão ou uma apresentação editorial; apenas produtos já publicados podem ser destacados.</p></div><span class="seller-editorial-mark" aria-hidden="true">✦</span></div>
+    <label><span>Estilo da loja</span><select id="perfilEstiloVitrine" name="estiloVitrine"><option value="padrao">Catálogo VORA — cor da categoria automática</option><option value="tema_categoria">Tema da categoria — catálogo com mais destaque</option><option value="editorial_moda">Editorial — Moda e roupa</option><option value="editorial_beleza">Editorial — Beleza e cosméticos</option><option value="editorial_livros">Editorial — Livros e cultura</option></select></label>
     <p id="temaCategoriaInfo" class="seller-tema-info" hidden></p>
     <div id="camposEditorial" class="seller-editorial-fields" hidden>
       <p class="seller-editorial-tip">Use na capa uma imagem vertical (proporção 4:5) para mostrar melhor vestidos, looks ou produtos. A imagem de capa da loja será usada aqui.</p>
@@ -414,14 +414,17 @@ function atualizarEditorEditorial() {
   if (!informacao) return;
   const categoria = $('perfilCategoria')?.value || vendedor?.categoria || 'a sua categoria';
   const descricoes = {
-    Eletrónicos: 'Tecnologia: azul e grafite, com aparência limpa e moderna.',
+    Eletrónicos: 'Eletrónicos: azul técnico e superfícies claras, com contraste protegido.',
     Moda: 'Moda: vinho, rosa suave e tons creme, com aparência editorial.',
     Beleza: 'Beleza: rosa e lilás, com aparência leve e elegante.',
     Casa: 'Casa: verde oliva, areia e tons acolhedores.',
-    Automotivo: 'Automotivo: grafite e vermelho profundo, com aparência de showroom.',
-    Games: 'Games: azul escuro e roxo, com contraste energético.'
+    Automotivo: 'Automotivo: grafite e coral, com aparência de showroom.',
+    Games: 'Games: índigo e lavanda, com contraste energético.',
+    'Ferramentas & Construção': 'Ferramentas: cobre e areia, com leitura clara para uma montra de oficina.',
+    'Saúde & Bem-estar': 'Saúde: verde-petróleo e menta, com leitura leve e confiável.',
+    'Jardim & Exterior': 'Jardim: verde folha e sálvia, com contraste protegido.'
   };
-  informacao.hidden = estilo !== 'tema_categoria';
+  informacao.hidden = false;
   informacao.textContent = descricoes[categoria] || `Será aplicado um tema seguro de acordo com a categoria “${categoria}”.`;
 }
 
