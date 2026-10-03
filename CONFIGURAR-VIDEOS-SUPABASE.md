@@ -9,6 +9,10 @@ No Supabase, abra **SQL Editor**. Execute, nesta ordem, o conteúdo destes dois 
 1. `supabase/migrations/016_seguranca_p0_uploads_e_limites.sql`
 2. `supabase/migrations/024_videos_vendedores.sql`
 
+Se já executou a migration 024 antes de receber esta versão, execute também
+`supabase/migrations/025_reparar_permissao_videos_service_role.sql`. Ela libera
+somente a Edge Function do servidor para gravar na tabela de vídeos.
+
 Não altere os nomes das tabelas nem coloque chaves secretas no frontend.
 
 ## 2. Publicar a Edge Function

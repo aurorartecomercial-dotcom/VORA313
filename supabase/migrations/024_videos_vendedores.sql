@@ -53,6 +53,10 @@ using (vendedor_id = auth.uid());
 revoke all on table public.videos_vendedores from anon, authenticated;
 grant select on table public.videos_vendedores to anon, authenticated;
 
+-- A Edge Function usa service_role no servidor para inserir, eliminar e
+-- moderar vídeos. Esta permissão não é atribuída ao browser nem a vendedores.
+grant all privileges on table public.videos_vendedores to service_role;
+
 -- O bucket existente continua público para leitura. A escrita permanece fechada
 -- ao browser e é feita com URL temporária emitida pela Edge Function.
 update storage.buckets

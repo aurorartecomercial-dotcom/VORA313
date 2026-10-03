@@ -70,6 +70,10 @@ function falhaInfraestruturaVideo(causa: unknown, etapa: string): never {
   if (configuracaoDeVideoEmFalta(causa)) {
     err('A área de vídeos ainda não está configurada no Supabase. Execute primeiro a migration 016 e depois a 024, e publique novamente a Edge Function api.', 'failed_precondition');
   }
+  const erro = detalhesErroParaLog(causa);
+  if (erro.codigo === '42501' && /videos_vendedores/i.test(`${erro.mensagem} ${erro.detalhes}`)) {
+    err('O servidor ainda não tem autorização para gravar vídeos. Execute a migration 025 de permissões de vídeo no Supabase.', 'failed_precondition');
+  }
   err('O servidor não conseguiu preparar a publicação do vídeo. Abra os Logs privados da Edge Function api para identificar a configuração pendente.', 'failed_precondition');
 }
 function text(v: unknown, field: string, max: number, required = true) { const x = typeof v === 'string' ? v.trim() : ''; if (required && !x) err(`${field} é obrigatório.`); if (x.length > max) err(`${field} excede o limite permitido.`); return x; }

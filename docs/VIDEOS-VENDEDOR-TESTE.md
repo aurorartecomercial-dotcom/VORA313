@@ -2,6 +2,7 @@
 
 ## Banco / Supabase
 - [ ] Executar primeiro `016_seguranca_p0_uploads_e_limites.sql` e depois `024_videos_vendedores.sql` no SQL Editor do Supabase.
+- [ ] Se a 024 já tinha sido executada antes desta versão, executar também `025_reparar_permissao_videos_service_role.sql`.
 - [ ] Confirmar que o bucket `vora-public` aceita `video/mp4` e `video/webm` e permite até 100 MB.
 - [ ] Publicar a Edge Function `api` usando **Deploy updates**.
 - [ ] Executar `supabase/VERIFICAR-VIDEOS-SUPABASE.sql`; os dois campos da primeira consulta devem ser `true` e o bucket deve aparecer na segunda.
