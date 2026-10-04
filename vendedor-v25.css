@@ -20,17 +20,17 @@ select:disabled{opacity:.65;cursor:not-allowed}
 /* VORA 313 — vídeos do vendedor. Cada cartão tem altura limitada: vídeos
    verticais nunca devem alongar a Central nem deslocar os restantes dados. */
 .seller-video-editor{margin-bottom:16px}
-.seller-video-preview-wrap{display:grid;justify-items:center;gap:8px;max-width:390px;padding:12px;background:#f4f8f6;border:1px solid #dce8e3;border-radius:16px}
-.seller-video-preview-wrap video{display:block;width:min(100%,260px);height:min(46vh,360px);aspect-ratio:9/16;object-fit:contain;background:#071b17;border-radius:12px}
+.seller-video-preview-wrap{display:grid;justify-items:center;gap:8px;width:min(100%,330px);max-width:330px;padding:12px;background:#f4f8f6;border:1px solid #dce8e3;border-radius:16px;box-sizing:border-box}
+.seller-video-preview-wrap video{display:block;width:min(100%,210px);height:min(40vh,270px);max-height:270px;aspect-ratio:9/16;object-fit:contain;background:#071b17;border-radius:12px}
 .seller-video-preview-wrap small{color:#6b7b75}
-.seller-video-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(220px,280px))!important;justify-content:start;align-items:start;gap:14px}
-.seller-video-card{width:100%;max-width:280px;overflow:hidden;border:1px solid #dfe9e5;border-radius:16px;background:#fff;min-width:0}
-.seller-video-media{display:grid;place-items:center;height:300px;background:#071b17;overflow:hidden}
-.seller-video-media video{display:block;width:100%;height:100%;object-fit:contain;background:#071b17}
+.seller-video-grid{display:grid!important;grid-template-columns:repeat(auto-fill,minmax(210px,250px))!important;justify-content:start;align-items:start;gap:14px}
+.seller-video-card{width:100%;max-width:250px;overflow:hidden;border:1px solid #dfe9e5;border-radius:16px;background:#fff;min-width:0}
+.seller-video-media{display:grid;place-items:center;height:250px;max-height:250px;background:#071b17;overflow:hidden}
+.seller-video-media video{display:block;width:100%!important;height:250px!important;max-height:250px!important;object-fit:contain;background:#071b17}
 .seller-video-card-body{padding:12px;display:grid;gap:6px}
 .seller-video-card-body h3{margin:0;color:#173f35;font-size:14px;line-height:1.3}
 .seller-video-card-body p,.seller-video-card-body small{margin:0;color:#70807a;font-size:11px;line-height:1.4}
 .seller-video-reason{color:#a04444!important}
 .seller-video-delete{justify-self:start;padding:4px 0!important;min-height:auto!important;color:#a04444!important}
-@media(max-width:760px){.seller-video-preview-wrap{max-width:100%}.seller-video-preview-wrap video{width:min(100%,240px);height:min(43vh,320px)}.seller-video-grid{grid-template-columns:minmax(0,320px)!important;justify-content:center;gap:12px}.seller-video-card{max-width:320px}.seller-video-media{height:280px}.seller-video-card-body{padding:10px}}
-@media(max-width:390px){.seller-video-grid{grid-template-columns:minmax(0,1fr)!important}.seller-video-card{max-width:none}.seller-video-media{height:250px}}
+@media(max-width:760px){#viewVideos .seller-video-preview-wrap{width:min(100%,280px);max-width:280px}#viewVideos .seller-video-preview-wrap video{width:min(100%,190px);height:min(37vh,250px);max-height:250px}#viewVideos .seller-video-grid{grid-template-columns:minmax(0,260px)!important;justify-content:center!important;gap:12px}#viewVideos .seller-video-card{max-width:260px!important}#viewVideos .seller-video-media{height:230px!important;max-height:230px!important;min-height:0!important}#viewVideos .seller-video-media video{width:100%!important;height:230px!important;max-height:230px!important;min-height:0!important}.seller-video-card-body{padding:10px}}
+@media(max-width:390px){#viewVideos .seller-video-grid{grid-template-columns:minmax(0,250px)!important}#viewVideos .seller-video-card{max-width:250px!important}#viewVideos .seller-video-media,#viewVideos .seller-video-media video{height:220px!important;max-height:220px!important}}

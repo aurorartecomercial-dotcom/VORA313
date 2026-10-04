@@ -82,6 +82,26 @@ body.loja-publica-body[data-tema-categoria] .preco { color:var(--tema-tinta); }
 body.loja-publica-body[data-tema-categoria] .btn-add-carrinho-card { background:var(--tema-primaria); color:var(--tema-em-primaria); }
 body.loja-publica-body[data-tema-categoria] :is(.loja-acoes a,.loja-navegacao a,.loja-categoria,.loja-carregar-mais button,.btn-add-carrinho-card,.loja-busca):focus-visible { outline:3px solid var(--tema-acento); outline-offset:2px; }
 
+/* Contraste fechado para os cabeçalhos temáticos. Estes seletores também
+   protegem a visualização móvel contra regras antigas em cache: texto no
+   fundo escuro é sempre branco; texto em superfícies claras usa a tinta do
+   tema. Nenhuma cor é escolhida pelo vendedor. */
+body.loja-publica-body[data-tema-categoria] .loja-hero-publico :is(h1,p,.loja-selo,.loja-info-extra,.loja-estatistica span) { color:var(--tema-em-primaria)!important; text-shadow:0 1px 2px rgba(0,0,0,.18); }
+body.loja-publica-body[data-tema-categoria] .loja-estatistica strong { color:var(--tema-acento)!important; text-shadow:0 1px 2px rgba(0,0,0,.2); }
+body.loja-publica-body[data-tema-categoria] .loja-navegacao a { color:var(--tema-tinta)!important; }
+body.loja-publica-body[data-tema-categoria] .loja-navegacao a.ativo { background:var(--tema-primaria)!important; color:var(--tema-em-primaria)!important; }
+body.loja-publica-body[data-tema-categoria] .loja-acoes a.secundario,
+body.loja-publica-body[data-tema-categoria] #btnPartilharLoja { background:#fff!important; color:var(--tema-primaria)!important; }
+body.loja-publica-body[data-tema-categoria] .loja-video-card { border-color:var(--tema-borda); }
+body.loja-publica-body[data-tema-categoria] .loja-video-card-body h3,
+body.loja-publica-body[data-tema-categoria] .loja-video-produto strong { color:var(--tema-tinta)!important; }
+body.loja-publica-body[data-tema-categoria] .loja-video-card-body p,
+body.loja-publica-body[data-tema-categoria] .loja-video-card-body>small { color:var(--tema-texto-suave)!important; }
+body.loja-publica-body[data-tema-categoria] .loja-video-badge,
+body.loja-publica-body[data-tema-categoria] .loja-video-produto { background:var(--tema-suave); border-color:var(--tema-borda); color:var(--tema-primaria); }
+body.loja-publica-body[data-tema-categoria] .loja-video-produto span,
+body.loja-publica-body[data-tema-categoria] .loja-video-produto a { color:var(--tema-primaria-escura); }
+
 @media (prefers-reduced-motion:reduce) {
   body.loja-publica-body[data-tema-categoria] .loja-hero-publico { transition:none; }
 }
