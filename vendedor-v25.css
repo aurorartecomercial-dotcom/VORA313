@@ -19,8 +19,8 @@ select:disabled{opacity:.65;cursor:not-allowed}
 
 /* VORA 313 — vídeos do vendedor */
 .seller-video-editor{margin-bottom:16px}
-.seller-video-preview-wrap{display:grid;gap:8px;max-width:360px;padding:12px;background:#f4f8f6;border:1px solid #dce8e3;border-radius:16px}
-.seller-video-preview-wrap video{width:100%;aspect-ratio:9/16;max-height:520px;object-fit:cover;background:#071b17;border-radius:12px}
+.seller-video-preview-wrap{display:grid;justify-items:center;gap:8px;max-width:390px;padding:12px;background:#f4f8f6;border:1px solid #dce8e3;border-radius:16px}
+.seller-video-preview-wrap video{display:block;width:min(100%,300px);height:min(52vh,430px);aspect-ratio:9/16;object-fit:contain;background:#071b17;border-radius:12px}
 .seller-video-preview-wrap small{color:#6b7b75}
 .seller-video-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
 .seller-video-card{overflow:hidden;border:1px solid #dfe9e5;border-radius:16px;background:#fff;min-width:0}
@@ -29,7 +29,8 @@ select:disabled{opacity:.65;cursor:not-allowed}
 .seller-video-card-body{padding:12px;display:grid;gap:6px}
 .seller-video-card-body h3{margin:0;color:#173f35;font-size:14px;line-height:1.3}
 .seller-video-card-body p,.seller-video-card-body small{margin:0;color:#70807a;font-size:11px;line-height:1.4}
+.seller-video-reason{color:#a04444!important}
 .seller-video-delete{justify-self:start;padding:4px 0!important;min-height:auto!important;color:#a04444!important}
 @media(max-width:1100px){.seller-video-grid{grid-template-columns:repeat(3,minmax(0,1fr))}}
-@media(max-width:760px){.seller-video-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.seller-video-card-body{padding:10px}}
+@media(max-width:760px){.seller-video-preview-wrap{max-width:100%}.seller-video-preview-wrap video{width:min(100%,260px);height:min(48vh,360px)}.seller-video-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.seller-video-card-body{padding:10px}}
 @media(max-width:480px){.seller-video-grid{grid-template-columns:1fr 1fr}.seller-video-media{aspect-ratio:9/13}}

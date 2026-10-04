@@ -6,6 +6,7 @@ const $ = (id) => document.getElementById(id);
 let vendedores = [];
 let produtos = [];
 let vendas = [];
+let videosPendentes = [];
 
 function estadoClasse(estado) { return estado === 'aprovado' ? 'approved' : ['recusado', 'suspenso'].includes(estado) ? 'refused' : ''; }
 function estadoNome(estado) { return ({ pendente: 'Pendente', aprovado: 'Aprovado', recusado: 'Recusado', suspenso: 'Suspenso' })[estado] || estado || '—'; }
@@ -32,6 +33,113 @@ async function carregar() {
   produtos = produtosSnap.docs.map((item) => ({ id: item.id, ...item.data() })).filter((item) => item.vendedorId || item.vendedor_id);
   vendas = vendasSnap.docs.map((item) => ({ id: item.id, ...item.data() }));
   renderizar();
+  await carregarVideosParaModeracao();
+}
+
+function tamanhoArquivo(bytes) {
+  const mb = Number(bytes || 0) / 1024 / 1024;
+  return Number.isFinite(mb) && mb > 0 ? `${mb.toFixed(mb >= 10 ? 0 : 1)} MB` : '—';
+}
+
+function dataVideo(valor) {
+  const data = new Date(valor || 0);
+  return Number.isNaN(data.getTime()) ? 'Sem data' : data.toLocaleDateString('pt-AO', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+async function carregarVideosParaModeracao() {
+  const lista = $('listaVideosModeracao');
+  if (!lista) return;
+  try {
+    const { data } = await httpsCallable(functions, 'listarVideosParaModeracao')({});
+    videosPendentes = Array.isArray(data) ? data : [];
+    renderizarVideosParaModeracao();
+  } catch (erro) {
+    videosPendentes = [];
+    lista.innerHTML = '<div class="adm-empty">Não foi possível carregar a fila de vídeos agora. Confirme que a migration 026 e a Edge Function foram publicadas.</div>';
+    mostrarMensagem(erro.message || 'Não foi possível carregar os vídeos pendentes.', false);
+  }
+}
+
+function renderizarVideosParaModeracao() {
+  const lista = $('listaVideosModeracao');
+  if (!lista) return;
+  lista.replaceChildren();
+  if (!videosPendentes.length) {
+    lista.innerHTML = '<div class="adm-empty">✓ Não há vídeos aguardando análise.</div>';
+    return;
+  }
+  videosPendentes.forEach((video) => {
+    const artigo = document.createElement('article');
+    artigo.className = 'adm-video-card';
+    const media = document.createElement('div');
+    media.className = 'adm-video-media';
+    const player = document.createElement('video');
+    player.controls = true;
+    player.playsInline = true;
+    player.preload = 'metadata';
+    if (/^https:\/\//i.test(String(video.videoUrl || video.video_url || ''))) player.src = video.videoUrl || video.video_url;
+    player.setAttribute('aria-label', String(video.titulo || 'Vídeo enviado pelo vendedor'));
+    media.append(player);
+
+    const corpo = document.createElement('div');
+    corpo.className = 'adm-video-body';
+    const titulo = document.createElement('h3');
+    titulo.textContent = String(video.titulo || 'Vídeo sem título');
+    const loja = document.createElement('p');
+    loja.textContent = `Loja: ${video.lojaNome || video.loja_nome || video.vendedorNome || video.vendedor_nome || '—'}`;
+    const produto = document.createElement('small');
+    produto.textContent = (video.produtoNome || video.produto_nome) ? `Produto: ${video.produtoNome || video.produto_nome}` : 'Sem produto relacionado';
+    const meta = document.createElement('small');
+    const segundos = Number(video.duracaoSegundos || video.duracao_segundos || 0);
+    meta.textContent = [tamanhoArquivo(video.tamanhoBytes || video.tamanho_bytes), segundos ? `${segundos}s` : '', dataVideo(video.criadoEm || video.criado_em)].filter(Boolean).join(' · ');
+    const descricao = String(video.descricao || '').trim();
+    const texto = document.createElement('p');
+    texto.textContent = descricao || 'Sem descrição.';
+    const motivo = document.createElement('textarea');
+    motivo.maxLength = 600;
+    motivo.placeholder = 'Motivo da recusa (obrigatório se recusar)';
+    motivo.dataset.motivoVideo = String(video.id);
+    const acoes = document.createElement('div');
+    acoes.className = 'adm-video-actions';
+    const aprovar = document.createElement('button');
+    aprovar.type = 'button';
+    aprovar.className = 'adm-btn';
+    aprovar.dataset.moderarVideo = String(video.id);
+    aprovar.dataset.acaoVideo = 'aprovar';
+    aprovar.textContent = '✓ Aprovar e publicar';
+    const recusar = document.createElement('button');
+    recusar.type = 'button';
+    recusar.className = 'adm-btn danger';
+    recusar.dataset.moderarVideo = String(video.id);
+    recusar.dataset.acaoVideo = 'recusar';
+    recusar.textContent = 'Recusar';
+    acoes.append(aprovar, recusar);
+    corpo.append(titulo, loja, produto, meta, texto, motivo, acoes);
+    artigo.append(media, corpo);
+    lista.append(artigo);
+  });
+}
+
+async function moderarVideo(videoId, acao, botao) {
+  if (!videoId || !['aprovar', 'recusar'].includes(acao)) return;
+  const seletorSeguro = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(videoId) : String(videoId).replace(/[^a-zA-Z0-9_-]/g, '');
+  const motivo = String(document.querySelector(`[data-motivo-video="${seletorSeguro}"]`)?.value || '').trim();
+  if (acao === 'recusar' && motivo.length < 5) {
+    mostrarMensagem('Escreva um motivo claro, com pelo menos 5 caracteres, para o vendedor corrigir o vídeo.', false);
+    return;
+  }
+  const confirmar = acao === 'aprovar' ? 'Aprovar este vídeo e publicar na loja do vendedor?' : 'Recusar este vídeo? O vendedor receberá o motivo.';
+  if (!confirm(confirmar)) return;
+  try {
+    if (botao) { botao.disabled = true; botao.textContent = 'A processar…'; }
+    await httpsCallable(functions, 'moderarVideoVendedor')({ videoId, acao, motivoRecusa: motivo });
+    mostrarMensagem(acao === 'aprovar' ? 'Vídeo aprovado e publicado na loja.' : 'Vídeo recusado. O motivo ficou disponível para o vendedor.');
+    await carregarVideosParaModeracao();
+  } catch (erro) {
+    mostrarMensagem(erro.message || 'Não foi possível decidir sobre o vídeo.', false);
+  } finally {
+    if (botao) { botao.disabled = false; botao.textContent = acao === 'aprovar' ? '✓ Aprovar e publicar' : 'Recusar'; }
+  }
 }
 
 function renderizar() {
@@ -112,8 +220,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
   $('senhaVendedores').addEventListener('keydown', (evento) => { if (evento.key === 'Enter') $('btnLoginVendedores').click(); });
   $('btnAtualizarVendedores').addEventListener('click', () => carregar().catch((erro) => mostrarMensagem(erro.message || erro, false)));
+  $('btnAtualizarVideos').addEventListener('click', () => carregarVideosParaModeracao());
   $('btnSairVendedores').addEventListener('click', async () => { await signOut(auth); location.reload(); });
   $('filtroVendedores').addEventListener('input', renderizar);
   $('statusVendedores').addEventListener('change', renderizar);
-  document.addEventListener('click', (evento) => { const botao = evento.target.closest('[data-acao]'); const detalhe = evento.target.closest('[data-detalhe]'); if (botao) alterarVendedor(botao.dataset.id, botao.dataset.acao).catch((erro) => mostrarMensagem(erro.message || erro, false)); if (detalhe) mostrarDetalheVendedor(detalhe.dataset.id, detalhe.dataset.detalhe); });
+  document.addEventListener('click', (evento) => { const botao = evento.target.closest('[data-acao]'); const detalhe = evento.target.closest('[data-detalhe]'); const video = evento.target.closest('[data-moderar-video]'); if (botao) alterarVendedor(botao.dataset.id, botao.dataset.acao).catch((erro) => mostrarMensagem(erro.message || erro, false)); if (detalhe) mostrarDetalheVendedor(detalhe.dataset.id, detalhe.dataset.detalhe); if (video) moderarVideo(video.dataset.moderarVideo, video.dataset.acaoVideo, video); });
 });

@@ -1,17 +1,17 @@
 # Publicar vídeos de vendedores — passos obrigatórios
 
-O código do site já permite MP4/WEBM até 100 MB e 60 segundos. Para o botão **Publicar vídeo** gravar de verdade, conclua estes passos uma única vez no mesmo projeto Supabase usado pelo site.
+O site permite somente MP4/WEBM de até **100 MB** e **60 segundos**. Cada loja pode manter no máximo **7 vídeos** em revisão ou publicados. Todo vídeo novo entra como **pendente** e só aparece aos clientes depois da aprovação no painel administrativo.
 
 ## 1. Aplicar as migrations
 
-No Supabase, abra **SQL Editor**. Execute, nesta ordem, o conteúdo destes dois ficheiros:
+No Supabase, abra **SQL Editor**. Execute, nesta ordem, o conteúdo destes ficheiros:
 
 1. `supabase/migrations/016_seguranca_p0_uploads_e_limites.sql`
 2. `supabase/migrations/024_videos_vendedores.sql`
+3. `supabase/migrations/025_reparar_permissao_videos_service_role.sql`
+4. `supabase/migrations/026_moderacao_e_limite_videos_vendedores.sql`
 
-Se já executou a migration 024 antes de receber esta versão, execute também
-`supabase/migrations/025_reparar_permissao_videos_service_role.sql`. Ela libera
-somente a Edge Function do servidor para gravar na tabela de vídeos.
+Mesmo que já tenha executado as migrations 016 e 024, execute agora a 025 e a 026 uma única vez. A 025 libera somente a Edge Function do servidor para gravar na tabela; a 026 adiciona a aprovação administrativa, o limite de sete e a proteção de 100 MB no banco.
 
 Não altere os nomes das tabelas nem coloque chaves secretas no frontend.
 
@@ -31,6 +31,6 @@ O resultado correto é:
 
 ## 4. Testar no site
 
-Faça uma atualização forçada da página (`Ctrl + F5`), entre numa loja aprovada e publique um MP4 curto. Se a configuração ainda faltar, o site agora mostrará uma mensagem específica em vez de um erro 500 genérico.
+Faça uma atualização forçada da página (`Ctrl + F5`), entre numa loja aprovada e envie um MP4 curto. Ele deverá aparecer como **Em revisão**. Depois entre em `admin-vendedores.html` com a conta administrativa, aprove o vídeo e confirme que ele aparece na aba de vídeos da loja pública.
 
 > Fazer apenas `git push` publica os ficheiros do GitHub Pages. O banco e a Edge Function são serviços separados e devem receber os passos 1 e 2 acima.

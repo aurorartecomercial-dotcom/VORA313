@@ -595,12 +595,14 @@ function renderizarVideos() {
   const contador = $('navVideosCount');
   const kpi = $('kpiVideos');
   const total = Array.isArray(videos) ? videos.length : 0;
+  const emUso = videos.filter((video) => ['pendente', 'publicado', 'oculto'].includes(String(video?.status || 'publicado'))).length;
   if (contador) contador.textContent = String(total);
-  if (kpi) kpi.textContent = String(total);
+  if (kpi) kpi.textContent = String(emUso);
+  setTexto('kpiVideosAjuda', `${emUso} de 7 em revisão ou publicados`);
   preencherProdutosVideo();
   if (!lista) return;
   if (!total) {
-    lista.innerHTML = '<div class="seller-empty"><strong>🎥 Ainda não publicou vídeos.</strong><span>Mostre os seus produtos em vídeos curtos e ligue cada vídeo a um produto publicado.</span></div>';
+    lista.innerHTML = '<div class="seller-empty"><strong>🎥 Ainda não enviou vídeos.</strong><span>Envie um vídeo curto; a equipa administrativa irá analisá-lo antes de ele aparecer aos clientes.</span></div>';
     return;
   }
   lista.replaceChildren(...videos.map((video) => {
@@ -623,6 +625,11 @@ function renderizarVideos() {
     const produto = produtos.find((item) => String(item.id) === String(video.produto_id || video.produtoId || ''));
     const meta = document.createElement('p');
     meta.textContent = produto ? `🛒 ${produto.nome}` : '🎥 Vídeo da loja';
+    const estado = String(video.status || 'publicado');
+    const estadoTexto = ({ pendente: 'Em revisão', publicado: 'Publicado', recusado: 'Recusado', oculto: 'Oculto' })[estado] || estado;
+    const badge = document.createElement('span');
+    badge.className = `seller-chip ${estado === 'publicado' ? 'approved' : estado === 'recusado' ? 'refused' : 'pending'}`;
+    badge.textContent = estadoTexto;
     const data = document.createElement('small');
     data.textContent = dataHora(video.criado_em || video.criadoEm);
     const excluir = document.createElement('button');
@@ -630,7 +637,15 @@ function renderizarVideos() {
     excluir.className = 'seller-btn seller-btn-text seller-video-delete';
     excluir.dataset.eliminarVideo = String(video.id);
     excluir.textContent = 'Eliminar';
-    corpo.append(titulo, meta, data, excluir);
+    corpo.append(titulo, meta, badge, data);
+    const motivo = String(video.motivo_recusa || video.motivoRecusa || '').trim();
+    if (estado === 'recusado' && motivo) {
+      const motivoElemento = document.createElement('small');
+      motivoElemento.className = 'seller-video-reason';
+      motivoElemento.textContent = `Motivo: ${motivo}`;
+      corpo.append(motivoElemento);
+    }
+    corpo.append(excluir);
     artigo.append(media, corpo);
     return artigo;
   }));
@@ -645,6 +660,8 @@ async function publicarVideo(evento) {
   if (!arquivo) return mensagem('Selecione um vídeo.', false);
   if (!['video/mp4', 'video/webm'].includes(arquivo.type)) return mensagem('Use um vídeo MP4 ou WEBM.', false);
   if (arquivo.size > 100 * 1024 * 1024) return mensagem('O vídeo deve ter no máximo 100 MB.', false);
+  const emUso = videos.filter((video) => ['pendente', 'publicado', 'oculto'].includes(String(video?.status || 'publicado'))).length;
+  if (emUso >= 7) return mensagem('A sua loja já atingiu o limite de 7 vídeos em revisão ou publicados. Elimine um vídeo antes de enviar outro.', false);
   const preview = $('vendVideoPreview');
   const duracao = Number(preview?.duration);
   if (!Number.isFinite(duracao) || duracao < 1 || duracao > 60) return mensagem('O vídeo deve ter entre 1 e 60 segundos. Aguarde a pré-visualização carregar.', false);
@@ -664,13 +681,13 @@ async function publicarVideo(evento) {
       duracaoSegundos: Math.round(duracao)
     });
     fecharEditorVideo();
-    mensagem('Vídeo publicado na sua loja.');
+    mensagem('Vídeo enviado para revisão. Ele só aparecerá na loja pública depois da aprovação administrativa.');
     await carregarCentral();
   } catch (erro) {
     mensagem(erroTexto(erro), false);
   } finally {
     const botao = form.querySelector('button[type="submit"]');
-    if (botao) { botao.disabled = false; botao.textContent = 'Publicar vídeo'; }
+    if (botao) { botao.disabled = false; botao.textContent = 'Enviar para revisão'; }
   }
 }
 

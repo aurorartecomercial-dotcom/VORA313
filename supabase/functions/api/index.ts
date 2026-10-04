@@ -46,6 +46,7 @@ const MIME_IMAGEM = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif
 const MIME_VIDEO = new Set(['video/mp4', 'video/webm']);
 const TAMANHO_VIDEO_MAXIMO = 100 * 1024 * 1024;
 const DURACAO_VIDEO_MAXIMA = 60;
+const LIMITE_VIDEOS_POR_VENDEDOR = 7;
 
 function err(message: string, code = 'bad_request'): never { throw Object.assign(new Error(message), { code }); }
 function detalhesErroParaLog(causa: unknown) {
@@ -244,6 +245,21 @@ async function consumirLimite(uid: string, acao: string, maximo: number, janelaS
   }
 }
 
+async function confirmarLimiteVideosVendedor(vendedorId: string) {
+  // Vídeos recusados não contam: o vendedor pode substituir um conteúdo que
+  // não passou na análise. Pendentes, publicados e ocultos continuam a ocupar
+  // uma das sete vagas para impedir acúmulo de conteúdo a moderar.
+  const { count, error } = await db.from('videos_vendedores')
+    .select('id', { count: 'exact', head: true })
+    .eq('vendedor_id', vendedorId)
+    .in('status', ['pendente', 'publicado', 'oculto']);
+  if (error) falhaInfraestruturaVideo(error, 'verificação do limite de vídeos');
+  if ((count || 0) >= LIMITE_VIDEOS_POR_VENDEDOR) {
+    err(`A sua loja já atingiu o limite de ${LIMITE_VIDEOS_POR_VENDEDOR} vídeos em revisão ou publicados. Elimine um vídeo antes de enviar outro.`, 'failed_precondition');
+  }
+  return count || 0;
+}
+
 async function criarUploadAssinado(req: Request, input: any) {
   const user = await requireUser(req);
   const tipo = text(input?.tipo, 'Tipo de upload', 24).toLowerCase();
@@ -271,6 +287,7 @@ async function criarUploadAssinado(req: Request, input: any) {
   } else if (tipo === 'video') {
     if (!MIME_VIDEO.has(mimeType)) err('Formato de vídeo não permitido. Use MP4 ou WEBM.');
     if (!(await isSeller(req, user.id))) err('Conta de vendedor aprovada necessária.', 'permission_denied');
+    await confirmarLimiteVideosVendedor(user.id);
     pasta = `vendedores/${user.id}/videos`;
     maximo = TAMANHO_VIDEO_MAXIMO;
   } else {
@@ -309,6 +326,7 @@ async function criarVideoVendedor(req: Request, input: any) {
   }
   if (!Number.isInteger(tamanho) || tamanho < 1 || tamanho > TAMANHO_VIDEO_MAXIMO) err('Tamanho do vídeo inválido.');
   if (duracao !== null && (!Number.isInteger(duracao) || duracao < 1 || duracao > DURACAO_VIDEO_MAXIMA)) err('O vídeo deve ter no máximo 60 segundos.');
+  await confirmarLimiteVideosVendedor(user.id);
 
   let produto = null;
   if (produtoId) {
@@ -332,7 +350,9 @@ async function criarVideoVendedor(req: Request, input: any) {
     mime_type: mimeType,
     tamanho_bytes: tamanho,
     duracao_segundos: duracao,
-    status: 'publicado'
+    // Um vídeo novo nunca vai diretamente para a loja pública. A equipa
+    // administrativa precisa aprová-lo explicitamente no painel de revisão.
+    status: 'pendente'
   }).select('*').single();
   if (error) {
     try {
@@ -340,9 +360,12 @@ async function criarVideoVendedor(req: Request, input: any) {
     } catch (_) {
       // A gravação do vídeo já falhou; a mensagem útil ao vendedor tem prioridade.
     }
+    if (error?.code === 'P0001' && /limite de 7 vídeos/i.test(error.message || '')) {
+      err(`A sua loja já atingiu o limite de ${LIMITE_VIDEOS_POR_VENDEDOR} vídeos em revisão ou publicados. Elimine um vídeo antes de enviar outro.`, 'failed_precondition');
+    }
     falhaInfraestruturaVideo(error, 'registo do vídeo no banco');
   }
-  await registarEventoSeguranca(user.id, 'vendedor', 'video_publicado', video.id, { produtoId: produto?.id || null });
+  await registarEventoSeguranca(user.id, 'vendedor', 'video_enviado_para_revisao', video.id, { produtoId: produto?.id || null });
   return camelRow(video);
 }
 
@@ -359,6 +382,71 @@ async function eliminarVideoVendedor(req: Request, input: any) {
   if (error) throw error;
   await registarEventoSeguranca(user.id, 'vendedor', 'video_eliminado', id, {});
   return { ok: true };
+}
+
+async function listarVideosParaModeracao(req: Request) {
+  await requireAdmin(req);
+  const { data: videos, error } = await db.from('videos_vendedores')
+    .select('id,vendedor_id,produto_id,titulo,descricao,video_url,mime_type,tamanho_bytes,duracao_segundos,status,criado_em,motivo_recusa')
+    .eq('status', 'pendente')
+    .order('criado_em', { ascending: true })
+    .limit(100);
+  if (error) falhaInfraestruturaVideo(error, 'listagem para revisão administrativa');
+
+  const vendedorIds = [...new Set((videos || []).map((video: any) => String(video.vendedor_id || '')).filter(Boolean))];
+  const produtoIds = [...new Set((videos || []).map((video: any) => String(video.produto_id || '')).filter(Boolean))];
+  const [vendedoresResultado, produtosResultado] = await Promise.all([
+    vendedorIds.length ? db.from('vendedores').select('id,nome,nome_loja,email').in('id', vendedorIds) : Promise.resolve({ data: [], error: null }),
+    produtoIds.length ? db.from('produtos').select('id,nome').in('id', produtoIds) : Promise.resolve({ data: [], error: null })
+  ]);
+  if (vendedoresResultado.error || produtosResultado.error) {
+    throw vendedoresResultado.error || produtosResultado.error;
+  }
+  const vendedoresPorId = new Map((vendedoresResultado.data || []).map((vendedor: any) => [vendedor.id, vendedor]));
+  const produtosPorId = new Map((produtosResultado.data || []).map((produto: any) => [produto.id, produto]));
+  return (videos || []).map((video: any) => {
+    const vendedor = vendedoresPorId.get(video.vendedor_id);
+    const produto = produtosPorId.get(video.produto_id);
+    return {
+      ...video,
+      vendedor_nome: vendedor?.nome || 'Vendedor',
+      loja_nome: vendedor?.nome_loja || vendedor?.nome || 'Loja',
+      vendedor_email: vendedor?.email || '',
+      produto_nome: produto?.nome || ''
+    };
+  });
+}
+
+async function moderarVideoVendedor(req: Request, input: any) {
+  const admin = await requireAdmin(req);
+  const videoId = text(input?.videoId, 'Vídeo', 128);
+  const acao = text(input?.acao, 'Ação', 20);
+  const motivoRecusa = text(input?.motivoRecusa, 'Motivo da recusa', 600, false);
+  if (!['aprovar', 'recusar', 'ocultar'].includes(acao)) err('Ação de vídeo inválida.');
+  if (acao === 'recusar' && motivoRecusa.length < 5) {
+    err('Explique ao vendedor o motivo da recusa.', 'failed_precondition');
+  }
+
+  const { data: video, error: leituraErro } = await db.from('videos_vendedores')
+    .select('id,status,vendedor_id,titulo').eq('id', videoId).maybeSingle();
+  if (leituraErro) falhaInfraestruturaVideo(leituraErro, 'leitura do vídeo para revisão');
+  if (!video) err('Vídeo não encontrado.', 'not_found');
+  if (acao !== 'ocultar' && video.status !== 'pendente') {
+    err('Este vídeo já foi analisado. Atualize a lista antes de decidir.', 'failed_precondition');
+  }
+
+  const status = acao === 'aprovar' ? 'publicado' : acao === 'recusar' ? 'recusado' : 'oculto';
+  const { data, error } = await db.from('videos_vendedores').update({
+    status,
+    motivo_recusa: acao === 'recusar' ? motivoRecusa : null,
+    revisado_em: new Date().toISOString(),
+    revisado_por: admin.id,
+    revisado_por_email: admin.email || null,
+    atualizado_em: new Date().toISOString()
+  }).eq('id', videoId).select('*').single();
+  if (error) falhaInfraestruturaVideo(error, 'decisão administrativa do vídeo');
+  await registarEventoSeguranca(admin.id, 'vendedor', 'video_moderado', videoId, { acao, status, vendedorId: video.vendedor_id });
+  return camelRow(data);
 }
 
 async function criarPedido(req:Request, input:any){
@@ -723,6 +811,8 @@ async function handle(req:Request,name:string,input:any){
     case 'criarUploadAssinado': return criarUploadAssinado(req,input);
     case 'criarVideoVendedor': return criarVideoVendedor(req,input);
     case 'eliminarVideoVendedor': return eliminarVideoVendedor(req,input);
+    case 'listarVideosParaModeracao': return listarVideosParaModeracao(req);
+    case 'moderarVideoVendedor': return moderarVideoVendedor(req,input);
     case 'alterarDisponibilidadeProdutoVendedor': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128),ativo=input?.ativo===true;const {data:p}=await db.from('produtos').select('id,vendedor_id,status_aprovacao').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id||p.status_aprovacao!=='aprovado')err('Produto não encontrado, não aprovado ou sem permissão.','permission_denied');const {error}=await db.from('produtos').update({ativo,atualizado_em:new Date().toISOString()}).eq('id',id).eq('vendedor_id',u.id);if(error)throw error;return {ok:true,ativo};}
     case 'solicitarVendedor': {const u=await requireUser(req);const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),email:text(u.email,'Email',160),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),status:'pendente',ativo:false,plano:'basico',uid:u.id};const {data:old}=await db.from('vendedores').select('status').eq('id',u.id).maybeSingle();if(old?.status==='aprovado'||old?.status==='pendente')return {ok:true,status:old.status};if(old?.status==='suspenso')err('A sua loja está suspensa. Contacte a VORA 313.','failed_precondition');const {error}=await db.from('vendedores').upsert({id:u.id,...d},{onConflict:'id'});if(error)throw error;return {ok:true,status:'pendente'};}
     case 'atualizarPerfilVendedor': {const u=await requireSeller(req);const perfilPublico=perfilPublicoSeguro(input?.perfilPublico);if(perfilPublico.editorialProdutoId){const {data:produto}=await db.from('produtos').select('id,vendedor_id,status_aprovacao,ativo').eq('id',perfilPublico.editorialProdutoId).maybeSingle();if(!produto||produto.vendedor_id!==u.id||produto.status_aprovacao!=='aprovado'||produto.ativo===false)err('O produto editorial deve ser um produto publicado da sua própria loja.','permission_denied');}const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),perfilPublico,atualizado_em:new Date().toISOString()};const {error}=await db.from('vendedores').update(dbRow(d)).eq('id',u.id);if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','perfil_publico_atualizado',u.id,{perfilPublico:true,estiloVitrine:perfilPublico.estiloVitrine});return {ok:true};}
