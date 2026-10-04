@@ -102,6 +102,29 @@ body.loja-publica-body[data-tema-categoria] .loja-video-produto { background:var
 body.loja-publica-body[data-tema-categoria] .loja-video-produto span,
 body.loja-publica-body[data-tema-categoria] .loja-video-produto a { color:var(--tema-primaria-escura); }
 
+/* Em telemóveis, o conteúdo da identidade sobe alguns pixels sobre a imagem
+   de capa. Uma base opaca evita texto branco sobre fotografias claras e mantém
+   a leitura segura para pessoas com baixa visão. */
+@media (max-width:650px) {
+  .loja-publica-body .loja-hero-inner {
+    background:#003d32!important;
+    border:1px solid rgba(255,255,255,.28);
+    border-bottom:0;
+    border-radius:18px 18px 0 0;
+    box-shadow:0 -1px 0 rgba(0,0,0,.12);
+  }
+  body.loja-publica-body[data-tema-categoria] .loja-hero-inner {
+    background:linear-gradient(135deg,var(--tema-primaria-escura),var(--tema-primaria))!important;
+  }
+  .loja-publica-body .loja-hero-publico h1 {
+    font-size:23px;
+    font-weight:900;
+    letter-spacing:-.02em;
+  }
+  .loja-publica-body .loja-selo { font-size:11px; font-weight:850; }
+  .loja-publica-body .loja-info-extra { font-size:12px; font-weight:700; }
+}
+
 @media (prefers-reduced-motion:reduce) {
   body.loja-publica-body[data-tema-categoria] .loja-hero-publico { transition:none; }
 }
