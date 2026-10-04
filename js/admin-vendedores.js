@@ -171,7 +171,11 @@ function renderizar() {
     else if (estado === 'aprovado' && vendedor.ativo !== false) acoes = `<button class="adm-btn warn" data-acao="suspender" data-id="${escapeHTML(vendedor.id)}">Suspender</button>`;
     else acoes = `<button class="adm-btn" data-acao="reativar" data-id="${escapeHTML(vendedor.id)}">Reativar</button>`;
     const loja = estado === 'aprovado' && vendedor.ativo !== false ? `<a class="adm-btn alt" target="_blank" rel="noopener" href="loja.html?id=${encodeURIComponent(vendedor.id)}">Ver loja</a>` : '';
-    return `<tr><td><strong>${escapeHTML(vendedor.nome || 'Sem nome')}</strong><small>${escapeHTML(vendedor.nomeLoja || 'Sem loja')}</small></td><td>${escapeHTML(vendedor.email || '—')}<small>${escapeHTML(vendedor.telefone || '')}</small></td><td><span class="adm-badge ${estadoClasse(estado)}">${escapeHTML(estadoNome(estado))}</span>${vendedor.motivoRecusa ? `<small>Motivo: ${escapeHTML(vendedor.motivoRecusa)}</small>` : ''}</td><td>${produtosPorVendedor[vendedor.id] || 0}</td><td>${dadosVendas.pedidos}</td><td>${escapeHTML(moeda(dadosVendas.valor))}</td><td><div class="adm-actions">${loja}<button class="adm-btn alt" data-detalhe="produtos" data-id="${escapeHTML(vendedor.id)}">Produtos</button><button class="adm-btn alt" data-detalhe="vendas" data-id="${escapeHTML(vendedor.id)}">Vendas</button>${acoes}</div></td></tr>`;
+    const quantidadeProdutos = produtosPorVendedor[vendedor.id] || 0;
+    const limparCatalogo = quantidadeProdutos
+      ? `<button class="adm-btn danger" data-limpar-catalogo="${escapeHTML(vendedor.id)}">Limpar catálogo</button>`
+      : '';
+    return `<tr><td><strong>${escapeHTML(vendedor.nome || 'Sem nome')}</strong><small>${escapeHTML(vendedor.nomeLoja || 'Sem loja')}</small></td><td>${escapeHTML(vendedor.email || '—')}<small>${escapeHTML(vendedor.telefone || '')}</small></td><td><span class="adm-badge ${estadoClasse(estado)}">${escapeHTML(estadoNome(estado))}</span>${vendedor.motivoRecusa ? `<small>Motivo: ${escapeHTML(vendedor.motivoRecusa)}</small>` : ''}</td><td>${quantidadeProdutos}</td><td>${dadosVendas.pedidos}</td><td>${escapeHTML(moeda(dadosVendas.valor))}</td><td><div class="adm-actions">${loja}<button class="adm-btn alt" data-detalhe="produtos" data-id="${escapeHTML(vendedor.id)}">Produtos</button><button class="adm-btn alt" data-detalhe="vendas" data-id="${escapeHTML(vendedor.id)}">Vendas</button>${limparCatalogo}${acoes}</div></td></tr>`;
   }).join('');
 }
 
@@ -183,7 +187,8 @@ function mostrarDetalheVendedor(id, tipo) {
   const eVenda = (venda) => String(venda.uidVendedor || venda.uid_vendedor || '') === String(id);
   if (tipo === 'produtos') {
     const lista = produtos.filter(eProdutos);
-    alvo.innerHTML = `<strong>Produtos de ${escapeHTML(vendedor.nomeLoja || vendedor.nome || 'vendedor')}</strong><br>${lista.length ? lista.map((produto) => `${escapeHTML(produto.nome || 'Produto')} · ${escapeHTML(produto.statusAprovacao || produto.status_aprovacao || 'sem estado')} · ${escapeHTML(moeda(produto.precoValor ?? produto.preco_valor ?? 0))}`).join('<br>') : 'Nenhum produto registado.'}`;
+    const tituloLoja = escapeHTML(vendedor.nomeLoja || vendedor.nome || 'vendedor');
+    alvo.innerHTML = `<strong>Produtos de ${tituloLoja}</strong><p class="adm-detail-note">Cada eliminação é definitiva. Produtos que já têm pedido não podem ser apagados para proteger a fatura e a contabilidade.</p>${lista.length ? `<div class="adm-product-list">${lista.map((produto) => `<div class="adm-product-row"><span><strong>${escapeHTML(produto.nome || 'Produto')}</strong><small>${escapeHTML(produto.statusAprovacao || produto.status_aprovacao || 'sem estado')} · ${escapeHTML(moeda(produto.precoValor ?? produto.preco_valor ?? 0))}</small></span><button class="adm-btn danger" type="button" data-eliminar-produto-vendedor="${escapeHTML(produto.id)}">Eliminar produto</button></div>`).join('')}</div>` : 'Nenhum produto registado.'}`;
   } else {
     const lista = vendas.filter(eVenda);
     alvo.innerHTML = `<strong>Vendas de ${escapeHTML(vendedor.nomeLoja || vendedor.nome || 'vendedor')}</strong><br>${lista.length ? lista.map((venda) => `${escapeHTML(venda.codigoRastreio || venda.codigo_rastreio || venda.id)} · ${escapeHTML(venda.status || 'sem estado')} · ${escapeHTML(moeda(venda.valorVenda ?? venda.valor_venda ?? venda.valorVendedor ?? venda.valor_vendedor ?? 0))}`).join('<br>') : 'Nenhuma venda registada.'}`;
@@ -212,6 +217,45 @@ async function alterarVendedor(id, acao) {
   await carregar();
 }
 
+function confirmarEliminacao(pergunta) {
+  const resposta = prompt(`${pergunta}\n\nEsta ação é definitiva. Escreva ELIMINAR para continuar.`);
+  if (resposta === null) return false;
+  if (String(resposta).trim().toLocaleUpperCase('pt-AO') !== 'ELIMINAR') {
+    mostrarMensagem('A eliminação foi cancelada: é preciso escrever exatamente ELIMINAR.', false);
+    return false;
+  }
+  return true;
+}
+
+async function eliminarProdutoVendedorAdmin(produtoId) {
+  const produto = produtos.find((item) => String(item.id) === String(produtoId));
+  if (!produto) {
+    mostrarMensagem('Produto não encontrado na lista atual. Atualize o painel e tente novamente.', false);
+    return;
+  }
+  const nome = String(produto.nome || 'este produto');
+  if (!confirmarEliminacao(`Eliminar o produto “${nome}”?`)) return;
+  await httpsCallable(functions, 'eliminarProdutoVendedorAdmin')({ produtoId, confirmacao: 'ELIMINAR' });
+  mostrarMensagem(`Produto “${nome}” eliminado com sucesso.`);
+  $('detalheVendedor').hidden = true;
+  await carregar();
+}
+
+async function eliminarCatalogoVendedorAdmin(vendedorId) {
+  const vendedor = vendedores.find((item) => String(item.id) === String(vendedorId));
+  if (!vendedor) {
+    mostrarMensagem('Vendedor não encontrado na lista atual. Atualize o painel e tente novamente.', false);
+    return;
+  }
+  const nomeLoja = String(vendedor.nomeLoja || vendedor.nome || 'esta loja');
+  if (!confirmarEliminacao(`Eliminar todos os produtos da loja “${nomeLoja}”?`)) return;
+  const resultado = await httpsCallable(functions, 'eliminarCatalogoVendedorAdmin')({ vendedorId, confirmacao: 'ELIMINAR' });
+  const eliminados = Number(resultado?.data?.eliminados || 0);
+  mostrarMensagem(`${eliminados} produto(s) da loja “${nomeLoja}” foram eliminados.`);
+  $('detalheVendedor').hidden = true;
+  await carregar();
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   try { await signOut(auth); } catch (_) {}
   $('btnLoginVendedores').addEventListener('click', async () => {
@@ -229,5 +273,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   $('btnSairVendedores').addEventListener('click', async () => { await signOut(auth); location.reload(); });
   $('filtroVendedores').addEventListener('input', renderizar);
   $('statusVendedores').addEventListener('change', renderizar);
-  document.addEventListener('click', (evento) => { const botao = evento.target.closest('[data-acao]'); const detalhe = evento.target.closest('[data-detalhe]'); const video = evento.target.closest('[data-moderar-video]'); if (botao) alterarVendedor(botao.dataset.id, botao.dataset.acao).catch((erro) => mostrarMensagem(erro.message || erro, false)); if (detalhe) mostrarDetalheVendedor(detalhe.dataset.id, detalhe.dataset.detalhe); if (video) moderarVideo(video.dataset.moderarVideo, video.dataset.acaoVideo, video); });
+  document.addEventListener('click', (evento) => {
+    const botao = evento.target.closest('[data-acao]');
+    const detalhe = evento.target.closest('[data-detalhe]');
+    const video = evento.target.closest('[data-moderar-video]');
+    const produto = evento.target.closest('[data-eliminar-produto-vendedor]');
+    const catalogo = evento.target.closest('[data-limpar-catalogo]');
+    if (botao) alterarVendedor(botao.dataset.id, botao.dataset.acao).catch((erro) => mostrarMensagem(erro.message || erro, false));
+    if (detalhe) mostrarDetalheVendedor(detalhe.dataset.id, detalhe.dataset.detalhe);
+    if (video) moderarVideo(video.dataset.moderarVideo, video.dataset.acaoVideo, video);
+    if (produto) eliminarProdutoVendedorAdmin(produto.dataset.eliminarProdutoVendedor).catch((erro) => mostrarMensagem(erro.message || 'Não foi possível eliminar o produto.', false));
+    if (catalogo) eliminarCatalogoVendedorAdmin(catalogo.dataset.limparCatalogo).catch((erro) => mostrarMensagem(erro.message || 'Não foi possível limpar o catálogo.', false));
+  });
 });

@@ -829,6 +829,28 @@ async function moderarProdutoVendedor(req: Request, input: any) {
   return camelRow(data);
 }
 
+async function eliminarProdutoVendedorAdmin(req: Request, input: any) {
+  const admin = await requireAdmin(req);
+  const produtoId = text(input?.produtoId, 'Produto', 128);
+  const confirmacao = text(input?.confirmacao, 'Confirmação', 20).toLocaleUpperCase('pt-AO');
+  if (confirmacao !== 'ELIMINAR') err('Confirme a eliminação escrevendo ELIMINAR.', 'failed_precondition');
+  const { data, error } = await db.rpc('eliminar_produto_vendedor_admin', { p_produto_id: produtoId });
+  if (error) throw error;
+  await registarEventoSeguranca(admin.id, 'vendedor', 'produto_eliminado_admin', produtoId, { modo: 'individual' });
+  return camelRow(data);
+}
+
+async function eliminarCatalogoVendedorAdmin(req: Request, input: any) {
+  const admin = await requireAdmin(req);
+  const vendedorId = text(input?.vendedorId, 'Vendedor', 128);
+  const confirmacao = text(input?.confirmacao, 'Confirmação', 20).toLocaleUpperCase('pt-AO');
+  if (confirmacao !== 'ELIMINAR') err('Confirme a eliminação escrevendo ELIMINAR.', 'failed_precondition');
+  const { data, error } = await db.rpc('eliminar_catalogo_vendedor_admin', { p_vendedor_id: vendedorId });
+  if (error) throw error;
+  await registarEventoSeguranca(admin.id, 'vendedor', 'catalogo_eliminado_admin', vendedorId, { eliminados: Number(data?.eliminados || 0) });
+  return camelRow(data);
+}
+
 async function handle(req:Request,name:string,input:any){
   const limites: Record<string, [number, number]> = {
     criarPedido: [5, 15 * 60],
@@ -843,6 +865,8 @@ async function handle(req:Request,name:string,input:any){
     atualizarProdutoVendedor: [60, 60 * 60],
     criarVideoVendedor: [20, 60 * 60],
     eliminarVideoVendedor: [30, 60 * 60],
+    eliminarProdutoVendedorAdmin: [30, 60 * 60],
+    eliminarCatalogoVendedorAdmin: [5, 60 * 60],
     alterarDisponibilidadeProdutoVendedor: [60, 60 * 60],
     solicitarDestaque: [10, 24 * 60 * 60],
     solicitarLevantamento: [5, 24 * 60 * 60],
@@ -882,6 +906,8 @@ async function handle(req:Request,name:string,input:any){
     case 'solicitarLevantamento': {const u=await requireSeller(req);const informado=input?.valor;const valor=informado===undefined||informado===null||informado===''?null:Number(informado);if(valor!==null&&(!Number.isFinite(valor)||valor<=0))err('Valor de levantamento inválido.','failed_precondition');const {data,error}=await db.rpc('solicitar_levantamento_atomico',{p_vendedor:u.id,p_valor:valor});if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','levantamento_solicitado',u.id,{});return camelRow(data);}
     case 'gerirVendedor': {const admin=await requireAdmin(req);const uid=text(input?.uid,'Vendedor',128),acao=text(input?.acao,'Ação',30),motivoRecusa=text(input?.motivoRecusa,'Motivo da recusa',600,false);if(!['aprovar','reativar','recusar','suspender'].includes(acao))err('Ação inválida.');const status=acao==='aprovar'||acao==='reativar'?'aprovado':acao==='recusar'?'recusado':'suspenso';const ativo=status==='aprovado';const {error}=await db.from('vendedores').update({status,ativo,motivo_recusa:acao==='recusar'?motivoRecusa:null,atualizado_em:new Date().toISOString()}).eq('id',uid);if(error)throw error;await db.from('produtos').update({vendedor_ativo:ativo}).eq('vendedor_id',uid);await registarEventoSeguranca(admin.id,'vendedor','estado_vendedor_alterado',uid,{acao,status});return {ok:true,status};}
     case 'aprovarProdutoVendedor': return moderarProdutoVendedor(req, input);
+    case 'eliminarProdutoVendedorAdmin': return eliminarProdutoVendedorAdmin(req, input);
+    case 'eliminarCatalogoVendedorAdmin': return eliminarCatalogoVendedorAdmin(req, input);
     case 'definirDestaqueManual': {const admin=await requireAdmin(req);const id=text(input?.produtoId,'Produto',128),ativo=input?.ativo===true;const {data:p}=await db.from('produtos').select('*').eq('id',id).maybeSingle();if(!p)err('Produto não encontrado.','not_found');if(ativo&&p.vendedor_id){const {data:v}=await db.from('vendedores').select('status,ativo').eq('id',p.vendedor_id).maybeSingle();if(!v||v.status!=='aprovado'||p.status_aprovacao!=='aprovado')err('O vendedor/produto não está aprovado.','failed_precondition');}const m={...(p.monetizacao||{}),destaque:ativo,destaqueInicio:ativo?new Date().toISOString():null,destaqueFim:ativo?new Date(Date.now()+30*86400000).toISOString():null,atualizadoEm:new Date().toISOString()};const {error}=await db.from('produtos').update({monetizacao:m,atualizado_em:new Date().toISOString()}).eq('id',id);if(error)throw error;await registarEventoSeguranca(admin.id,'vendedor','destaque_manual_alterado',id,{ativo});return {ok:true,ativo};}
     case 'processarDestaque': {const admin=await requireAdmin(req);const id=text(input?.requestId,'Solicitação',128),acao=text(input?.acao,'Ação',20);const {data:d}=await db.from('destaques_solicitados').select('*').eq('id',id).maybeSingle();if(!d)err('Solicitação não encontrada.','not_found');if(!['aguardando_pagamento','pendente'].includes(d.status))err('Esta solicitação já foi processada.','failed_precondition');if(acao==='recusar'){await db.from('destaques_solicitados').update({status:'recusado',atualizado_em:new Date().toISOString()}).eq('id',id);await registarEventoSeguranca(admin.id,'vendedor','destaque_processado',id,{acao});return {ok:true};}if(acao!=='aprovar')err('Ação inválida.');const inicio=new Date(),fim=new Date(inicio.getTime()+Number(d.dias)*86400000);const {error}=await db.from('destaques_solicitados').update({status:'ativo',inicio:inicio.toISOString(),fim:fim.toISOString(),atualizado_em:inicio.toISOString()}).eq('id',id);if(error)throw error;const {data:p}=await db.from('produtos').select('monetizacao').eq('id',d.produto_id).maybeSingle();await db.from('produtos').update({monetizacao:{...(p?.monetizacao||{}),destaque:true,destaqueInicio:inicio.toISOString(),destaqueFim:fim.toISOString(),destaqueSolicitacaoId:id},atualizado_em:inicio.toISOString()}).eq('id',d.produto_id);await registarEventoSeguranca(admin.id,'vendedor','destaque_processado',id,{acao});return {ok:true,fim:fim.toISOString()};}
     case 'definirPlanoVendedor': {const admin=await requireAdmin(req);const uid=text(input?.uid,'Vendedor',128),plano=text(input?.plano,'Plano',20).toLowerCase();if(!['basico','profissional','premium'].includes(plano))err('Plano inválido.');const {error}=await db.from('vendedores').update({plano,atualizado_em:new Date().toISOString()}).eq('id',uid);if(error)throw error;await registarEventoSeguranca(admin.id,'vendedor','plano_vendedor_alterado',uid,{plano});return {ok:true,plano};}
