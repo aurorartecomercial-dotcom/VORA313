@@ -21,7 +21,9 @@
 - [ ] Com sete vídeos em revisão/publicados, tentar enviar o oitavo: deve ser recusado.
 
 ## Administração
-- [ ] Entrar em `admin-vendedores.html` com a conta administrativa.
+- [ ] Entrar em `admin-vendas.html`, abrir a aba **Vendedores** e localizar a área **Vídeos aguardando revisão**.
+- [ ] Confirmar que o vídeo abre no cartão compacto, sem ocupar toda a tela.
+- [ ] A página `admin-vendedores.html` deve mostrar a mesma fila como alternativa.
 - [ ] Abrir **Vídeos aguardando revisão** e assistir ao vídeo no cartão compacto.
 - [ ] Recusar um vídeo sem motivo: deve ser recusado pelo sistema.
 - [ ] Aprovar um vídeo e confirmar que ele sai da fila administrativa.

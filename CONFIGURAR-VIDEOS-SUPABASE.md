@@ -31,6 +31,10 @@ O resultado correto é:
 
 ## 4. Testar no site
 
-Faça uma atualização forçada da página (`Ctrl + F5`), entre numa loja aprovada e envie um MP4 curto. Ele deverá aparecer como **Em revisão**. Depois entre em `admin-vendedores.html` com a conta administrativa, aprove o vídeo e confirme que ele aparece na aba de vídeos da loja pública.
+Faça uma atualização forçada da página (`Ctrl + F5`), entre numa loja aprovada e envie um MP4 curto. Ele deverá aparecer como **Em revisão**. Depois entre em `admin-vendas.html`, abra a aba **Vendedores** e use a secção **Vídeos aguardando revisão** para assistir, aprovar ou recusar. A página `admin-vendedores.html` também mantém a mesma fila como alternativa.
+
+Se aparecer a mensagem **"permissão negada para tabela videos_vendedores"**, a migration 025 ainda não foi aplicada no projeto correto. Execute-a novamente; ela só autoriza a Edge Function no servidor e não dá permissão de escrita aos clientes.
+
+Se aparecer a mensagem que a moderação não está configurada, aplique a 026 e clique em **Deploy updates** na função `api`. A função publicada precisa ser a cópia atual do ficheiro `supabase/functions/api/index.ts` deste ZIP.
 
 > Fazer apenas `git push` publica os ficheiros do GitHub Pages. O banco e a Edge Function são serviços separados e devem receber os passos 1 e 2 acima.

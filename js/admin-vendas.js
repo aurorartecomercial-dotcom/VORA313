@@ -22,6 +22,8 @@ let comissoesFinanceiroAdmin = [];
 let disputasFinanceiroAdmin = [];
 let pagamentosFinanceiroAdmin = [];
 let produtoEmRevisaoAdmin = null;
+let videosModeracaoAdmin = [];
+let metricasAcessoAdmin = null;
 
 function chartDisponivel() {
     return typeof Chart !== 'undefined';
@@ -91,6 +93,8 @@ document.addEventListener('DOMContentLoaded', () => {
     configurarExportacoes();
 
     document.getElementById('btnAtualizarVendedores')?.addEventListener('click', () => carregarPainelVendedoresAdmin(true));
+    document.getElementById('btnAtualizarVideosModeracao')?.addEventListener('click', () => carregarVideosModeracaoAdmin());
+    document.getElementById('btnAtualizarMetricasAcesso')?.addEventListener('click', () => carregarMetricasAcessoAdmin());
     document.getElementById('btnAtualizarFinanceiro')?.addEventListener('click', () => carregarFinanceiroAdmin());
     document.getElementById('btnLiberarSaldos')?.addEventListener('click', liberarSaldosVencidosAdmin);
     document.addEventListener('click', async (event) => {
@@ -173,6 +177,7 @@ async function carregarDados() {
 
         preencherSelects();
         renderizarDashboard();
+        void carregarMetricasAcessoAdmin();
         
         const dataAtualEl = document.getElementById('dataAtual');
         if (dataAtualEl) {
@@ -209,7 +214,7 @@ async function trocarAba(abaId) {
     document.querySelectorAll('.aba-conteudo').forEach(div => div.classList.toggle('ativa', div.id === `aba-${abaId}`));
     
     switch (abaId) {
-        case 'dashboard': renderizarDashboard(); break;
+        case 'dashboard': renderizarDashboard(); await carregarMetricasAcessoAdmin(); break;
         case 'diario': renderizarDiario(); break;
         case 'semanal': renderizarSemanal(); break;
         case 'mensal': renderizarMensal(); break;
@@ -311,6 +316,66 @@ function renderizarDashboard() {
     renderizarGraficoSaldo(vendas);
     renderizarGraficoVendas(vendas);
     renderizarGraficoProdutos(vendas);
+}
+
+function numeroMetrica(valor) {
+    const numero = Number(valor || 0);
+    return (Number.isFinite(numero) ? numero : 0).toLocaleString('pt-AO');
+}
+
+function mensagemMetricasAcesso(texto, erro = false) {
+    const caixa = document.getElementById('msgMetricasAcesso');
+    if (!caixa) return;
+    caixa.style.display = 'block';
+    caixa.style.background = erro ? '#fff2f0' : '#e8f7ee';
+    caixa.style.color = erro ? '#9f271d' : '#17643e';
+    caixa.textContent = texto;
+}
+
+function formatarDiaMetrica(valor) {
+    const data = new Date(`${String(valor || '')}T00:00:00`);
+    return Number.isNaN(data.getTime()) ? 'Dia sem data' : data.toLocaleDateString('pt-AO', { weekday: 'short', day: '2-digit', month: 'short' });
+}
+
+function renderizarMetricasAcessoAdmin() {
+    const dados = metricasAcessoAdmin || {};
+    setText('kpiVisitantesSite', numeroMetrica(dados.visitantesUnicos ?? dados.visitantes_unicos));
+    setText('kpiAcessosSite', numeroMetrica(dados.acessosRegistados ?? dados.acessos_registados));
+    setText('kpiVisualizacoesProdutos', numeroMetrica(dados.visualizacoesProdutos ?? dados.visualizacoes_produtos));
+
+    const listaDiaria = document.getElementById('listaMetricasDiarias');
+    const listaProdutos = document.getElementById('listaProdutosMaisVistos');
+    const dias = Array.isArray(dados.diario) ? dados.diario.slice(-7).reverse() : [];
+    const produtos = Array.isArray(dados.produtos) ? dados.produtos : [];
+    if (listaDiaria) {
+        listaDiaria.innerHTML = dias.length ? dias.map((item) => `<div class="metricas-acesso-item"><span><strong>${escapeHTML(formatarDiaMetrica(item.dia))}</strong><small>${numeroMetrica(item.acessos)} acesso(s) registado(s)</small></span><strong>${numeroMetrica(item.visitantes)} visitante(s)</strong></div>`).join('') : '<div class="metricas-acesso-vazio">Ainda não há acessos registados neste período.</div>';
+    }
+    if (listaProdutos) {
+        listaProdutos.innerHTML = produtos.length ? produtos.map((produto, indice) => `<div class="metricas-acesso-item"><span><strong>${indice + 1}. ${escapeHTML(produto.nome || 'Produto')}</strong><small>${escapeHTML(String(produto.produtoId || produto.produto_id || ''))}</small></span><strong>${numeroMetrica(produto.visualizacoes)} visto(s)</strong></div>`).join('') : '<div class="metricas-acesso-vazio">Ainda não há produtos vistos neste período.</div>';
+    }
+}
+
+async function carregarMetricasAcessoAdmin() {
+    const listaDiaria = document.getElementById('listaMetricasDiarias');
+    const listaProdutos = document.getElementById('listaProdutosMaisVistos');
+    const mensagem = document.getElementById('msgMetricasAcesso');
+    if (!listaDiaria || !listaProdutos) return;
+    try {
+        if (mensagem) { mensagem.style.display = 'none'; mensagem.textContent = ''; }
+        const resposta = await chamarAcaoAdmin('consultarMetricasAcesso', { dias: 30 });
+        metricasAcessoAdmin = resposta?.data ?? resposta ?? {};
+        renderizarMetricasAcessoAdmin();
+    } catch (erro) {
+        console.error('Erro ao carregar métricas de acesso:', erro);
+        metricasAcessoAdmin = null;
+        setText('kpiVisitantesSite', '—');
+        setText('kpiAcessosSite', '—');
+        setText('kpiVisualizacoesProdutos', '—');
+        const texto = String(erro?.message || 'Não foi possível carregar as métricas de acesso.');
+        listaDiaria.innerHTML = '<div class="metricas-acesso-vazio">As métricas ainda não estão disponíveis.</div>';
+        listaProdutos.innerHTML = '<div class="metricas-acesso-vazio">Execute a migration 027 e publique a Edge Function api.</div>';
+        mensagemMetricasAcesso(texto, true);
+    }
 }
 
 function renderizarCentroOperacoes(vendas) {
@@ -1537,6 +1602,9 @@ async function carregarPainelVendedoresAdmin() {
         produtosVendedorAdmin = ps.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.vendedorId || p.vendedor_id);
         vendasVendedorAdmin = vvs.docs.map(d => ({ id: d.id, ...d.data() }));
         renderizarPainelVendedoresAdmin();
+        // A fila de vídeos não pode derrubar a tabela de vendedores caso a
+        // migration/Edge Function ainda esteja pendente no Supabase.
+        await carregarVideosModeracaoAdmin();
     } catch (e) {
         console.error('Erro ao carregar painel de vendedores:', e);
         if (msg) {
@@ -1592,6 +1660,132 @@ function renderizarPainelVendedoresAdmin() {
         const acao = `<button class="btn-admin" data-admin-produto-rever="true" data-id="${escapeHTML(p.id)}">${status === 'aguardando_aprovacao' ? '🔎 Rever e decidir' : '🔎 Ver revisão'}</button>${revisadoEm ? `<br><small style="color:#667085">Revisto: ${escapeHTML(revisadoEm)}</small>` : ''}`;
         return `<tr><td style="padding:9px;"><img class="produto-miniatura" src="${imagem}" alt="Prévia de ${escapeHTML(p.nome || 'produto')}" loading="lazy"></td><td style="padding:9px;"><strong>${escapeHTML(p.nome || 'Sem nome')}</strong><br><small>${escapeHTML(p.id)}</small></td><td style="padding:9px;">${escapeHTML(v?.nomeLoja || v?.nome_loja || p.vendedorNome || p.vendedor_nome || '—')}</td><td style="padding:9px;">${escapeHTML(p.preco || '0')} Kz</td><td style="padding:9px;text-align:center;">${Number(p.estoque || 0)}</td><td style="padding:9px;">${statusLabelProduto(status)}</td><td style="padding:9px;white-space:nowrap;">${acao}</td></tr>`;
     }).join('') : '<tr><td colspan="7" style="padding:18px;text-align:center;">Nenhum produto de vendedor.</td></tr>';
+}
+
+function tamanhoVideoAdmin(bytes) {
+    const megabytes = Number(bytes || 0) / 1024 / 1024;
+    return Number.isFinite(megabytes) && megabytes > 0 ? `${megabytes.toFixed(megabytes >= 10 ? 0 : 1)} MB` : '—';
+}
+
+function dataVideoModeracaoAdmin(valor) {
+    const data = new Date(valor || 0);
+    return Number.isNaN(data.getTime()) ? 'Sem data' : data.toLocaleDateString('pt-AO', { day: '2-digit', month: 'short', year: 'numeric' });
+}
+
+function mensagemVideosModeracaoAdmin(texto, erro = false) {
+    const caixa = document.getElementById('msgVideosModeracaoAdmin');
+    if (!caixa) return;
+    caixa.style.display = 'block';
+    caixa.style.background = erro ? '#fff2f0' : '#e8f7ee';
+    caixa.style.color = erro ? '#9f271d' : '#17643e';
+    caixa.textContent = texto;
+}
+
+async function carregarVideosModeracaoAdmin() {
+    const lista = document.getElementById('listaVideosModeracaoAdmin');
+    const caixa = document.getElementById('msgVideosModeracaoAdmin');
+    if (!lista) return;
+    try {
+        if (caixa) { caixa.style.display = 'none'; caixa.textContent = ''; }
+        const resposta = await chamarAcaoAdmin('listarVideosParaModeracao', {});
+        const dados = resposta?.data ?? resposta;
+        videosModeracaoAdmin = Array.isArray(dados) ? dados : [];
+        renderizarVideosModeracaoAdmin();
+    } catch (erro) {
+        console.error('Erro ao carregar vídeos para moderação:', erro);
+        videosModeracaoAdmin = [];
+        lista.replaceChildren();
+        const aviso = document.createElement('div');
+        aviso.style.cssText = 'padding:16px;color:#9f271d;background:#fff7f6;border-radius:10px;line-height:1.45;';
+        aviso.textContent = `Não foi possível carregar a fila de vídeos. ${String(erro?.message || 'Confirme a migration 026 e a Edge Function api.')}`;
+        lista.append(aviso);
+        mensagemVideosModeracaoAdmin(String(erro?.message || 'Não foi possível carregar a fila de vídeos.'), true);
+    }
+}
+
+function renderizarVideosModeracaoAdmin() {
+    const lista = document.getElementById('listaVideosModeracaoAdmin');
+    if (!lista) return;
+    lista.replaceChildren();
+    if (!videosModeracaoAdmin.length) {
+        const vazio = document.createElement('div');
+        vazio.style.cssText = 'padding:16px;color:#17643e;background:#f1faf5;border-radius:10px;';
+        vazio.textContent = '✓ Não há vídeos aguardando análise.';
+        lista.append(vazio);
+        return;
+    }
+    videosModeracaoAdmin.forEach((video) => {
+        const cartao = document.createElement('article');
+        cartao.className = 'video-moderacao-admin-card';
+        const media = document.createElement('div');
+        media.className = 'video-moderacao-admin-media';
+        const player = document.createElement('video');
+        player.controls = true;
+        player.playsInline = true;
+        player.preload = 'metadata';
+        const url = urlSegura(video.videoUrl || video.video_url, '');
+        if (url) player.src = url;
+        player.setAttribute('aria-label', String(video.titulo || 'Vídeo enviado pelo vendedor'));
+        media.append(player);
+
+        const corpo = document.createElement('div');
+        corpo.className = 'video-moderacao-admin-body';
+        const titulo = document.createElement('h4');
+        titulo.textContent = String(video.titulo || 'Vídeo sem título');
+        const loja = document.createElement('p');
+        loja.textContent = `Loja: ${String(video.lojaNome || video.loja_nome || video.vendedorNome || video.vendedor_nome || '—')}`;
+        const produto = document.createElement('small');
+        produto.textContent = (video.produtoNome || video.produto_nome) ? `Produto: ${String(video.produtoNome || video.produto_nome)}` : 'Sem produto relacionado';
+        const segundos = Number(video.duracaoSegundos || video.duracao_segundos || 0);
+        const meta = document.createElement('small');
+        meta.textContent = [tamanhoVideoAdmin(video.tamanhoBytes || video.tamanho_bytes), segundos ? `${segundos}s` : '', dataVideoModeracaoAdmin(video.criadoEm || video.criado_em)].filter(Boolean).join(' · ');
+        const descricao = String(video.descricao || '').trim();
+        const descricaoElemento = document.createElement('p');
+        descricaoElemento.textContent = descricao || 'Sem descrição.';
+        const motivo = document.createElement('textarea');
+        motivo.maxLength = 600;
+        motivo.placeholder = 'Motivo da recusa (obrigatório para recusar)';
+        motivo.setAttribute('aria-label', `Motivo da recusa do vídeo ${String(video.titulo || '')}`);
+        const acoes = document.createElement('div');
+        acoes.className = 'video-moderacao-admin-actions';
+        const aprovar = document.createElement('button');
+        aprovar.type = 'button';
+        aprovar.className = 'btn-admin';
+        aprovar.textContent = '✓ Aprovar e publicar';
+        aprovar.addEventListener('click', () => decidirVideoModeracaoAdmin(String(video.id), 'aprovar', motivo.value, aprovar));
+        const recusar = document.createElement('button');
+        recusar.type = 'button';
+        recusar.className = 'btn-admin';
+        recusar.style.background = '#b42318';
+        recusar.textContent = 'Recusar';
+        recusar.addEventListener('click', () => decidirVideoModeracaoAdmin(String(video.id), 'recusar', motivo.value, recusar));
+        acoes.append(aprovar, recusar);
+        corpo.append(titulo, loja, produto, meta, descricaoElemento, motivo, acoes);
+        cartao.append(media, corpo);
+        lista.append(cartao);
+    });
+}
+
+async function decidirVideoModeracaoAdmin(videoId, acao, motivo, botao) {
+    const motivoLimpo = String(motivo || '').trim();
+    if (acao === 'recusar' && motivoLimpo.length < 5) {
+        mensagemVideosModeracaoAdmin('Escreva um motivo claro, com pelo menos 5 caracteres, para o vendedor corrigir o vídeo.', true);
+        return;
+    }
+    const confirmacao = acao === 'aprovar'
+        ? 'Aprovar este vídeo e publicá-lo na loja do vendedor?'
+        : 'Recusar este vídeo? O vendedor receberá o motivo informado.';
+    if (!confirm(confirmacao)) return;
+    try {
+        if (botao) { botao.disabled = true; botao.textContent = 'A processar…'; }
+        await chamarAcaoAdmin('moderarVideoVendedor', { videoId, acao, motivoRecusa: motivoLimpo });
+        mensagemVideosModeracaoAdmin(acao === 'aprovar' ? 'Vídeo aprovado e publicado na loja.' : 'Vídeo recusado; o vendedor poderá ver o motivo.');
+        await carregarVideosModeracaoAdmin();
+    } catch (erro) {
+        mensagemVideosModeracaoAdmin(String(erro?.message || 'Não foi possível gravar a decisão sobre o vídeo.'), true);
+    } finally {
+        if (botao && botao.isConnected) { botao.disabled = false; botao.textContent = acao === 'aprovar' ? '✓ Aprovar e publicar' : 'Recusar'; }
+    }
 }
 
 async function chamarAcaoAdmin(nome, data) {

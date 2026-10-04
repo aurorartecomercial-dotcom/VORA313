@@ -62,6 +62,10 @@ function configuracaoDeVideoEmFalta(causa: unknown) {
   const erro = detalhesErroParaLog(causa);
   const detalhe = `${erro.mensagem} ${erro.detalhes} ${erro.sugestao}`.toLowerCase();
   return erro.codigo === '42P01'
+    // A tabela existe, mas ainda tem o formato da migration 024. A fila de
+    // moderação usa as colunas introduzidas pela 026.
+    || (erro.codigo === '42703' && /(revisado_|motivo_recusa|revisado_por)/.test(detalhe))
+    || (erro.codigo === '23514' && /videos_vendedores.*status|status.*videos_vendedores/.test(detalhe))
     || /relation .*videos_vendedores.*does not exist/.test(detalhe)
     || /bucket (not found|does not exist)|((not found|does not exist).*bucket)/.test(detalhe);
 }
@@ -69,7 +73,7 @@ function falhaInfraestruturaVideo(causa: unknown, etapa: string): never {
   // Só é registado nos Logs privados da Edge Function: nunca expõe detalhes ao cliente.
   console.error(`Falha de vídeo na etapa: ${etapa}`, detalhesErroParaLog(causa));
   if (configuracaoDeVideoEmFalta(causa)) {
-    err('A área de vídeos ainda não está configurada no Supabase. Execute primeiro a migration 016 e depois a 024, e publique novamente a Edge Function api.', 'failed_precondition');
+    err('A moderação de vídeos ainda não está configurada. Execute as migrations 016, 024, 025 e 026, nesta ordem, e publique novamente a Edge Function api.', 'failed_precondition');
   }
   const erro = detalhesErroParaLog(causa);
   if (erro.codigo === '42501' && /videos_vendedores/i.test(`${erro.mensagem} ${erro.detalhes}`)) {
@@ -242,6 +246,124 @@ async function consumirLimite(uid: string, acao: string, maximo: number, janelaS
   if (data !== true) {
     await registarEventoSeguranca(uid, 'limite', 'limite_api_atingido', acao, { acao });
     err('Muitas tentativas em pouco tempo. Aguarde antes de tentar novamente.', 'resource_exhausted');
+  }
+}
+
+// A medição é pública, mas nunca recebe e-mail, telefone ou IP. O navegador
+// gera um UUID aleatório e só o SHA-256 dele chega ao banco. O limite separado
+// evita que uma página pública seja usada para criar milhões de registos.
+const PAGINAS_DE_ACESSO_PUBLICO = new Set(['inicio', 'categoria', 'loja', 'produto']);
+const UUID_VISITANTE_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+async function hashVisitante(valor: string) {
+  const bytes = new TextEncoder().encode(valor);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest)).map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function consumirLimitePublico(chave: string) {
+  const { data, error } = await db.rpc('consumir_limite_api', {
+    p_chave: `visitante:${chave}`,
+    p_acao: 'registar_acesso_publico',
+    p_maximo: 80,
+    p_janela_segundos: 60 * 60
+  });
+  if (error) {
+    console.error('Falha no limite de métricas públicas.', detalhesErroParaLog(error));
+    err('A medição de acessos ainda não está configurada. Execute a migration 016 antes de publicar esta versão.', 'failed_precondition');
+  }
+  if (data !== true) err('Muitas medições em pouco tempo. Tente novamente mais tarde.', 'resource_exhausted');
+}
+
+function falhaInfraestruturaMetricas(causa: unknown, etapa: string): never {
+  console.error(`Falha de métricas na etapa: ${etapa}`, detalhesErroParaLog(causa));
+  const erro = detalhesErroParaLog(causa);
+  if (erro.codigo === '42P01' || erro.codigo === '42883') {
+    err('A medição de acessos ainda não está configurada. Execute a migration 027 e publique novamente a Edge Function api.', 'failed_precondition');
+  }
+  err('Não foi possível atualizar as métricas agora. Tente novamente.', 'failed_precondition');
+}
+
+async function registarAcessoPublico(_req: Request, input: any) {
+  const pagina = text(input?.pagina, 'Página', 20).toLowerCase();
+  const visitanteId = text(input?.visitanteId, 'Identificador do visitante', 60);
+  let produtoId = text(input?.produtoId, 'Produto', 128, false);
+  if (!PAGINAS_DE_ACESSO_PUBLICO.has(pagina)) err('Página de medição inválida.');
+  if (!UUID_VISITANTE_RE.test(visitanteId)) err('Identificador do visitante inválido.');
+  if (pagina === 'produto' && !produtoId) err('Produto é obrigatório para esta medição.');
+  if (pagina !== 'produto') produtoId = '';
+
+  const visitanteHash = await hashVisitante(visitanteId);
+  await consumirLimitePublico(visitanteHash);
+
+  if (produtoId) {
+    const { data: produto, error: produtoErro } = await db.from('produtos').select('id').eq('id', produtoId).maybeSingle();
+    if (produtoErro) falhaInfraestruturaMetricas(produtoErro, 'validação do produto');
+    // Se um produto foi removido entre o carregamento da página e esta chamada,
+    // a navegação continua e não se cria uma visualização órfã.
+    if (!produto) return { ok: true, visualizacoes: 0 };
+  }
+
+  const agora = new Date().toISOString();
+  const dia = agora.slice(0, 10);
+  const { error: acessoErro } = await db.from('acessos_site_diarios').upsert({
+    dia,
+    visitante_hash: visitanteHash,
+    pagina,
+    produto_id: produtoId,
+    ultimo_acesso_em: agora
+  }, { onConflict: 'dia,visitante_hash,pagina,produto_id' });
+  if (acessoErro) falhaInfraestruturaMetricas(acessoErro, 'registo de acesso');
+
+  if (!produtoId) return { ok: true };
+  const { error: visualizacaoErro } = await db.from('produto_visualizacoes_unicas').upsert({
+    produto_id: produtoId,
+    visitante_hash: visitanteHash,
+    ultimo_visto_em: agora
+  }, { onConflict: 'produto_id,visitante_hash' });
+  if (visualizacaoErro) falhaInfraestruturaMetricas(visualizacaoErro, 'registo de visualização');
+  const { count, error: contagemErro } = await db.from('produto_visualizacoes_unicas')
+    .select('produto_id', { count: 'exact', head: true }).eq('produto_id', produtoId);
+  if (contagemErro) falhaInfraestruturaMetricas(contagemErro, 'contagem de visualizações');
+  return { ok: true, visualizacoes: count || 0 };
+}
+
+async function consultarMetricasAcesso(req: Request, input: any) {
+  await requireAdmin(req);
+  const dias = intPos(input?.dias ?? 30, 'Período', 365);
+  try {
+    const [geralResposta, diarioResposta, produtosResposta] = await Promise.all([
+      db.rpc('resumo_acessos_geral_admin', { p_dias: dias }),
+      db.rpc('resumo_acessos_diarios_admin', { p_dias: Math.min(dias, 30) }),
+      db.rpc('produtos_mais_vistos_admin', { p_dias: dias, p_limite: 5 })
+    ]);
+    if (geralResposta.error) falhaInfraestruturaMetricas(geralResposta.error, 'resumo geral');
+    if (diarioResposta.error) falhaInfraestruturaMetricas(diarioResposta.error, 'resumo diário');
+    if (produtosResposta.error) falhaInfraestruturaMetricas(produtosResposta.error, 'produtos mais vistos');
+
+    const geral = Array.isArray(geralResposta.data) ? geralResposta.data[0] || {} : {};
+    const produtos = Array.isArray(produtosResposta.data) ? produtosResposta.data : [];
+    const ids = produtos.map((item: any) => String(item.produto_id || '')).filter(Boolean);
+    let nomes: Record<string, string> = {};
+    if (ids.length) {
+      const { data: catalogo, error: catalogoErro } = await db.from('produtos').select('id,nome').in('id', ids);
+      if (catalogoErro) falhaInfraestruturaMetricas(catalogoErro, 'nomes dos produtos');
+      nomes = Object.fromEntries((catalogo || []).map((produto: any) => [String(produto.id), String(produto.nome || 'Produto removido')]));
+    }
+    return {
+      periodo_dias: dias,
+      visitantes_unicos: Number(geral.visitantes_unicos || 0),
+      acessos_registados: Number(geral.acessos_registados || 0),
+      visualizacoes_produtos: Number(geral.visualizacoes_produtos || 0),
+      diario: diarioResposta.data || [],
+      produtos: produtos.map((item: any) => ({
+        produto_id: String(item.produto_id || ''),
+        nome: nomes[String(item.produto_id || '')] || 'Produto removido',
+        visualizacoes: Number(item.visualizacoes || 0)
+      }))
+    };
+  } catch (causa) {
+    falhaInfraestruturaMetricas(causa, 'consulta administrativa');
   }
 }
 
@@ -813,6 +935,8 @@ async function handle(req:Request,name:string,input:any){
     case 'eliminarVideoVendedor': return eliminarVideoVendedor(req,input);
     case 'listarVideosParaModeracao': return listarVideosParaModeracao(req);
     case 'moderarVideoVendedor': return moderarVideoVendedor(req,input);
+    case 'registarAcessoPublico': return registarAcessoPublico(req, input);
+    case 'consultarMetricasAcesso': return consultarMetricasAcesso(req, input);
     case 'alterarDisponibilidadeProdutoVendedor': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128),ativo=input?.ativo===true;const {data:p}=await db.from('produtos').select('id,vendedor_id,status_aprovacao').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id||p.status_aprovacao!=='aprovado')err('Produto não encontrado, não aprovado ou sem permissão.','permission_denied');const {error}=await db.from('produtos').update({ativo,atualizado_em:new Date().toISOString()}).eq('id',id).eq('vendedor_id',u.id);if(error)throw error;return {ok:true,ativo};}
     case 'solicitarVendedor': {const u=await requireUser(req);const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),email:text(u.email,'Email',160),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),status:'pendente',ativo:false,plano:'basico',uid:u.id};const {data:old}=await db.from('vendedores').select('status').eq('id',u.id).maybeSingle();if(old?.status==='aprovado'||old?.status==='pendente')return {ok:true,status:old.status};if(old?.status==='suspenso')err('A sua loja está suspensa. Contacte a VORA 313.','failed_precondition');const {error}=await db.from('vendedores').upsert({id:u.id,...d},{onConflict:'id'});if(error)throw error;return {ok:true,status:'pendente'};}
     case 'atualizarPerfilVendedor': {const u=await requireSeller(req);const perfilPublico=perfilPublicoSeguro(input?.perfilPublico);if(perfilPublico.editorialProdutoId){const {data:produto}=await db.from('produtos').select('id,vendedor_id,status_aprovacao,ativo').eq('id',perfilPublico.editorialProdutoId).maybeSingle();if(!produto||produto.vendedor_id!==u.id||produto.status_aprovacao!=='aprovado'||produto.ativo===false)err('O produto editorial deve ser um produto publicado da sua própria loja.','permission_denied');}const d={nome:text(input?.nome,'Nome',120),nomeLoja:text(input?.nomeLoja,'Nome da loja',120),telefone:text(input?.telefone,'Telefone',15),morada:text(input?.morada,'Morada',300,false),categoria:text(input?.categoria,'Categoria',80),descricao:text(input?.descricao,'Descrição',1000,false),perfilPublico,atualizado_em:new Date().toISOString()};const {error}=await db.from('vendedores').update(dbRow(d)).eq('id',u.id);if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','perfil_publico_atualizado',u.id,{perfilPublico:true,estiloVitrine:perfilPublico.estiloVitrine});return {ok:true};}
@@ -863,7 +987,7 @@ Deno.serve(async (req)=>{
       : codigo === 'method_not_allowed' ? 405
       : codigo === 'not_configured' ? 501
       : codigo === 'internal' ? 500 : 400;
-    console.error('Erro da API.', codigo);
+    console.error('Erro da API.', codigo, detalhesErroParaLog(erro));
     const mensagem = codigo === 'internal'
       ? 'Não foi possível concluir a operação. Tente novamente.'
       : String(erro?.message || 'Pedido inválido.');

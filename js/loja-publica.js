@@ -3,6 +3,7 @@ import { collection, doc, getDoc, getDocs, query, where } from './supabase-compa
 import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
 import { escapeHTML, imagemProdutoSegura, urlSegura } from './utils.js';
 import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=10';
+import { registarPaginaPublica } from './metricas-acesso.js?v=1';
 
 const params = new URLSearchParams(location.search);
 const vendedorId = params.get('id');
@@ -19,6 +20,10 @@ const PRODUTOS_DEMO = [
   { id: 'demo-2', nome: 'Relógio Smart Premium', preco: '58.500 Kz', categoria: 'Acessórios', imagens: ['oferta-6-semana.png'], estoque: 4, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
   { id: 'demo-3', nome: 'Fones Bluetooth Pro ANC', preco: '42.900 Kz', categoria: 'Tecnologia', imagens: ['oferta-1-tecnologia.png'], estoque: 12, vendedorNome: 'Kwanza Tech', ativo: true }
 ];
+
+// A medição não interfere no carregamento da vitrine e só envia um
+// identificador anónimo do navegador para a API segura.
+registarPaginaPublica('loja');
 
 function imagemSegura(valor) {
   return imagemProdutoSegura(valor, '');

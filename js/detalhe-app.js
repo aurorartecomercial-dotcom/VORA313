@@ -4,6 +4,7 @@ import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, consultarElegibilidadeAvaliacao, obterAvaliacao } from './avaliacoes.js';
 import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, imagemProdutoSegura, urlSegura } from './utils.js';
 import { registrarVista } from './fase3.js';
+import { registarAcessoPublico } from './metricas-acesso.js?v=1';
 
 let catalogoAtual = [];
 let produtoAtual = null;
@@ -45,6 +46,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderizarDetalhes(produtoAtual);
     registarProdutoVisto(produtoAtual);
+    void registarVisualizacaoPublica(produtoAtual);
     renderizarRecomendacoes(produtoAtual);
     atualizarMetaTags(produtoAtual.nome, produtoAtual.descricao || 'Detalhes do produto', imagemProdutoSegura(produtoAtual.imagens?.[0], ''));
     registrarVista(produtoAtual);
@@ -181,6 +183,7 @@ function renderizarDetalhes(prod) {
                     ${prod.desconto ? `<span class="desconto-badge">${escaparAtributo(prod.desconto)} OFF</span>` : ''}
                 </div>
                 <div id="avaliacaoContainer" class="avaliacao detalhe-avaliacao"><span>⭐ Carregando avaliações...</span></div>
+                <div id="produtoVisualizacoes" class="detalhe-visualizacoes" hidden aria-live="polite"></div>
 
                 <div class="detalhe-compra-box">
                     ${prod.parcelas ? `<div class="parcelas">${escaparAtributo(prod.parcelas)}</div>` : ''}
@@ -228,6 +231,15 @@ function renderizarDetalhes(prod) {
         if (adicionarQuantidadeAoCarrinho(prod)) abrirSacola();
     });
     document.getElementById('btnPartilharDetalhe')?.addEventListener('click', () => partilharProduto(prod));
+}
+
+async function registarVisualizacaoPublica(produto) {
+    const destino = document.getElementById('produtoVisualizacoes');
+    const resposta = await registarAcessoPublico('produto', produto?.id);
+    const total = Number(resposta?.visualizacoes);
+    if (!destino || !Number.isFinite(total) || total < 1) return;
+    destino.hidden = false;
+    destino.textContent = `👁 Visto por ${total.toLocaleString('pt-AO')} ${total === 1 ? 'pessoa' : 'pessoas'}`;
 }
 
 function adicionarBarraCompraMobile(prod, esgotado) {

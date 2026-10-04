@@ -61,12 +61,30 @@
         .revisao-acoes { display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap; margin-top:18px; padding-top:18px; border-top:1px solid #e7ecea; }
         .produto-miniatura { width:54px; height:54px; object-fit:cover; border-radius:8px; display:block; background:#eef3f2; }
         .revisao-historico { color:#59666a; font-size:12px; margin-top:8px; }
+        .video-moderacao-admin { margin:0 0 28px; padding:18px; border:1px solid #dce9e4; border-radius:16px; background:linear-gradient(135deg,#f8fcfa,#fff); }
+        .video-moderacao-admin-head { display:flex; justify-content:space-between; align-items:flex-start; gap:14px; margin-bottom:14px; }
+        .video-moderacao-admin-head h3 { margin:0; color:#005a4c; }
+        .video-moderacao-admin-head p { margin:5px 0 0; color:#667085; font-size:13px; line-height:1.45; }
+        .video-moderacao-admin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,300px)); gap:14px; align-items:start; }
+        .video-moderacao-admin-card { overflow:hidden; border:1px solid #dfe9e5; border-radius:14px; background:#fff; min-width:0; }
+        .video-moderacao-admin-media { display:grid; place-items:center; height:260px; background:#071b17; overflow:hidden; }
+        .video-moderacao-admin-media video { display:block; width:100%; height:100%; object-fit:contain; background:#071b17; }
+        .video-moderacao-admin-body { display:grid; gap:8px; padding:13px; }
+        .video-moderacao-admin-body h4 { margin:0; color:#173f35; font-size:15px; line-height:1.35; }
+        .video-moderacao-admin-body p,.video-moderacao-admin-body small { margin:0; color:#61726c; font-size:12px; line-height:1.4; }
+        .video-moderacao-admin-body textarea { width:100%; min-height:62px; box-sizing:border-box; resize:vertical; padding:9px; border:1px solid #cbd9d5; border-radius:8px; font:inherit; font-size:12px; }
+        .video-moderacao-admin-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .video-moderacao-admin-actions button { padding:8px 10px; font-size:12px; }
         @media (max-width: 768px) {
             .grid-2, .grid-3 { grid-template-columns: 1fr; }
             .revisao-resumo { grid-template-columns:1fr; }
             .revisao-capa { width:100%; height:210px; }
             .revisao-meta { grid-template-columns:1fr; }
             .revisao-produto-cabecalho, .revisao-produto-corpo { padding-left:16px; padding-right:16px; }
+            .video-moderacao-admin { padding:14px; }
+            .video-moderacao-admin-head { align-items:stretch; flex-direction:column; }
+            .video-moderacao-admin-grid { grid-template-columns:1fr; }
+            .video-moderacao-admin-media { height:250px; }
         }
     </style>
 
@@ -81,8 +99,9 @@
 .ops-card.alert{border-color:#f0c36d}.ops-card.danger{border-color:#f3a39a}.ops-card.success{border-color:#92d6b2}
 .ops-two{display:grid;grid-template-columns:1.3fr .7fr;gap:16px;margin-bottom:18px}.ops-panel{background:#fff;border:1px solid #e4e7ea;border-radius:14px;padding:16px}.ops-panel h3{margin:0 0 12px;color:#005A4C}
 .ops-list{display:grid;gap:8px}.ops-item{display:flex;justify-content:space-between;gap:12px;padding:11px;border-radius:10px;background:#f7f8f9;align-items:center}.ops-item small{display:block;color:#7a838b}.ops-badge{padding:5px 9px;border-radius:999px;font-size:11px;font-weight:800;white-space:nowrap;background:#eef2f3}
+.metricas-acesso{margin:0 0 18px}.metricas-acesso-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:12px}.metricas-acesso-head h3{margin:0}.metricas-acesso-head p{margin:5px 0 0;color:#667085;font-size:12px;line-height:1.4}.metricas-acesso-lista{display:grid;gap:8px}.metricas-acesso-item{display:flex;justify-content:space-between;gap:12px;padding:10px;border-radius:9px;background:#f7faf9;font-size:13px}.metricas-acesso-item small{display:block;color:#667085;margin-top:2px}.metricas-acesso-vazio{padding:11px;border-radius:9px;background:#f7faf9;color:#667085;font-size:13px}
 @media(max-width:900px){.ops-center{grid-template-columns:repeat(2,minmax(0,1fr))}.ops-two{grid-template-columns:1fr}}
-@media(max-width:560px){.ops-center{grid-template-columns:1fr}.ops-hero{padding:16px}.ops-item{align-items:flex-start;flex-direction:column}}
+@media(max-width:560px){.ops-center{grid-template-columns:1fr}.ops-hero{padding:16px}.ops-item{align-items:flex-start;flex-direction:column}.metricas-acesso-head{flex-direction:column}.metricas-acesso-head .btn-admin{width:100%}.metricas-acesso-item{align-items:flex-start;flex-direction:column}}
 </style>
 
 </head>
@@ -142,6 +161,22 @@
                     <div class="ops-panel"><h3>📋 Próximas ações</h3><div id="opsListaAcoes" class="ops-list"></div></div>
                     <div class="ops-panel"><h3>📦 Estoque</h3><div id="opsResumoEstoque" class="ops-list"></div></div>
                 </div>
+                <section class="ops-panel metricas-acesso" aria-labelledby="tituloMetricasAcesso">
+                    <div class="metricas-acesso-head">
+                        <div><h3 id="tituloMetricasAcesso">👁️ Acessos ao site</h3><p>Últimos 30 dias. Conta navegadores únicos sem guardar nome, e-mail, telefone ou IP.</p></div>
+                        <button id="btnAtualizarMetricasAcesso" class="btn-admin" type="button">🔄 Atualizar acessos</button>
+                    </div>
+                    <div class="kpi-contabil" style="margin-bottom:14px;">
+                        <div class="card-kpi azul"><p>Visitantes únicos</p><h3 id="kpiVisitantesSite">—</h3></div>
+                        <div class="card-kpi verde"><p>Acessos registados</p><h3 id="kpiAcessosSite">—</h3></div>
+                        <div class="card-kpi roxo"><p>Produtos vistos</p><h3 id="kpiVisualizacoesProdutos">—</h3></div>
+                    </div>
+                    <div id="msgMetricasAcesso" role="status" aria-live="polite" style="display:none;margin:0 0 12px;padding:10px;border-radius:9px;"></div>
+                    <div class="grid-2">
+                        <div><h4 style="margin:0 0 8px;color:#315f53;font-size:13px;">Atividade diária</h4><div id="listaMetricasDiarias" class="metricas-acesso-lista"><div class="metricas-acesso-vazio">A carregar acessos…</div></div></div>
+                        <div><h4 style="margin:0 0 8px;color:#315f53;font-size:13px;">Produtos mais vistos</h4><div id="listaProdutosMaisVistos" class="metricas-acesso-lista"><div class="metricas-acesso-vazio">A carregar produtos…</div></div></div>
+                    </div>
+                </section>
                 <div class="exportar-botoes">
                     <button id="btnExportarPDFDashboard" class="btn-admin" style="background:#25D366;">📄 Exportar PDF</button>
                     <button id="btnExportarExcelDashboard" class="btn-admin" style="background:#005A4C;">📊 Exportar Excel</button>
@@ -383,6 +418,14 @@
                     <div class="card-kpi"><p>⏳ Pendentes</p><h3 id="admVendedoresPendentes">0</h3></div>
                     <div class="card-kpi"><p>💰 Faturamento dos vendedores</p><h3 id="admFaturamentoVendedores">0 Kz</h3></div>
                 </div>
+                <section class="video-moderacao-admin" aria-labelledby="tituloVideosModeracaoAdmin">
+                    <div class="video-moderacao-admin-head">
+                        <div><p style="margin:0 0 4px;color:#af8715;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;">Moderação obrigatória</p><h3 id="tituloVideosModeracaoAdmin">🎥 Vídeos aguardando revisão</h3><p>Assista ao conteúdo e aprove somente vídeos adequados. Enquanto estão pendentes, não aparecem para os clientes.</p></div>
+                        <button id="btnAtualizarVideosModeracao" class="btn-admin" type="button">🔄 Atualizar vídeos</button>
+                    </div>
+                    <div id="msgVideosModeracaoAdmin" role="status" aria-live="polite" style="display:none;margin:0 0 12px;padding:10px;border-radius:9px;"></div>
+                    <div id="listaVideosModeracaoAdmin" class="video-moderacao-admin-grid"><div style="padding:16px;color:#667085;">A carregar vídeos para revisão…</div></div>
+                </section>
                 <div class="tabela-scroll" style="margin-bottom:28px;">
                     <h3 style="color:var(--cor-esmeralda);">👥 Vendedores e faturamento</h3>
                     <table style="width:100%;border-collapse:collapse;font-size:13px;">
@@ -519,6 +562,6 @@
         <div id="conteudoRevisaoProduto" class="revisao-produto-corpo"></div>
     </dialog>
 
-    <script type="module" src="js/admin-vendas.js?v=6"></script>
+    <script type="module" src="js/admin-vendas.js?v=8-metricas-e-videos"></script>
 </body>
 </html>

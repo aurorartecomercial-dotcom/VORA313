@@ -3089,3 +3089,9 @@ body:has(.carrinho-sidebar.ativo) .carrinho-overlay{
 .detalhe-variacao-opcoes button[aria-pressed="true"]{border-color:#007b63;background:#e8f6f0;color:#00674f;box-shadow:0 0 0 2px rgba(0,123,99,.11)}
 .detalhe-variacoes small{display:block;margin-top:9px;color:#677e76;font-size:11px}
 body.modo-escuro .detalhe-variacoes{background:#171f1d;border-color:#33453f}body.modo-escuro .detalhe-variacao-grupo>strong{color:#edf6f2}body.modo-escuro .detalhe-variacao-opcoes button{background:#202b28;border-color:#405650;color:#e2efe9}
+
+/* Contagem real de visualizações: a API contabiliza navegadores únicos, não
+   cliques repetidos na mesma página. Fica discreta para não competir com preço
+   e avaliação, mas visível para dar confiança ao cliente. */
+.detalhe-visualizacoes{display:inline-flex;align-items:center;min-height:28px;margin:8px 0 0;padding:5px 9px;border:1px solid #d4e8df;border-radius:999px;background:#f2fbf7;color:#17664f;font-size:12px;font-weight:750}
+body.modo-escuro .detalhe-visualizacoes{border-color:#385c51;background:#192b26;color:#bbecd8}

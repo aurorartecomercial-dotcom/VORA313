@@ -55,8 +55,13 @@ async function carregarVideosParaModeracao() {
     renderizarVideosParaModeracao();
   } catch (erro) {
     videosPendentes = [];
-    lista.innerHTML = '<div class="adm-empty">Não foi possível carregar a fila de vídeos agora. Confirme que a migration 026 e a Edge Function foram publicadas.</div>';
-    mostrarMensagem(erro.message || 'Não foi possível carregar os vídeos pendentes.', false);
+    const detalhe = String(erro?.message || 'Não foi possível carregar os vídeos pendentes.');
+    lista.replaceChildren();
+    const aviso = document.createElement('div');
+    aviso.className = 'adm-empty';
+    aviso.textContent = `Não foi possível carregar a fila de vídeos. ${detalhe}`;
+    lista.append(aviso);
+    mostrarMensagem(detalhe, false);
   }
 }
 

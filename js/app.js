@@ -6,6 +6,7 @@ import { initFidelidade } from './fidelidade.js';
 import { initFavoritos } from './favoritos.js';
 import { initRecomendacoes, initAfiliados, initI18n, initChatbot } from './fase3.js';
 import { renderizarLojas, carregarLojasPublicas } from './lojas-publicas.js?v=10';
+import { registarPaginaPublica } from './metricas-acesso.js?v=1';
 
 let catalogo = [];
 let paginaAtual = 1;
@@ -30,6 +31,7 @@ window.addEventListener('vora313:catalogo-atualizado', () => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
+    registarPaginaPublica(location.pathname.toLowerCase().endsWith('/categoria.html') ? 'categoria' : 'inicio');
     if (!window.__carrinhoInicializado) {
         initCarrinho();
         window.__carrinhoInicializado = true;
