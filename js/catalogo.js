@@ -190,6 +190,23 @@ export async function buscarCatalogo(opcoes = {}) {
     }
     const rows = Array.isArray(data) ? data : [];
     const produtos = rows.map(mapearProdutoSupabase).filter(Boolean);
+    // Algumas instalações conservam uma versão anterior da RPC. Nelas, a
+    // função responde sem erro mas devolve zero linhas, enquanto a consulta
+    // pública directa (a mesma usada pela loja) já devolve os anúncios.
+    if (produtos.length === 0) {
+      try {
+        const compativel = await buscarCatalogoDireto(entrada);
+        if (compativel.produtos.length > 0) {
+          console.warn('[VORA 313] A RPC não devolveu anúncios; a usar o catálogo público compatível.');
+          pesquisaCache.set(chave, compativel);
+          return compativel;
+        }
+      } catch (erroCompatibilidade) {
+        // A resposta vazia da RPC continua válida se o schema não permitir a
+        // consulta de compatibilidade. Não se expõe dados não publicados.
+        console.warn('[VORA 313] Não foi possível confirmar o catálogo compatível.', erroCompatibilidade?.message || erroCompatibilidade);
+      }
+    }
     const total = Number(rows[0]?.total_resultados || 0);
     const resultado = { produtos, total, offset: entrada.offset, limite: entrada.limite };
     pesquisaCache.set(chave, resultado);

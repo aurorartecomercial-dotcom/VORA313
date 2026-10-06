@@ -1,5 +1,5 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=10';
-import { obterProdutoPublico, buscarCatalogo, criarCardProduto } from './catalogo.js?v=4';
+import { obterProdutoPublico, buscarCatalogo, criarCardProduto } from './catalogo.js?v=6-catalogo-unificado';
 import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, consultarElegibilidadeAvaliacao, obterAvaliacao, obterAvaliacoesRecentes } from './avaliacoes.js';
 import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, imagemProdutoSegura, urlSegura } from './utils.js';

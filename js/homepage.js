@@ -1,4 +1,4 @@
-import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=5-publicacao';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=6-catalogo-unificado';
 import { CATEGORIAS_VORA } from './categorias-vora.js';
 import { auth } from './config.js';
 import { extrairValorNumerico, escapeHTML } from './utils.js';
@@ -52,18 +52,15 @@ function renderizarCategorias(produtos) {
   if (!container) return;
   const categorias = CATEGORIAS_VORA
     .map((categoria) => ({ ...categoria, total: produtos.filter((produto) => correspondeCategoria(produto, categoria)).length }))
-    .filter((categoria) => categoria.total > 0)
     .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label, 'pt-AO'));
 
-  if (!categorias.length) {
-    estado(container, 'As categorias aparecerão quando houver produtos publicados.');
-    return;
-  }
+  // As categorias são navegação, não dependem de uma resposta momentânea do
+  // catálogo. Assim não desaparecem durante uma sincronização da vitrine.
   container.innerHTML = categorias.map((categoria) => `
-    <a class="vora-home-category-card" href="categoria.html?cat=${encodeURIComponent(categoria.legacy?.[0] || categoria.id)}" aria-label="Ver ${escapeHTML(categoria.label)}">
+    <a class="vora-home-category-card" href="categoria.html?cat=${encodeURIComponent(categoria.id)}" aria-label="Ver ${escapeHTML(categoria.label)}">
       <span class="vora-home-category-icon" aria-hidden="true">${categoria.icon}</span>
       <strong>${escapeHTML(categoria.label)}</strong>
-      <small>${categoria.total} ${categoria.total === 1 ? 'produto publicado' : 'produtos publicados'}</small>
+      <small>${categoria.total > 0 ? `${categoria.total} ${categoria.total === 1 ? 'produto publicado' : 'produtos publicados'}` : 'Explorar categoria'}</small>
     </a>`).join('');
 }
 

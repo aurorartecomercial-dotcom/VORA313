@@ -1,5 +1,5 @@
 import { supabase } from './config.js';
-import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=5-publicacao';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=6-catalogo-unificado';
 import { escapeHTML, imagemProdutoSegura, urlSegura } from './utils.js';
 import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=10';
 import { registarPaginaPublica } from './metricas-acesso.js?v=1';

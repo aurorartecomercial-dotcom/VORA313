@@ -1,4 +1,4 @@
-const CACHE_NAME = 'vora313-cache-v62-publicacao-catalogo';
+const CACHE_NAME = 'vora313-cache-v63-catalogo-unificado';
 const APP_SHELL = [
   './','./index.html','./detalhe.html','./blog.html','./categoria.html','./rastreio.html','./perfil.html','./meus-pedidos.html','./meus-favoritos.html',
   './style.css','./loja-editorial.css','./loja-editorial.css?v=3-temas-categoria','./loja-temas-categoria.css','./loja-temas-categoria.css?v=1','./logo-vora-313.png','./manifest.json','./produtos.json','./monetizacao.html',
