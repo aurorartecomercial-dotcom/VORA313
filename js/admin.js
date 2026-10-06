@@ -402,12 +402,19 @@ function iniciarAdmin() {
             const estoqueAtual = Number(prod.estoque || 0);
             const classeEstoque = estoqueAtual <= 0 ? 'out' : estoqueAtual <= 5 ? 'low' : 'ok';
             const textoEstoque = estoqueAtual <= 0 ? 'Esgotado' : `${estoqueAtual} em estoque`;
+            const eProdutoVendedor = Boolean(prod.vendedorId || prod.vendedor_id);
+            const estadoAprovacao = String(prod.statusAprovacao || prod.status_aprovacao || (eProdutoVendedor ? 'aguardando_aprovacao' : 'aprovado'));
+            const publicado = prod.ativo !== false && prod.vendedorAtivo !== false && prod.vendedor_ativo !== false && estadoAprovacao === 'aprovado';
+            const textoPublicacao = publicado
+                ? '✓ Publicado no marketplace'
+                : (estadoAprovacao === 'aguardando_aprovacao' ? '⏳ Aguarda aprovação para aparecer no marketplace' : '◌ Não publicado no marketplace');
             return `
                 <div class="produto-item" data-id="${escapeHTML(prod.id || prod._registroId)}">
                     <div style="min-width:0;flex:1;">
                         <strong>${escapeHTML(prod.nome || 'Produto')}</strong>
                         <small style="color:#888;display:block;margin-top:3px;">${escapeHTML(prod.categoria || 'Sem categoria')} | ${escapeHTML(prod.preco || '')} | ${escapeHTML(prod.marca || '')}${prod.sku ? ` | SKU: ${escapeHTML(prod.sku)}` : ''}</small>
                         <small class="admin-pro-stock ${classeEstoque}" style="display:block;margin-top:5px;">${textoEstoque}</small>
+                        <small style="display:block;margin-top:4px;color:${publicado ? '#22c55e' : '#eab308'};font-weight:700;">${textoPublicacao}</small>
                     </div>
                     <div class="acoes">
                         <button class="btn-admin" data-editar="${escapeHTML(prod._registroId)}">✏️ Editar</button>
@@ -458,6 +465,18 @@ function iniciarAdmin() {
         const imagensArray = imagens.value.split(',').map(s => s.trim()).filter(s => s && !s.includes('placeholder'));
         const imagensFinal = imagensArray.length > 0 ? imagensArray : [IMAGEM_FALLBACK];
 
+        const produtoExistente = editandoId ? produtos.find(p => p._registroId === editandoId) : null;
+        const eProdutoVendedor = Boolean(produtoExistente?.vendedorId || produtoExistente?.vendedor_id);
+        const camposPublicacao = eProdutoVendedor
+            ? {}
+            : {
+                // Produtos criados neste painel pertencem ao marketplace,
+                // não a uma loja de vendedor. A V2 exige estes três campos
+                // para que a policy pública os entregue à página inicial.
+                statusAprovacao: 'aprovado',
+                ativo: produtoAtivo.checked,
+                vendedorAtivo: true
+            };
         const novoProduto = {
             id: editandoId || gerarId(),  // ✅ CORREÇÃO: usar gerarId() em vez de crypto.randomUUID()
             ordem: parseInt(ordem.value) || 0,
@@ -481,6 +500,7 @@ function iniciarAdmin() {
             especificacoes: textoParaEspecificacoes(especificacoes.value),
             selo: selo.value.trim(),
             ativo: produtoAtivo.checked,
+            ...camposPublicacao,
             atualizadoEm: new Date().toISOString()
         };
 

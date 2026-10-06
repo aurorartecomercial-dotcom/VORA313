@@ -1,5 +1,5 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=10';
-import { buscarCatalogo, obterProdutoPublico, obterVendedoresPublicos, renderizarGrade, criarCardProduto } from './catalogo.js?v=4';
+import { buscarCatalogo, obterProdutoPublico, obterVendedoresPublicos, renderizarGrade, criarCardProduto } from './catalogo.js?v=5-publicacao';
 import { initMobileMenu } from './menu.js';
 import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';
 import { initFidelidade } from './fidelidade.js';
@@ -321,7 +321,7 @@ async function renderizarDestaquesVora() {
             grid.innerHTML = '<div class="destaques-vazio"><strong>⭐ Ainda não existem produtos patrocinados</strong><span>Os produtos destacados pelos vendedores aparecerão aqui automaticamente.</span><a href="vendedor.html">Quero vender na VORA →</a></div>';
             return;
         }
-        const { buscarCatalogo } = await import('./catalogo.js?v=4');
+        const { buscarCatalogo } = await import('./catalogo.js?v=5-publicacao');
         const ids = new Set(destaques.map((p) => String(p.id)));
         const resultado = await buscarCatalogo({ ordenacao: 'mais-recentes', limite: 50 });
         resultado.produtos.filter((p) => ids.has(String(p.id))).forEach((p) => {
