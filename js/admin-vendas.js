@@ -113,6 +113,11 @@ document.addEventListener('DOMContentLoaded', () => {
             await eliminarProdutoVendedorAdmin(eliminarProdutoBtn.dataset.adminProdutoEliminar);
             return;
         }
+        const disponibilidadeBtn = event.target.closest('[data-admin-produto-disponibilidade]');
+        if (disponibilidadeBtn) {
+            await alterarDisponibilidadeProdutoAdmin(disponibilidadeBtn.dataset.id, disponibilidadeBtn.dataset.adminProdutoDisponibilidade);
+            return;
+        }
         const prodBtn = event.target.closest('[data-admin-produto-action]');
         if (prodBtn) { abrirRevisaoProdutoAdmin(prodBtn.dataset.id); return; }
         const revisarBtn = event.target.closest('[data-admin-produto-rever]');
@@ -167,6 +172,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('filtroGlobalPedidos')?.addEventListener('input', () => renderizarPedidos());
     document.getElementById('filtroPedidoCliente')?.addEventListener('input', () => renderizarPedidos());
     document.getElementById('filtroStatus')?.addEventListener('change', () => renderizarPedidos());
+    document.getElementById('filtroProdutosAdmin')?.addEventListener('input', () => renderizarPainelVendedoresAdmin());
+    document.getElementById('filtroStatusProdutosAdmin')?.addEventListener('change', () => renderizarPainelVendedoresAdmin());
     document.getElementById('btnFiltrarPendentes')?.addEventListener('click', () => {
         document.getElementById('filtroStatus').value = 'aguardando_pagamento';
         renderizarPedidos();
@@ -1442,13 +1449,18 @@ function exportarExcel(tipo) {
 
 window.atualizarStatus = async function(codigoRastreio, novoStatus) {
     if(!codigoRastreio) return alert('Este pedido não tem código de rastreio.');
-    if(!confirm(`Marcar ${codigoRastreio} como "${novoStatus === 'enviado' ? 'Enviado' : 'Entregue'}"?`)) return;
+    if(!confirm(`Marcar ${codigoRastreio} como "${novoStatus === 'enviado' ? 'Enviado' : novoStatus === 'entregue' ? 'Entregue' : 'Pago'}"?`)) return;
+    const botoes = [...document.querySelectorAll('button')].filter(btn => btn.textContent.includes(codigoRastreio) || btn.getAttribute('data-codigo-rastreio') === codigoRastreio);
+    botoes.forEach(btn => { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'A processar…'; });
     try {
         const atualizar = httpsCallable(functions, 'atualizarEstadoPedido');
         await atualizar({ codigoRastreio, status: novoStatus });
-        alert('Status atualizado!');
+        alert('Status atualizado com sucesso.');
         location.reload();
-    } catch(e) { alert('Erro: ' + e.message); }
+    } catch(e) {
+        botoes.forEach(btn => { btn.disabled = false; btn.textContent = btn.dataset.originalText || 'Atualizar'; });
+        alert('Não foi possível atualizar o status. ' + (e.message || e));
+    }
 };
 
 window.imprimirFatura = async function(codigoRastreio) {
@@ -1664,14 +1676,29 @@ function renderizarPainelVendedoresAdmin() {
         return `<tr><td style="padding:9px;"><strong>${escapeHTML(v.nome || 'Sem nome')}</strong><br><small>${escapeHTML(v.email || '')}</small></td><td style="padding:9px;">${escapeHTML(v.nomeLoja || v.nome_loja || '—')}</td><td style="padding:9px;">${statusLabelVendedor(v.status)}</td><td style="padding:9px;">${escapeHTML(v.plano || 'basico')}</td><td style="padding:9px;text-align:center;">${produtoCount[v.id] || 0}</td><td style="padding:9px;text-align:center;">${st.pedidos}</td><td style="padding:9px;">${moedaAdmin(st.faturamento)}</td><td style="padding:9px;white-space:nowrap;">${action}${limparCatalogo}</td></tr>`;
     }).join('') : '<tr><td colspan="8" style="padding:18px;text-align:center;">Nenhum vendedor cadastrado.</td></tr>';
 
-    if (tbodyP) tbodyP.innerHTML = produtosVendedorAdmin.length ? produtosVendedorAdmin.map(p => {
+    const termoProduto = String(document.getElementById('filtroProdutosAdmin')?.value || '').trim().toLowerCase();
+    const statusProdutoFiltro = document.getElementById('filtroStatusProdutosAdmin')?.value || 'todos';
+    const produtosFiltrados = produtosVendedorAdmin.filter(p => {
+        const vid = p.vendedorId || p.vendedor_id;
+        const v = vendedoresAdmin.find(x => x.id === vid);
+        const status = p.statusAprovacao || p.status_aprovacao || 'aguardando_aprovacao';
+        const ativo = p.ativo !== false && p.vendedor_ativo !== false;
+        const texto = `${p.nome || ''} ${p.id || ''} ${v?.nome || ''} ${v?.nomeLoja || v?.nome_loja || ''}`.toLowerCase();
+        return (!termoProduto || texto.includes(termoProduto))
+            && (statusProdutoFiltro === 'todos' || (statusProdutoFiltro === 'oculto' ? !ativo : status === statusProdutoFiltro));
+    });
+    if (tbodyP) tbodyP.innerHTML = produtosFiltrados.length ? produtosFiltrados.map(p => {
         const vid = p.vendedorId || p.vendedor_id;
         const v = vendedoresAdmin.find(x => x.id === vid);
         const status = p.statusAprovacao || p.status_aprovacao || 'aguardando_aprovacao';
         const imagem = escapeHTML(imagemPrincipalProdutoAdmin(p));
         const revisadoEm = p.revisadoEm || p.revisado_em;
-        const acao = `<button class="btn-admin" data-admin-produto-rever="true" data-id="${escapeHTML(p.id)}">${status === 'aguardando_aprovacao' ? '🔎 Rever e decidir' : '🔎 Ver revisão'}</button><br><button class="btn-admin" style="background:#b42318;margin-top:6px;" data-admin-produto-eliminar="${escapeHTML(p.id)}">🗑️ Eliminar</button>${revisadoEm ? `<br><small style="color:#667085">Revisto: ${escapeHTML(revisadoEm)}</small>` : ''}`;
-        return `<tr><td style="padding:9px;"><img class="produto-miniatura" src="${imagem}" alt="Prévia de ${escapeHTML(p.nome || 'produto')}" loading="lazy"></td><td style="padding:9px;"><strong>${escapeHTML(p.nome || 'Sem nome')}</strong><br><small>${escapeHTML(p.id)}</small></td><td style="padding:9px;">${escapeHTML(v?.nomeLoja || v?.nome_loja || p.vendedorNome || p.vendedor_nome || '—')}</td><td style="padding:9px;">${escapeHTML(p.preco || '0')} Kz</td><td style="padding:9px;text-align:center;">${Number(p.estoque || 0)}</td><td style="padding:9px;">${statusLabelProduto(status)}</td><td style="padding:9px;white-space:nowrap;">${acao}</td></tr>`;
+        const ativo = p.ativo !== false && p.vendedor_ativo !== false;
+        const disponibilidade = status === 'aprovado'
+            ? `<button class="btn-admin" style="background:${ativo ? '#a27400' : '#087f5b'};margin-top:6px;" data-admin-produto-disponibilidade="${escapeHTML(p.id)}" data-id="${escapeHTML(p.id)}">${ativo ? '🙈 Ocultar' : '👁️ Reativar'}</button>`
+            : '';
+        const acao = `<button class="btn-admin" data-admin-produto-rever="true" data-id="${escapeHTML(p.id)}">${status === 'aguardando_aprovacao' ? '🔎 Rever e decidir' : '🔎 Ver revisão'}</button>${disponibilidade}<br><button class="btn-admin" style="background:#b42318;margin-top:6px;" data-admin-produto-eliminar="${escapeHTML(p.id)}">🗑️ Eliminar</button>${revisadoEm ? `<br><small style="color:#667085">Revisto: ${escapeHTML(revisadoEm)}</small>` : ''}`;
+        return `<tr><td style="padding:9px;"><img class="produto-miniatura" src="${imagem}" alt="Prévia de ${escapeHTML(p.nome || 'produto')}" loading="lazy"></td><td style="padding:9px;"><strong>${escapeHTML(p.nome || 'Sem nome')}</strong><br><small>${escapeHTML(p.id)}</small></td><td style="padding:9px;">${escapeHTML(v?.nomeLoja || v?.nome_loja || p.vendedorNome || p.vendedor_nome || '—')}</td><td style="padding:9px;">${escapeHTML(p.preco || '0')} Kz</td><td style="padding:9px;text-align:center;">${Number(p.estoque || 0)}</td><td style="padding:9px;">${statusLabelProduto(status)}<br><small>${ativo ? '🟢 Publicado' : '⚪ Oculto'}</small></td><td style="padding:9px;white-space:nowrap;">${acao}</td></tr>`;
     }).join('') : '<tr><td colspan="7" style="padding:18px;text-align:center;">Nenhum produto de vendedor.</td></tr>';
 }
 
@@ -1988,60 +2015,42 @@ async function resolverDisputaFinanceiro(disputaId, decisao) {
     }
 }
 
-function estadoVendedorDaAcao(acao) {
-    const aprovado = acao === 'aprovar' || acao === 'reativar';
-    const status = aprovado ? 'aprovado' : (acao === 'recusar' ? 'recusado' : 'suspenso');
-    return { status, ativo: aprovado };
-}
-
-async function atualizarVendedorComRls(uid, acao) {
-    const { status, ativo } = estadoVendedorDaAcao(acao);
-    const atualizadoEm = new Date().toISOString();
-    // Não use updateDoc aqui: ele junta todos os campos legados do produto antes
-    // de gravar. Um campo antigo como "camisetaPreta" seria convertido para
-    // "_camiseta_preta", que não existe na tabela produtos.
-    const { error: vendedorError } = await supabase
-        .from('vendedores')
-        .update({ status, ativo, atualizado_em: atualizadoEm })
-        .eq('id', uid);
-    if (vendedorError) throw vendedorError;
-
-    const { error: produtosError } = await supabase
-        .from('produtos')
-        .update({ vendedor_ativo: ativo, atualizado_em: atualizadoEm })
-        .eq('vendedor_id', uid);
-    if (produtosError) throw produtosError;
+async function alterarDisponibilidadeProdutoAdmin(produtoId, acao) {
+    if (!produtoId || !['ocultar', 'reativar'].includes(acao)) return;
+    const produto = produtosVendedorAdmin.find(item => String(item.id) === String(produtoId));
+    if (!produto) { mensagemVendedoresAdmin('Produto não encontrado. Atualize a lista e tente novamente.', true); return; }
+    const nome = String(produto.nome || 'este produto');
+    const texto = acao === 'ocultar'
+        ? `Ocultar “${nome}” da loja pública? O histórico de vendas será preservado.`
+        : `Reativar “${nome}” na loja pública? O vendedor e o produto precisam continuar aprovados.`;
+    if (!confirm(texto)) return;
+    const botoes = [...document.querySelectorAll('[data-admin-produto-disponibilidade]')].filter(btn => btn.dataset.id === String(produtoId));
+    botoes.forEach(btn => { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'A processar…'; });
+    try {
+        await chamarAcaoAdmin('administrarProdutoVendedor', { produtoId, acao });
+        mensagemVendedoresAdmin(acao === 'ocultar' ? `Produto “${nome}” ocultado. O histórico foi preservado.` : `Produto “${nome}” reativado.`);
+        await carregarPainelVendedoresAdmin();
+    } catch (erro) {
+        mensagemVendedoresAdmin(`Não foi possível ${acao === 'ocultar' ? 'ocultar' : 'reativar'} o produto. ${erro.message || erro}`, true);
+    } finally {
+        botoes.forEach(btn => { if (btn.isConnected) { btn.disabled = false; btn.textContent = btn.dataset.originalText || (acao === 'ocultar' ? 'Ocultar' : 'Reativar'); } });
+    }
 }
 
 async function acaoVendedorAdmin(uid, acao) {
     if (!uid || !acao) return;
     const labels = { aprovar: 'aprovar', recusar: 'recusar', suspender: 'suspender', reativar: 'reativar' };
     if (!confirm(`Confirmar ${labels[acao] || acao} este vendedor?`)) return;
+    const botoes = [...document.querySelectorAll('[data-admin-vendedor-action]')].filter(btn => btn.dataset.id === String(uid));
+    botoes.forEach(btn => { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'A processar…'; });
     try {
         await chamarAcaoAdmin('gerirVendedor', { uid, acao });
+        mensagemVendedoresAdmin(`Vendedor ${labels[acao] || acao} concluído com sucesso.`);
         await carregarPainelVendedoresAdmin();
     } catch (e) {
-        try {
-            // Alternativa para quando a Edge Function ainda não foi publicada.
-            // A operação continua restrita à política RLS is_admin().
-            await atualizarVendedorComRls(uid, acao);
-            const msg = document.getElementById('msgVendedoresAdmin');
-            if (msg) {
-                msg.style.display = 'block';
-                msg.style.background = '#e8f7ee';
-                msg.style.color = '#17643e';
-                msg.textContent = 'Vendedor atualizado. A Edge Function falhou, mas a aprovação foi concluída pelas permissões de administrador.';
-            }
-            await carregarPainelVendedoresAdmin();
-            if (msg) {
-                msg.style.display = 'block';
-                msg.style.background = '#e8f7ee';
-                msg.style.color = '#17643e';
-                msg.textContent = 'Vendedor atualizado. A Edge Function falhou, mas a aprovação foi concluída pelas permissões de administrador.';
-            }
-        } catch (fallbackError) {
-            alert(`Não foi possível atualizar o vendedor. Edge Function: ${e.message || e}. Atualização administrativa: ${fallbackError.message || fallbackError}`);
-        }
+        mensagemVendedoresAdmin(`Não foi possível ${labels[acao] || acao} o vendedor. ${e.message || e}`, true);
+    } finally {
+        botoes.forEach(btn => { if (btn.isConnected) { btn.disabled = false; btn.textContent = btn.dataset.originalText || labels[acao] || acao; } });
     }
 }
 

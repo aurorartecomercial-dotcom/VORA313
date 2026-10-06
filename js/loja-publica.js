@@ -1,17 +1,18 @@
-import { db, CONFIG, supabase } from './config.js';
-import { collection, doc, getDoc, getDocs, query, where } from './supabase-compat.js';
+import { supabase } from './config.js';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
 import { escapeHTML, imagemProdutoSegura, urlSegura } from './utils.js';
 import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=10';
 import { registarPaginaPublica } from './metricas-acesso.js?v=1';
+import { obterResumoVendedor, obterAvaliacoesVendedor } from './avaliacoes.js';
+import { initFavoritos, atualizarEstadoFavoritosNaPagina } from './favoritos.js';
 
 const params = new URLSearchParams(location.search);
-const vendedorId = params.get('id');
+const vendedorId = params.get('vendedor') || params.get('id');
 const $ = (id) => document.getElementById(id);
 let produtosDaLoja = [];
 let videosDaLoja = [];
 let avaliacaoDaLoja = { media: 0, total: 0 };
-let tentativaExtraAgendada = false;
+let categoriaSelecionada = 'todos';
 let produtosFiltradosDaLoja = [];
 let paginaProdutosDaLoja = 1;
 const PRODUTOS_POR_PAGINA_LOJA = 8;
@@ -24,6 +25,7 @@ const PRODUTOS_DEMO = [
 // A medição não interfere no carregamento da vitrine e só envia um
 // identificador anónimo do navegador para a API segura.
 registarPaginaPublica('loja');
+void initFavoritos();
 
 function imagemSegura(valor) {
   return imagemProdutoSegura(valor, '');
@@ -59,16 +61,6 @@ document.addEventListener('click', (event) => {
     atualizarAtalhoSacola('✓ Produto adicionado à sacola. Pode finalizar a compra quando quiser.');
   }
 });
-
-function produtosDoCache() {
-  try {
-    const cache = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || 'null');
-    const lista = Array.isArray(cache?.data) ? cache.data : [];
-    return lista.filter((produto) => String(produto?.vendedorId || '') === String(vendedorId || ''));
-  } catch (_) {
-    return [];
-  }
-}
 
 function texto(id, valor) {
   const elemento = $(id);
@@ -476,20 +468,15 @@ function linkInstagram(valor) {
 }
 
 async function carregarAvaliacaoDaLoja() {
-  avaliacaoDaLoja = { media: 0, total: 0 };
-  const ids = produtosDaLoja.map((produto) => String(produto.id || '')).filter(Boolean);
-  if (!ids.length) return;
-  const { data, error } = await supabase
-    .from('produto_avaliacoes_resumo')
-    .select('produto_id,media,total')
-    .in('produto_id', ids);
-  if (error) return;
-  const resumo = data || [];
-  const total = resumo.reduce((soma, item) => soma + Number(item.total || 0), 0);
-  const somaNotas = resumo.reduce((soma, item) => soma + Number(item.media || 0) * Number(item.total || 0), 0);
-  avaliacaoDaLoja = { media: total ? somaNotas / total : 0, total };
+  avaliacaoDaLoja = { media: 0, total: 0, estrelas_1: 0, estrelas_2: 0, estrelas_3: 0, estrelas_4: 0, estrelas_5: 0, recentes: [] };
+  if (!vendedorId) return;
+  try {
+    const [resumo, recentes] = await Promise.all([obterResumoVendedor(vendedorId), obterAvaliacoesVendedor(vendedorId, 8)]);
+    avaliacaoDaLoja = { ...resumo, recentes };
+  } catch (erro) {
+    console.warn('[VORA 313] Avaliações da loja indisponíveis:', erro?.message || erro);
+  }
 }
-
 function configurarPartilha(nomeLoja, descricao) {
   const acoes = document.querySelector('.loja-acoes');
   if (!acoes || $('btnPartilharLoja')) return;
@@ -528,6 +515,27 @@ function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ai
 // A vitrine de cada vendedor usa páginas incrementais, sem mudar os cartões
 // nem os filtros existentes. Isso mantém a loja rápida mesmo com muitos
 // anúncios publicados.
+function aplicarFiltrosDaLoja() {
+  const termo = String($('buscaLoja')?.value || '').trim().toLowerCase();
+  const lista = produtosDaLoja.filter((produto) => {
+    const categoriaOk = categoriaSelecionada === 'todos' || String(produto.categoria || '') === categoriaSelecionada;
+    const texto = `${produto.nome || ''} ${produto.marca || ''} ${produto.categoria || ''}`.toLowerCase();
+    return categoriaOk && (!termo || texto.includes(termo));
+  });
+  mostrarProdutosDaLoja(lista);
+}
+
+function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ainda não tem produtos publicados.') {
+  const grid = $(alvo);
+  if (!grid) return;
+  grid.classList.toggle('loja-grid-publica--single', lista.length === 1);
+  if (!lista.length) {
+    grid.innerHTML = '<div class="loja-vazia">' + escapeHTML(textoVazio) + '</div>';
+    return;
+  }
+  grid.replaceChildren(...lista.map(criarCartaoSeguro).filter(Boolean));
+}
+
 function mostrarProdutosDaLoja(lista, textoVazio = 'Esta loja ainda não tem produtos publicados.') {
   produtosFiltradosDaLoja = Array.isArray(lista) ? lista : [];
   paginaProdutosDaLoja = 1;
@@ -536,21 +544,18 @@ function mostrarProdutosDaLoja(lista, textoVazio = 'Esta loja ainda não tem pro
 
 function atualizarPaginaProdutosDaLoja(textoVazio = 'Esta loja ainda não tem produtos publicados.') {
   const total = produtosFiltradosDaLoja.length;
-  const totalPaginas = Math.ceil(total / PRODUTOS_POR_PAGINA_LOJA);
-  if (!totalPaginas) paginaProdutosDaLoja = 1;
-  else paginaProdutosDaLoja = Math.min(paginaProdutosDaLoja, totalPaginas);
-  const inicio = (paginaProdutosDaLoja - 1) * PRODUTOS_POR_PAGINA_LOJA;
-  renderizarProdutos(produtosFiltradosDaLoja.slice(inicio, inicio + PRODUTOS_POR_PAGINA_LOJA), 'produtos', textoVazio);
+  const totalVisivel = Math.min(paginaProdutosDaLoja * PRODUTOS_POR_PAGINA_LOJA, total);
+  renderizarProdutos(produtosFiltradosDaLoja.slice(0, totalVisivel), 'produtos', textoVazio);
 
   const controles = $('lojaCarregarMaisControles');
   const botao = $('carregarMaisProdutosLoja');
   if (!controles || !botao) return;
-  const temMais = paginaProdutosDaLoja < totalPaginas;
+  const temMais = totalVisivel < total;
   controles.hidden = total <= PRODUTOS_POR_PAGINA_LOJA;
   botao.disabled = !temMais;
   botao.setAttribute('aria-disabled', String(!temMais));
   botao.textContent = temMais
-    ? `Carregar mais produtos (${Math.min(paginaProdutosDaLoja * PRODUTOS_POR_PAGINA_LOJA, total)} de ${total})`
+    ? `Mostrar mais (${totalVisivel} de ${total})`
     : 'Todos os produtos foram carregados';
 }
 
@@ -564,30 +569,30 @@ function carregarMaisProdutosDaLoja() {
 function renderizarDestaques(lista, textoVazio = 'A loja ainda não selecionou produtos em destaque.') {
   const secao = $('destaquesSecao');
   if (secao) secao.hidden = !lista.length;
-  // Uma secção sem destaques não ocupa espaço: o cliente chega diretamente ao
-  // catálogo. Quando existirem destaques, continua a usar o mesmo cartão e a
-  // mesma navegação já usados no restante da loja.
   if (lista.length) renderizarProdutos(lista, 'destaquesLoja', textoVazio);
 }
 
 function configurarFiltros() {
-  const categorias = [...new Set(produtosDaLoja.map((produto) => produto.categoria).filter(Boolean))];
+  const categorias = [...new Set(produtosDaLoja.map((produto) => String(produto.categoria || '').trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'pt-AO'));
   const filtros = $('categoriasLoja');
   if (filtros) {
-    filtros.innerHTML = '<button class="loja-categoria ativo" data-cat="todos">Todos</button>' + categorias.map((categoria) => '<button class="loja-categoria" data-cat="' + escapeHTML(categoria) + '">' + escapeHTML(categoria) + '</button>').join('');
+    filtros.innerHTML = '<button class="loja-categoria ativo" data-cat="todos">Todos</button>' + categorias
+      .map((categoria) => '<button class="loja-categoria" data-cat="' + escapeHTML(categoria) + '">' + escapeHTML(categoria) + '</button>')
+      .join('');
     filtros.querySelectorAll('button').forEach((botao) => botao.addEventListener('click', () => {
       filtros.querySelectorAll('button').forEach((item) => item.classList.remove('ativo'));
       botao.classList.add('ativo');
-      const categoria = botao.dataset.cat;
-      mostrarProdutosDaLoja(categoria === 'todos' ? produtosDaLoja : produtosDaLoja.filter((produto) => produto.categoria === categoria));
+      categoriaSelecionada = botao.dataset.cat || 'todos';
+      aplicarFiltrosDaLoja();
     }));
   }
 
   const busca = $('buscaLoja');
-  if (busca) busca.addEventListener('input', () => {
-    const termo = busca.value.trim().toLowerCase();
-    mostrarProdutosDaLoja(produtosDaLoja.filter((produto) => (produto.nome || '').toLowerCase().includes(termo)));
-  });
+  if (busca && !busca.dataset.configurada) {
+    busca.dataset.configurada = '1';
+    busca.addEventListener('input', aplicarFiltrosDaLoja);
+  }
 }
 
 function preencherPerfil(vendedor, produtos) {
@@ -602,7 +607,14 @@ function preencherPerfil(vendedor, produtos) {
 
   aplicarTemaCategoria(categoria, String(perfil.estiloVitrine || 'padrao').toLowerCase());
 
+  const favoritoLoja = $('btnFavoritoLoja');
+  if (favoritoLoja) favoritoLoja.dataset.vendedorId = String(vendedor?.id || vendedorId || '');
   texto('nome', nomeLoja);
+  document.title = `${nomeLoja} — VORA 313`;
+  const metaDescricao = document.querySelector('meta[name="description"]');
+  if (metaDescricao) metaDescricao.content = `Visite a loja ${nomeLoja} na VORA 313 e veja os seus produtos publicados.`;
+  texto('lojaEstadoSelo', vendedor?.status === 'aprovado' && vendedor?.ativo !== false ? '✓ Loja aprovada' : 'Loja indisponível');
+  texto('lojaEntrada', vendedor?.criadoEm ? `Desde ${new Date(vendedor.criadoEm).toLocaleDateString('pt-AO', { month: 'long', year: 'numeric' })}` : '');
   texto('desc', vendedor?.descricao || 'Conheça os produtos selecionados desta loja parceira da VORA 313.');
   texto('sobreTexto', vendedor?.descricao || 'Esta loja ainda está a preparar a sua apresentação. Veja abaixo os contactos e informações que o vendedor partilhou.');
   texto('lojaCategoria', categoria);
@@ -624,6 +636,7 @@ function preencherPerfil(vendedor, produtos) {
   aplicarCapa(perfil.capaUrl);
   renderizarEditorial(perfil, produtos);
   configurarPartilha(nomeLoja, vendedor?.descricao || 'Conheça esta loja na VORA 313.');
+  atualizarEstadoFavoritosNaPagina();
 
   const whatsapp = $('whatsappLoja');
   if (whatsapp) {
@@ -641,6 +654,7 @@ function preencherPerfil(vendedor, produtos) {
   if (sobre) {
     const dados = [
       ['🏷️ Categoria', categoria],
+      vendedor?.criadoEm ? ['📅 No marketplace desde', new Date(vendedor.criadoEm).toLocaleDateString('pt-AO', { day: '2-digit', month: 'long', year: 'numeric' })] : null,
       ['📍 Localização', local],
       horario ? ['🕒 Horário', horario] : null,
       instagram ? ['📷 Instagram', '<a href="' + escapeHTML(instagram) + '" target="_blank" rel="noopener">Abrir perfil</a>'] : null
@@ -648,16 +662,27 @@ function preencherPerfil(vendedor, produtos) {
     sobre.innerHTML = dados.map((item) => '<article class="loja-sobre-dado"><strong>' + escapeHTML(item[0]) + '</strong><span>' + (item[0] === '📷 Instagram' ? item[1] : escapeHTML(item[1])) + '</span></article>').join('');
   }
 
-  texto('notaLoja', avaliacaoDaLoja.total ? `${avaliacaoDaLoja.media.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : '—');
+  const notaReal = avaliacaoDaLoja.total ? Number(avaliacaoDaLoja.media) : 0;
+  texto('notaLoja', avaliacaoDaLoja.total ? `${notaReal.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : '—');
+  texto('notaLojaHero', avaliacaoDaLoja.total ? `${notaReal.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : '—');
   $('avaliacoesLoja')?.classList.toggle('loja-avaliacoes-vazias', !avaliacaoDaLoja.total);
   const avaliacoes = $('avaliacoesConteudo');
-  if (avaliacoes) avaliacoes.innerHTML = avaliacaoDaLoja.total
-    ? `<article><div class="review-stars">★★★★★</div><strong>${escapeHTML(avaliacaoDaLoja.media.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 }))} de 5</strong><p>${escapeHTML(`${avaliacaoDaLoja.total} avaliação${avaliacaoDaLoja.total === 1 ? '' : 'ões'} verificada${avaliacaoDaLoja.total === 1 ? '' : 's'} em produtos desta loja.`)}</p></article>`
-    : '<div class="loja-vazia">Esta loja ainda não recebeu avaliações verificadas.</div>';
+  if (avaliacoes) {
+    if (!avaliacaoDaLoja.total) {
+      avaliacoes.innerHTML = '<div class="loja-vazia">Esta loja ainda não recebeu avaliações verificadas de compradores.</div>';
+    } else {
+      const barras = [5,4,3,2,1].map((nota) => { const quantidade = Number(avaliacaoDaLoja[`estrelas_${nota}`] || 0); const percentagem = Math.round((quantidade / Number(avaliacaoDaLoja.total)) * 100); return `<div class="avaliacao-barra"><span>${nota}★</span><i><b style="width:${percentagem}%"></b></i><small>${quantidade}</small></div>`; }).join('');
+      const recentes = Array.isArray(avaliacaoDaLoja.recentes) ? avaliacaoDaLoja.recentes : [];
+      const reviews = recentes.length ? `<div class="loja-reviews-recentes">${recentes.map((review) => `<article><div><strong>${'★'.repeat(Number(review.nota))}${'☆'.repeat(5 - Number(review.nota))}</strong><span>✓ Compra verificada</span></div>${review.comentario ? `<p>${escapeHTML(review.comentario)}</p>` : '<p class="sem-comentario">Avaliação sem comentário.</p>'}<small>${new Date(review.data).toLocaleDateString('pt-AO')}</small></article>`).join('')}</div>` : '';
+      avaliacoes.innerHTML = `<div class="loja-avaliacao-resumo"><div><strong>${Number(avaliacaoDaLoja.media).toFixed(1)}</strong><span>★★★★★</span><small>${Number(avaliacaoDaLoja.total)} avaliação${Number(avaliacaoDaLoja.total) === 1 ? '' : 'ões'} verificadas</small></div><div>${barras}</div></div>${reviews}`;
+    }
+  }
 }
 
 function carregarDemo() {
   const estiloDemo = String(params.get('estilo') || 'padrao').toLowerCase();
+  const nota = $('demoNote');
+  if (nota) nota.style.display = 'block';
   const demosEditoriais = {
     editorial_moda: {
       nomeLoja: 'Atelier Horizonte', categoria: 'Moda', morada: 'Luanda, Angola',
@@ -721,75 +746,114 @@ function carregarDemo() {
   configurarFiltros();
 }
 
+function mapearLojaPublica(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    nomeLoja: row.nome_loja || '',
+    telefone: row.telefone || '',
+    categoria: row.categoria || '',
+    descricao: row.descricao || '',
+    perfilPublico: row.perfil_publico && typeof row.perfil_publico === 'object' ? row.perfil_publico : {},
+    totalVendas: Number(row.total_vendas || 0),
+    totalProdutos: Number(row.total_produtos || 0),
+    criadoEm: row.criado_em || null,
+    status: 'aprovado',
+    ativo: true
+  };
+}
+
+function mapearProdutoPublico(row) {
+  return {
+    ...row,
+    vendedorId: row.vendedor_id,
+    vendedorNome: row.vendedor_nome,
+    statusAprovacao: row.status_aprovacao,
+    vendedorAtivo: row.vendedor_ativo,
+    precoAntigo: row.preco_antigo,
+    freteGratis: row.frete_gratis,
+    criadoEm: row.criado_em,
+    atualizadoEm: row.atualizado_em
+  };
+}
+
+function mostrarLojaIndisponivel(mensagem = 'Esta loja não está disponível publicamente neste momento.') {
+  texto('nome', 'Loja indisponível');
+  texto('desc', mensagem);
+  texto('estado', 'Sem produtos publicados');
+  texto('estadoDestaques', 'Loja indisponível');
+  texto('lojaEstadoSelo', 'Loja indisponível');
+  $('destaquesSecao')?.setAttribute('hidden', '');
+  $('lojaFaixaPromocional')?.setAttribute('hidden', '');
+  $('lojaEditorial')?.setAttribute('hidden', '');
+  $('videosLoja')?.setAttribute('hidden', '');
+  $('sobreLoja')?.setAttribute('hidden', '');
+  $('avaliacoesLoja')?.setAttribute('hidden', '');
+  $('lojaConfianca')?.setAttribute('hidden', '');
+  $('lojaNavegacao')?.setAttribute('hidden', '');
+  const acoes = document.querySelector('.loja-acoes');
+  if (acoes) acoes.hidden = true;
+  const produtos = $('produtos');
+  if (produtos) produtos.innerHTML = `<div class="loja-vazia"><strong>Loja indisponível</strong>${escapeHTML(mensagem)}<br><a href="index.html">Voltar ao marketplace</a></div>`;
+  $('categoriasLoja')?.replaceChildren();
+  const busca = $('buscaLoja');
+  if (busca) { busca.disabled = true; busca.value = ''; }
+  const controles = $('lojaCarregarMaisControles');
+  if (controles) controles.hidden = true;
+}
+
 async function carregarLojaReal() {
   if (params.get('demo') === '1') return carregarDemo();
-  if (!vendedorId) return;
-  // No telemóvel uma falha temporária no pedido do perfil não deve esconder os
-  // produtos já públicos. Cada origem é lida separadamente e o catálogo local
-  // serve como último recurso quando a ligação estiver instável.
-  const [resultadoVendedor, resultadoProdutos] = await Promise.allSettled([
-    getDoc(doc(db, 'lojasPublicas', vendedorId)),
-    getDocs(query(collection(db, 'produtos'), where('vendedorId', '==', vendedorId)))
-  ]);
-
-  const vendedorSnap = resultadoVendedor.status === 'fulfilled' ? resultadoVendedor.value : null;
-  const produtosSnap = resultadoProdutos.status === 'fulfilled' ? resultadoProdutos.value : null;
-  let produtosRemotos = produtosSnap ? produtosSnap.docs.map((snapshot) => ({ id: snapshot.id, ...snapshot.data() })) : [];
-  // Alguns navegadores móveis podem falhar na consulta filtrada logo após uma
-  // atualização de sessão/cache. Como alternativa, usa o catálogo público já
-  // preparado pela aplicação e separa apenas os produtos desta loja.
-  if (!produtosRemotos.length) {
-    try {
-      const catalogo = await carregarCatalogo();
-      produtosRemotos = catalogo.filter((produto) => String(produto?.vendedorId || '') === String(vendedorId));
-    } catch (_) {}
-  }
-  const produtosBase = produtosRemotos.length ? produtosRemotos : produtosDoCache();
-  produtosDaLoja = produtosBase.filter((produto) => {
-    const estado = String(produto.statusAprovacao || '').toLowerCase();
-    return produto.ativo !== false && produto.vendedorAtivo !== false && (!estado || estado === 'aprovado' || estado === 'published');
-  });
-  await carregarAvaliacaoDaLoja();
-  await carregarVideosDaLoja();
-
-  if ((!vendedorSnap || !vendedorSnap.exists()) && !produtosDaLoja.length) {
-    texto('nome', 'Loja indisponível');
-    texto('desc', 'Esta loja não está disponível publicamente neste momento.');
-    texto('estado', 'Sem produtos publicados');
-    texto('estadoDestaques', 'Escolhas da loja');
-    renderizarDestaques([], 'Esta loja ainda não tem produtos em destaque.');
-    mostrarProdutosDaLoja([]);
+  if (!vendedorId) {
+    mostrarLojaIndisponivel('Informe uma loja válida para continuar.');
     return;
   }
 
-  const produtoReferencia = produtosDaLoja[0] || {};
-  const vendedor = vendedorSnap?.exists()
-    ? vendedorSnap.data()
-    : {
-      nomeLoja: produtoReferencia.vendedorNome || 'Loja VORA 313',
-      categoria: produtoReferencia.categoria || 'Loja parceira',
-      telefone: produtoReferencia.vendedorTelefone || produtoReferencia.telefoneVendedor || '',
-      descricao: 'Veja os produtos publicados por esta loja na VORA 313.'
-    };
+  // A loja pública é a única fonte de identidade do vendedor nesta página.
+  // Nunca consultamos a tabela vendedores diretamente, evitando exposição de dados privados.
+  const { data: lojaRow, error: lojaError } = await supabase
+    .from('lojas_publicas')
+    .select('id,nome_loja,telefone,categoria,descricao,perfil_publico,total_vendas,total_produtos,criado_em')
+    .eq('id', vendedorId)
+    .maybeSingle();
+
+  if (lojaError) throw lojaError;
+  if (!lojaRow) {
+    // Uma loja suspensa/inativa deixa de existir na view pública. Não tentamos
+    // reconstruir a vitrine a partir do cache ou de produtos antigos.
+    mostrarLojaIndisponivel('Esta loja foi suspensa, desativada ou ainda não está aprovada pela VORA 313.');
+    await carregarAvaliacaoDaLoja();
+    return;
+  }
+
+  const { data: produtoRows, error: produtosError } = await supabase
+    .from('produtos')
+    .select('id,nome,categoria,preco,preco_valor,preco_antigo,desconto,parcelas,frete_gratis,descricao,imagens,marca,sku,tag,estoque,vendedor_id,vendedor_nome,status_aprovacao,ativo,vendedor_ativo,monetizacao,criado_em,atualizado_em')
+    .eq('vendedor_id', vendedorId)
+    .eq('ativo', true)
+    .eq('vendedor_ativo', true)
+    .eq('status_aprovacao', 'aprovado')
+    .order('criado_em', { ascending: false });
+
+  if (produtosError) throw produtosError;
+  produtosDaLoja = (Array.isArray(produtoRows) ? produtoRows : []).map(mapearProdutoPublico);
+  const vendedor = mapearLojaPublica(lojaRow);
+
+  await Promise.all([carregarAvaliacaoDaLoja(), carregarVideosDaLoja()]);
+
   preencherPerfil(vendedor, produtosDaLoja);
   renderizarDestaques(produtosDaLoja.filter(emDestaque));
-  mostrarProdutosDaLoja(produtosDaLoja);
+  categoriaSelecionada = 'todos';
   configurarFiltros();
-
-  // Tenta uma segunda vez apenas se a loja existe mas nenhum produto chegou.
-  // Isto resolve redes móveis que acordam depois do primeiro pedido, sem criar
-  // uma atualização infinita numa loja realmente vazia.
-  if (!produtosDaLoja.length && !tentativaExtraAgendada) {
-    tentativaExtraAgendada = true;
-    setTimeout(() => carregarLojaReal().catch(() => {}), 2500);
-  }
+  aplicarFiltrosDaLoja();
 }
 
 setTimeout(() => {
   carregarLojaReal().catch((erro) => {
     console.error('Não foi possível carregar a loja pública:', erro);
-    texto('desc', 'Não foi possível carregar os dados desta loja agora. Tente novamente em instantes.');
-    texto('estado', 'Tente atualizar a página');
+    texto('desc', 'Não foi possível carregar esta loja agora. Tente novamente em instantes.');
+    texto('estado', 'Erro ao carregar a loja');
+    texto('lojaEstadoSelo', 'Erro de carregamento');
     renderizarDestaques([], 'Não foi possível carregar os destaques agora.');
     mostrarProdutosDaLoja([], 'Não foi possível carregar os produtos agora. Atualize a página para tentar de novo.');
   });

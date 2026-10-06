@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=44" />
+    <link rel="stylesheet" href="style.css?v=45-home-conversao" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -156,210 +156,156 @@
     </nav>
 
     <main id="conteudo-principal" role="main">
-        <!-- CARROSSEL DE OFERTAS — 8 imagens enviadas pelo administrador -->
-        <section class="carrossel-ofertas" aria-label="Ofertas em destaque">
-            <div class="carrossel-container">
-                <div class="carrossel-slides" id="carrosselSlides">
-                    <div class="slide ativo">
-                        <img src="oferta-1-tecnologia.png" alt="Oferta 1" loading="eager" decoding="async" />
-                    </div>
-                    <div class="slide">
-                        <img src="oferta-2-moda.png" alt="Oferta 2" loading="lazy" decoding="async" />
-                    </div>
-                    <div class="slide">
-                        <img src="oferta-3-games.png" alt="Oferta 3" loading="lazy" decoding="async" />
-                    </div>
-                    <div class="slide">
-                        <img src="oferta-4-smartphones.png" alt="Oferta 4" loading="lazy" decoding="async" />
-                    </div>
-                    <div class="slide">
-                        <img src="oferta-5-beleza.png" alt="Oferta 5" loading="lazy" decoding="async" />
-                    </div>
-                    <div class="slide">
-                        <img src="oferta-6-semana.png" alt="Oferta 6" loading="lazy" decoding="async" />
-                    </div>
-                    <div class="slide">
-                        <img src="oferta-7-casa.png" alt="Oferta 7" loading="lazy" decoding="async" />
-                    </div>
-                    <div class="slide">
-                        <img src="oferta-8-casa.png" alt="Oferta 8" loading="lazy" decoding="async" />
-                    </div>
+        <!-- HOMEPAGE DE CONVERSÃO: compra + aquisição de vendedores -->
+        <section class="vora-home-hero" aria-labelledby="tituloHeroHome">
+            <div class="vora-home-hero-copy">
+                <span class="vora-home-kicker">MARKETPLACE ANGOLANO</span>
+                <h1 id="tituloHeroHome">Tudo o que procura. <span>Num só lugar.</span></h1>
+                <p>Descubra produtos de diferentes categorias, compare opções e compre de vendedores que publicam as suas lojas na VORA 313.</p>
+                <div class="vora-home-hero-actions">
+                    <a href="#gradeProdutos" class="vora-home-btn vora-home-btn-primary">🛒 Quero comprar</a>
+                    <a href="vendedor.html" class="vora-home-btn vora-home-btn-secondary">🏪 Quero vender</a>
                 </div>
-                <button class="carrossel-btn anterior" onclick="window.mudarSlide(-1)" aria-label="Slide anterior">❮</button>
-                <button class="carrossel-btn proximo" onclick="window.mudarSlide(1)" aria-label="Próximo slide">❯</button>
-                <div class="carrossel-indicadores" id="carrosselIndicadores" aria-label="Selecionar oferta">
-                    <span class="indicador ativo" data-slide="0" role="button" tabindex="0" aria-label="Ir para a Oferta 1"></span>
-                    <span class="indicador" data-slide="1" role="button" tabindex="0" aria-label="Ir para a Oferta 2"></span>
-                    <span class="indicador" data-slide="2" role="button" tabindex="0" aria-label="Ir para a Oferta 3"></span>
-                    <span class="indicador" data-slide="3" role="button" tabindex="0" aria-label="Ir para a Oferta 4"></span>
-                    <span class="indicador" data-slide="4" role="button" tabindex="0" aria-label="Ir para a Oferta 5"></span>
-                    <span class="indicador" data-slide="5" role="button" tabindex="0" aria-label="Ir para a Oferta 6"></span>
-                    <span class="indicador" data-slide="6" role="button" tabindex="0" aria-label="Ir para a Oferta 7"></span>
-                    <span class="indicador" data-slide="7" role="button" tabindex="0" aria-label="Ir para a Oferta 8"></span>
+                <div class="vora-home-hero-points" aria-label="Como começar a comprar">
+                    <span>✓ Pesquise o que precisa</span>
+                    <span>✓ Escolha o produto</span>
+                    <span>✓ Adicione à sacola</span>
                 </div>
+            </div>
+            <div class="vora-home-hero-search" aria-label="Pesquisa de produtos">
+                <div class="vora-home-search-label">🔎 O que procura hoje?</div>
+                <form id="heroBuscaForm" class="vora-home-search-form" role="search">
+                    <input id="heroCampoBusca" type="search" placeholder="Ex.: smartphone, consola, perfume..." autocomplete="off" aria-label="Pesquisar produtos na VORA 313" />
+                    <button type="submit">Pesquisar</button>
+                </form>
+                <p>Pesquise por nome, categoria ou palavra-chave e encontre produtos disponíveis no catálogo.</p>
             </div>
         </section>
 
-        <!-- FAIXA DE CONFIANÇA -->
-        <section class="aurora-trust-bar" aria-label="Vantagens de comprar na VORA 313">
-            <div class="aurora-trust-item"><span class="aurora-trust-icon">🔒</span><div><strong>Compra protegida</strong><span>Dados tratados com segurança</span></div></div>
-            <div class="aurora-trust-item"><span class="aurora-trust-icon">🚚</span><div><strong>Entrega em Angola</strong><span>Opções de entrega e acompanhamento</span></div></div>
-            <div class="aurora-trust-item"><span class="aurora-trust-icon">💬</span><div><strong>Atendimento rápido</strong><span>Fale connosco pelo WhatsApp</span></div></div>
-            <div class="aurora-trust-item"><span class="aurora-trust-icon">⭐</span><div><strong>Ofertas selecionadas</strong><span>Produtos e promoções em destaque</span></div></div>
+        <section class="vora-home-trust" aria-label="Confiança para compradores">
+            <div><span>🔒</span><strong>Compra com segurança</strong><small>Autenticação, RLS e validações no backend.</small></div>
+            <div><span>📦</span><strong>Pedidos acompanháveis</strong><small>Consulte o estado do seu pedido e rastreio.</small></div>
+            <div><span>🚚</span><strong>Entrega em Angola</strong><small>Opções de entrega e acompanhamento.</small></div>
+            <div><span>💬</span><strong>Atendimento</strong><small>Fale connosco pelos canais disponíveis.</small></div>
         </section>
 
-        <!-- V30 — ATALHOS DE COMPRA -->
-        <section class="v30-atalhos" aria-label="Atalhos de compras">
-            <div class="v30-atalhos-head">
-                <div>
-                    <span>EXPLORE A VORA 313</span>
-                    <h2>Compre por categoria</h2>
-                </div>
-                <a href="#secao-categorias">Ver todas as categorias →</a>
+        <section class="vora-home-section" id="secao-categorias" aria-labelledby="tituloCategoriasHome">
+            <div class="vora-home-section-head">
+                <div><span class="vora-home-kicker">ENCONTRE MAIS RÁPIDO</span><h2 id="tituloCategoriasHome">Explore por categoria</h2><p>As categorias abaixo são baseadas na taxonomia real utilizada pelo catálogo.</p></div>
+                <a href="#gradeProdutos">Ver produtos →</a>
             </div>
-            <div class="v30-atalhos-grid">
-                <a href="categoria.html?cat=eletronicos" class="v30-atalho"><b>📱</b><span>Eletrónicos</span><small>Smartphones e acessórios</small></a>
-                <a href="categoria.html?cat=moda" class="v30-atalho"><b>👗</b><span>Moda</span><small>Estilo para todos</small></a>
-                <a href="categoria.html?cat=beleza" class="v30-atalho"><b>✨</b><span>Beleza</span><small>Cuidados e perfumaria</small></a>
-                <a href="categoria.html?cat=casa" class="v30-atalho"><b>🏠</b><span>Casa</span><small>Conforto e utilidades</small></a>
-                <a href="categoria.html?cat=gamer" class="v30-atalho"><b>🎮</b><span>Gamer</span><small>Jogos e acessórios</small></a>
-                <a href="categoria.html?cat=automoveis" class="v30-atalho"><b>🚗</b><span>Automóveis</span><small>Produtos automotivos</small></a>
+            <div class="vora-home-category-grid" id="categoriasHomeGrid" aria-live="polite">
+                <div class="vora-home-state">A carregar categorias...</div>
             </div>
         </section>
 
-        <!-- BOTÃO DE RASTREIO -->
-        <div class="v34-tracker-wrap">
-            <a href="rastreio.html" class="v34-tracker-btn"
-               style="background:var(--cor-esmeralda); color:#FFF; border:2px solid var(--cor-ouro); 
-                      padding:15px 40px; border-radius:50px; text-decoration:none; font-weight:700; font-size:18px; 
-                      display:inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); 
-                      transition: 0.2s;" aria-label="Rastrear meu pedido">
-                <span class="tracker-full">📦 Rastrear meu pedido</span><span class="tracker-short" aria-hidden="true">📦 Rastrear</span>
-            </a>
-        </div>
-
-        <!-- BANNER PWA -->
-        <div id="pwa-install-banner" class="pwa-install-banner" style="display:none; max-width:1480px; margin: 20px auto 0; padding: 0 24px;">
-            <div style="background: var(--cor-esmeralda); color: white; padding: 14px 24px; border-radius: 12px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; width: 100%; border: 1px solid var(--cor-ouro);">
-                <span style="font-weight: 600; font-size: 16px;">📲 Baixe o App VORA 313 para uma experiência mais rápida!</span>
-                <div style="display: flex; gap: 10px;">
-                    <button id="btn-instalar-inline" class="btn-instalar-inline" style="background: var(--cor-ouro); color: #000; border: none; padding: 8px 24px; border-radius: 40px; font-weight: 700; cursor: pointer;">Instalar Agora</button>
-                    <button id="btn-fechar-banner" style="background: transparent; border: none; color: white; font-size: 20px; cursor: pointer;">✕</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- PRODUTOS EM DESTAQUE — monetização real -->
-        <section class="secao-destaques-vora" aria-labelledby="tituloDestaquesVora">
+        <section class="secao-destaques-vora vora-home-section" aria-labelledby="tituloDestaquesVora">
             <div class="secao-titulo destaque-titulo">
-                <div>
-                    <span class="secao-kicker">MAIS VISIBILIDADE PARA OS VENDEDORES</span>
-                    <h2 id="tituloDestaquesVora">⭐ Produtos em destaque</h2>
-                    <p>Produtos patrocinados por vendedores, apresentados com maior visibilidade.</p>
-                </div>
+                <div><span class="secao-kicker">MAIS VISIBILIDADE PARA OS VENDEDORES</span><h2 id="tituloDestaquesVora">⭐ Produtos em destaque</h2><p>Produtos patrocinados por vendedores e publicados no catálogo real.</p></div>
                 <a href="#gradeProdutos" class="ver-todos">Explorar produtos →</a>
             </div>
             <div class="aurora-rail-wrap destaque-rail-wrap">
                 <button class="aurora-rail-btn anterior" type="button" data-rail-target="destaquesVoraGrid" aria-label="Produtos em destaque anteriores">‹</button>
-                <div class="produtos-rail" id="destaquesVoraGrid">
-                    <div class="destaques-vazio">A carregar produtos em destaque...</div>
-                </div>
+                <div class="produtos-rail" id="destaquesVoraGrid"><div class="destaques-vazio">A carregar produtos em destaque...</div></div>
                 <button class="aurora-rail-btn proximo" type="button" data-rail-target="destaquesVoraGrid" aria-label="Mais produtos em destaque">›</button>
             </div>
         </section>
 
-        <!-- LOJAS DOS VENDEDORES -->
-        <section class="secao-lojas-vora" aria-labelledby="tituloLojasVora">
-            <div class="secao-titulo">
-                <div>
-                    <span class="secao-kicker">MARKETPLACE PARA NEGÓCIOS</span>
-                    <h2 id="tituloLojasVora">🏪 Lojas em destaque na VORA 313</h2>
-                    <p>Conheça vendedores e visite as suas lojas dentro da plataforma.</p>
+        <!-- FUNÇÕES EXISTENTES PRESERVADAS: rastreio e instalação PWA -->
+        <div class="v34-tracker-wrap">
+            <a href="rastreio.html" class="v34-tracker-btn" aria-label="Rastrear meu pedido">
+                <span class="tracker-full">📦 Rastrear meu pedido</span><span class="tracker-short" aria-hidden="true">📦 Rastrear</span>
+            </a>
+        </div>
+
+        <div id="pwa-install-banner" class="pwa-install-banner" style="display:none; max-width:1480px; margin:20px auto 0; padding:0 24px;">
+            <div style="background:var(--cor-esmeralda); color:white; padding:14px 24px; border-radius:12px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; width:100%; border:1px solid var(--cor-ouro);">
+                <span style="font-weight:600; font-size:16px;">📲 Baixe o App VORA 313 para uma experiência mais rápida!</span>
+                <div style="display:flex; gap:10px;">
+                    <button id="btn-instalar-inline" class="btn-instalar-inline" style="background:var(--cor-ouro); color:#000; border:none; padding:8px 24px; border-radius:40px; font-weight:700; cursor:pointer;">Instalar Agora</button>
+                    <button id="btn-fechar-banner" style="background:transparent; border:none; color:white; font-size:20px; cursor:pointer;">✕</button>
                 </div>
-                <a href="vendedor.html" class="ver-todos">Vender na VORA →</a>
             </div>
-            <div class="lojas-publicas-grid" id="lojasPublicasGrid">
-                <div class="lojas-empty"><strong>🏪 A carregar lojas...</strong><span>Estamos a procurar lojas de vendedores.</span></div>
+        </div>
+
+        <section class="vora-home-section vora-home-product-section" aria-labelledby="tituloOfertasReais">
+            <div class="vora-home-section-head">
+                <div><span class="vora-home-kicker">PREÇOS COM DESCONTO</span><h2 id="tituloOfertasReais">🏷️ Ofertas disponíveis</h2><p>Mostramos esta área apenas quando existem produtos com preço anterior/desconto real no catálogo.</p></div>
             </div>
-            <div class="lojas-publicas-controles" id="lojasPublicasControles" hidden>
-                <button id="carregarMaisLojas" type="button">Carregar mais lojas</button>
-            </div>
+            <div class="vora-home-product-rail" id="ofertasReaisGrid" aria-live="polite"><div class="vora-home-state">A verificar ofertas...</div></div>
         </section>
 
-        <!-- MAIS COMPRADOS -->
-        <section class="secao-mais-comprados">
+        <section class="vora-home-section vora-home-product-section" aria-labelledby="tituloNovosProdutos">
+            <div class="vora-home-section-head">
+                <div><span class="vora-home-kicker">CATÁLOGO ATUALIZADO</span><h2 id="tituloNovosProdutos">✨ Novos produtos</h2><p>Produtos aprovados e publicados recentemente no catálogo.</p></div>
+                <a href="#gradeProdutos">Ver catálogo →</a>
+            </div>
+            <div class="vora-home-product-rail" id="novosProdutosGrid" aria-live="polite"><div class="vora-home-state">A carregar novidades...</div></div>
+        </section>
+
+        <!-- LOJAS DOS VENDEDORES: fonte pública real já existente -->
+        <section class="secao-lojas-vora vora-home-section" aria-labelledby="tituloLojasVora">
             <div class="secao-titulo">
-                <h2 style="color:#333;">⭐ Mais Comprados da Semana</h2>
-                <a href="#" class="ver-todos" style="color:#007185; text-decoration:none;">Ver todos →</a>
+                <div><span class="secao-kicker">MARKETPLACE PARA NEGÓCIOS</span><h2 id="tituloLojasVora">🏪 Vendedores em destaque</h2><p>Conheça lojas de vendedores aprovados e visite os seus produtos.</p></div>
+                <a href="vendedor.html" class="ver-todos">Quero vender na VORA →</a>
             </div>
-            <div class="aurora-rail-wrap">
-                <button class="aurora-rail-btn anterior" type="button" data-rail-target="maisCompradosGrid" aria-label="Produtos anteriores">‹</button>
-                <div class="grade-produtos" id="maisCompradosGrid"></div>
-                <button class="aurora-rail-btn proximo" type="button" data-rail-target="maisCompradosGrid" aria-label="Mais produtos">›</button>
-            </div>
+            <div class="lojas-publicas-grid" id="lojasPublicasGrid"><div class="lojas-empty"><strong>🏪 A carregar lojas...</strong><span>Estamos a procurar lojas de vendedores.</span></div></div>
+            <div class="lojas-publicas-controles" id="lojasPublicasControles" hidden><button id="carregarMaisLojas" type="button">Carregar mais lojas</button></div>
         </section>
 
-        <!-- CATEGORIAS -->
-        <section class="secao-categorias" id="secao-categorias">
-            <h2>📂 Categorias</h2>
-            <div class="grade-categorias">
-                <a href="categoria.html?cat=eletronicos" class="categoria-card"><span class="categoria-icone">📱</span><span class="categoria-nome">Eletrónicos</span></a>
-                <a href="categoria.html?cat=consolas" class="categoria-card"><span class="categoria-icone">🎮</span><span class="categoria-nome">Consolas</span></a>
-                <a href="categoria.html?cat=beleza" class="categoria-card"><span class="categoria-icone">💅</span><span class="categoria-nome">Beleza</span></a>
-                <a href="categoria.html?cat=cozinha" class="categoria-card"><span class="categoria-icone">🍳</span><span class="categoria-nome">Cozinha</span></a>
-                <a href="categoria.html?cat=colunas" class="categoria-card"><span class="categoria-icone">🔊</span><span class="categoria-nome">Colunas</span></a>
-                <a href="categoria.html?cat=ferramentas" class="categoria-card"><span class="categoria-icone">🔧</span><span class="categoria-nome">Ferramentas</span></a>
-                <a href="categoria.html?cat=casa" class="categoria-card"><span class="categoria-icone">🏠</span><span class="categoria-nome">Casa</span></a>
-                <a href="categoria.html?cat=feminino" class="categoria-card"><span class="categoria-icone">👗</span><span class="categoria-nome">Feminino</span></a>
-                <a href="categoria.html?cat=masculino" class="categoria-card"><span class="categoria-icone">👔</span><span class="categoria-nome">Masculino</span></a>
-                <a href="categoria.html?cat=calcados" class="categoria-card"><span class="categoria-icone">👟</span><span class="categoria-nome">Sapatos</span></a>
-                <a href="categoria.html?cat=joias" class="categoria-card"><span class="categoria-icone">💍</span><span class="categoria-nome">Pulseiras</span></a>
-                <a href="categoria.html?cat=automoveis" class="categoria-card"><span class="categoria-icone">🚗</span><span class="categoria-nome">Carros</span></a>
-                <a href="categoria.html?cat=papelaria" class="categoria-card"><span class="categoria-icone">📚</span><span class="categoria-nome">Papelaria</span></a>
-                <a href="categoria.html?cat=jardinagem" class="categoria-card"><span class="categoria-icone">🌱</span><span class="categoria-nome">Jardinagem</span></a>
-                <a href="categoria.html?cat=energia-solar" class="categoria-card"><span class="categoria-icone">☀️</span><span class="categoria-nome">Energia Solar</span></a>
-                <a href="categoria.html?cat=seguranca" class="categoria-card"><span class="categoria-icone">🛡️</span><span class="categoria-nome">Segurança</span></a>
-                <a href="categoria.html?cat=perfumaria" class="categoria-card"><span class="categoria-icone">🌸</span><span class="categoria-nome">Perfumaria</span></a>
-                <a href="categoria.html?cat=relogios" class="categoria-card"><span class="categoria-icone">⌚</span><span class="categoria-nome">Relógios</span></a>
-                <a href="categoria.html?cat=oculos" class="categoria-card"><span class="categoria-icone">👓</span><span class="categoria-nome">Óculos</span></a>
-                <a href="categoria.html?cat=malas-mochilas" class="categoria-card"><span class="categoria-icone">🎒</span><span class="categoria-nome">Malas e Mochilas</span></a>
-                <a href="categoria.html?cat=instrumentos" class="categoria-card"><span class="categoria-icone">🎸</span><span class="categoria-nome">Instrumentos Musicais</span></a>
-                <a href="categoria.html?cat=artesanato" class="categoria-card"><span class="categoria-icone">🎨</span><span class="categoria-nome">Artesanato</span></a>
-                <a href="categoria.html?cat=festas" class="categoria-card"><span class="categoria-icone">🎉</span><span class="categoria-nome">Festas</span></a>
-                <a href="categoria.html?cat=automotivo" class="categoria-card"><span class="categoria-icone">🚙</span><span class="categoria-nome">Automotivo</span></a>
-                <a href="categoria.html?cat=construcao" class="categoria-card"><span class="categoria-icone">🏗️</span><span class="categoria-nome">Construção</span></a>
-                <a href="categoria.html?cat=limpeza" class="categoria-card"><span class="categoria-icone">🧹</span><span class="categoria-nome">Limpeza</span></a>
-                <a href="categoria.html?cat=saude" class="categoria-card"><span class="categoria-icone">💊</span><span class="categoria-nome">Saúde e Bem-estar</span></a>
-                <a href="categoria.html?cat=eletrodomesticos" class="categoria-card"><span class="categoria-icone">🔌</span><span class="categoria-nome">Eletrodomésticos</span></a>
-                <a href="categoria.html?cat=gamer" class="categoria-card"><span class="categoria-icone">🕹️</span><span class="categoria-nome">Acessórios Gamer</span></a>
-                <a href="categoria.html?cat=fotografia" class="categoria-card"><span class="categoria-icone">📷</span><span class="categoria-nome">Fotografia</span></a>
-                <a href="categoria.html?cat=utensilios-cozinha" class="categoria-card"><span class="categoria-icone">🥄</span><span class="categoria-nome">Utensílios de Cozinha</span></a>
-                <a href="categoria.html?cat=viagem" class="categoria-card"><span class="categoria-icone">✈️</span><span class="categoria-nome">Viagem</span></a>
-            </div>
+        <section class="vora-home-two-columns" aria-label="Benefícios da VORA 313">
+            <article class="vora-home-benefit-card buyer">
+                <span class="vora-home-card-icon">🛍️</span><span class="vora-home-kicker">PARA COMPRADORES</span>
+                <h2>Comprar ficou mais simples.</h2>
+                <p>Encontre produtos, compare opções e comece uma compra sem precisar procurar em vários lugares.</p>
+                <ul><li>Pesquisa centralizada de produtos</li><li>Categorias para encontrar mais rápido</li><li>Detalhes, avaliações e disponibilidade quando os dados existem</li><li>Sacola e fluxo de pedido já integrados</li></ul>
+                <a href="#gradeProdutos" class="vora-home-text-link">Começar a comprar →</a>
+            </article>
+            <article class="vora-home-benefit-card seller">
+                <span class="vora-home-card-icon">🏪</span><span class="vora-home-kicker">PARA VENDEDORES</span>
+                <h2>Transforme o seu negócio numa loja online.</h2>
+                <p>Publique produtos, construa a sua loja e alcance compradores dentro do marketplace.</p>
+                <ul><li>Área própria para gerir produtos</li><li>Produtos passam por revisão antes da publicação</li><li>Loja pública para apresentar o seu negócio</li><li>Ferramentas de destaque e gestão já existentes</li></ul>
+                <a href="vendedor.html" class="vora-home-text-link">Quero vender na VORA →</a>
+            </article>
         </section>
 
-        <!-- V30 — CABEÇALHO DA VITRINE -->
-        <section class="v30-vitrine-head" aria-labelledby="tituloVitrine">
-            <div>
-                <span>DESCUBRA O QUE VOCÊ PROCURA</span>
-                <h2 id="tituloVitrine">Todos os produtos</h2>
-                <p>Compare opções, encontre boas ofertas e compre de vendedores da VORA 313.</p>
-            </div>
-            <div class="v30-vitrine-badges">
-                <span>✓ Compra segura</span><span>🚚 Entrega em Angola</span><span>💬 Suporte</span>
-            </div>
+        <section class="vora-home-how" aria-labelledby="tituloComoComprar">
+            <div><span class="vora-home-kicker">COMO COMEÇAR</span><h2 id="tituloComoComprar">Encontre. Escolha. Compre.</h2><p>O caminho para o comprador foi pensado para ser direto.</p></div>
+            <ol><li><b>01</b><span><strong>Pesquise</strong><small>Use a pesquisa ou navegue pelas categorias.</small></span></li><li><b>02</b><span><strong>Escolha</strong><small>Abra o produto e confira preço, descrição e disponibilidade.</small></span></li><li><b>03</b><span><strong>Adicione</strong><small>Coloque o produto na sua sacola.</small></span></li><li><b>04</b><span><strong>Finalize</strong><small>Preencha os dados e acompanhe o pedido.</small></span></li></ol>
         </section>
 
+        <section class="vora-home-final-cta" aria-labelledby="tituloCtaVendedor">
+            <div><span class="vora-home-kicker">TEM UM PRODUTO PARA VENDER?</span><h2 id="tituloCtaVendedor">Coloque o seu negócio na VORA 313.</h2><p>Crie a sua candidatura de vendedor e, depois da aprovação, comece a publicar os seus produtos.</p></div>
+            <a href="vendedor.html" id="homeSellerCta" class="vora-home-btn vora-home-btn-secondary">🏪 Quero vender na VORA</a>
+        </section>
+
+        <!-- VITRINE ORIGINAL: filtros, catálogo e carrinho continuam preservados -->
         <!-- VITRINE COM FILTROS AVANÇADOS -->
         <div class="vitrine-container">
             <button type="button" class="v31-filter-toggle" id="v31FilterToggle" aria-expanded="false" aria-controls="filtrosSidebar">⚙️ Filtros e ordenação <span>⌄</span></button>
             <aside class="filtros-sidebar" id="filtrosSidebar">
                 <h3>Filtrar por</h3>
                 <div class="filtro-preco">
-                    <label for="precoMin">Preço mínimo: <span id="precoMinLabel">0</span> Kz</label>
-                    <input type="range" id="precoMin" min="0" max="500000" value="0" step="1000" />
-                    <label for="precoMax" style="margin-top:10px;">Preço máximo: <span id="precoMaxLabel">500000</span> Kz</label>
-                    <input type="range" id="precoMax" min="0" max="500000" value="500000" step="1000" />
+                    <label for="precoMin">Preço mínimo (Kz)</label>
+                    <input type="number" id="precoMin" min="0" step="100" value="0" inputmode="numeric" placeholder="0" />
+                    <label for="precoMax" style="margin-top:10px;">Preço máximo (Kz)</label>
+                    <input type="number" id="precoMax" min="0" step="100" value="" inputmode="numeric" placeholder="Sem limite" />
+                    <small style="display:block;margin-top:6px;color:#777;">Deixa o máximo vazio para não limitar.</small>
+                </div>
+                <div class="filtro-vendedor" style="margin-top:16px;">
+                    <label for="vendedorFiltro">Vendedor:</label>
+                    <select id="vendedorFiltro">
+                        <option value="">Todos os vendedores</option>
+                    </select>
+                </div>
+                <div class="filtro-disponibilidade" style="margin-top:16px;">
+                    <label for="disponibilidade">Disponibilidade:</label>
+                    <select id="disponibilidade">
+                        <option value="todos">Todos</option>
+                        <option value="disponivel">Em stock</option>
+                        <option value="esgotado">Esgotados</option>
+                    </select>
                 </div>
                 <div class="filtro-avaliacao">
                     <label for="minAvaliacao">Avaliação mínima:</label>
@@ -373,10 +319,11 @@
                 <div class="filtro-ordem" style="margin-top:16px;">
                     <label for="ordenar">Ordenar por:</label>
                     <select id="ordenar">
-                        <option value="ordem">Destaque</option>
+                        <option value="relevancia">Relevância</option>
+                        <option value="mais-recentes">Mais recentes</option>
                         <option value="preco-asc">Menor preço</option>
                         <option value="preco-desc">Maior preço</option>
-                        <option value="nome">Nome A-Z</option>
+                        <option value="melhor-avaliacao">Melhor avaliação</option>
                     </select>
                 </div>
                 <div class="filtro-data" style="margin-top:12px;">
@@ -656,6 +603,7 @@
 
     <!-- SCRIPTS PRINCIPAIS -->
     <script type="module" src="js/app.js?v=45-metricas"></script>
+    <script type="module" src="js/homepage.js?v=1-home-conversao"></script>
     <script type="module" src="js/carrinho.js?v=10"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
     <script type="module" src="js/favoritos.js?v=6"></script>

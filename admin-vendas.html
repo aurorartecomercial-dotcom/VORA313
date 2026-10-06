@@ -105,7 +105,7 @@
 </style>
 
 </head>
-<body>
+<body class="page-standalone page-admin page-admin-vendas">
     <div style="max-width: 1300px; margin: 40px auto; padding: 0 24px;">
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
             <h1 style="color:var(--cor-esmeralda);">📊 Painel de Vendas & Contabilidade</h1>
@@ -397,6 +397,16 @@
                     <button id="btnExportarExcelProdutos" class="btn-admin" style="background:#005A4C;">📊 Exportar Excel</button>
                 </div>
                 <h3 style="color:var(--cor-esmeralda);">🛍️ Análise por Produto</h3>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;margin:0 0 12px;">
+                    <input id="filtroProdutosAdmin" type="search" placeholder="🔎 Produto, ID ou vendedor..." style="padding:9px;border:1px solid #ddd;border-radius:8px;flex:1;min-width:220px;">
+                    <select id="filtroStatusProdutosAdmin" style="padding:9px;border:1px solid #ddd;border-radius:8px;">
+                        <option value="todos">Todos os produtos</option>
+                        <option value="aguardando_aprovacao">Aguardando aprovação</option>
+                        <option value="aprovado">Aprovados</option>
+                        <option value="recusado">Recusados</option>
+                        <option value="oculto">Ocultos</option>
+                    </select>
+                </div>
                 <div class="tabela-scroll">
                     <table id="tabelaProdutos" style="width:100%; border-collapse:collapse; font-size:13px;">
                         <thead><tr style="background:var(--cor-esmeralda); color:#FFF;"><th>ID</th><th>Produto</th><th>Qtd</th><th>Receita</th><th>Custo</th><th>Lucro</th><th>Margem %</th><th>Estoque</th></tr></thead>
@@ -562,6 +572,6 @@
         <div id="conteudoRevisaoProduto" class="revisao-produto-corpo"></div>
     </dialog>
 
-    <script type="module" src="js/admin-vendas.js?v=9-eliminar-produtos"></script>
+    <script type="module" src="js/admin-vendas.js?v=10-admin-seguro"></script>
 </body>
 </html>

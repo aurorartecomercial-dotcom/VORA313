@@ -73,48 +73,9 @@ async function carregarPedidos(uid) {
 
 async function carregarFavoritos() {
     const container = document.getElementById('listaDesejos');
-    const favoritos = JSON.parse(localStorage.getItem('aurora_favoritos') || '[]');
-    if (favoritos.length === 0) {
-        container.innerHTML = '<p style="color:#999; text-align:center; padding:20px;">Nenhum favorito guardado.</p>';
-        return;
-    }
-
-    container.innerHTML = '';
-    for (const id of favoritos) {
-        try {
-            const docRef = doc(db, 'produtos', id);
-            const docSnap = await getDoc(docRef);
-            if (docSnap.exists()) {
-                const prod = docSnap.data();
-                const item = document.createElement('div');
-                item.className = 'favorito-item';
-                const img = document.createElement('img');
-                img.src = imagemProdutoSegura(prod.imagens?.[0], IMAGEM_FALLBACK);
-                img.alt = String(prod.nome || 'Produto');
-                img.addEventListener('error', () => { img.src = IMAGEM_FALLBACK; }, { once: true });
-                const link = document.createElement('a');
-                link.href = `detalhe.html?id=${encodeURIComponent(prod.id || id)}`;
-                link.textContent = String(prod.nome || 'Produto');
-                const button = document.createElement('button');
-                button.type = 'button';
-                button.textContent = '🗑️';
-                button.addEventListener('click', () => window.removerFavorito(prod.id || id));
-                item.append(img, link, button);
-                container.appendChild(item);
-            }
-        } catch (e) {
-            console.warn(`Erro ao carregar produto ${id}:`, e);
-        }
-    }
+    if (!container) return;
+    container.innerHTML = '<p style="color:#666; text-align:center; padding:12px;">Os favoritos agora ficam guardados na tua conta Supabase.</p><a href="meus-favoritos.html" style="display:block;text-align:center;font-weight:700;color:var(--cor-esmeralda);text-decoration:none;padding:8px;">❤️ Abrir Meus favoritos →</a>';
 }
-
-window.removerFavorito = function(id) {
-    let favoritos = JSON.parse(localStorage.getItem('aurora_favoritos') || '[]');
-    favoritos = favoritos.filter(f => f !== id);
-    localStorage.setItem('aurora_favoritos', JSON.stringify(favoritos));
-    mostrarToast('Produto removido dos favoritos.', 'info');
-    carregarFavoritos();
-};
 
 async function carregarPontos(uid) {
     try {

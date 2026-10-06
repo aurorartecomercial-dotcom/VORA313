@@ -1,159 +1,148 @@
-import { db, CONFIG } from './config.js';
-import { collection, getDocs } from './supabase-compat.js';
+import { supabase } from './config.js';
 import { extrairValorNumerico, IMAGEM_FALLBACK, imagemProdutoSegura } from './utils.js';
 import { obterAvaliacao } from './avaliacoes.js';
 import { verificarFavorito } from './favoritos.js';
 import { obterLinkAfiliado } from './fase3.js';
-import { ordenarProdutosMonetizados } from './monetizacao.js';
 
-let cacheMemoria = null;
-let catalogoPromise = null;
 
 function produtoPublico(produto) {
-  return produto?.ativo !== false
-    && produto?.vendedorAtivo !== false
-    && (!produto?.statusAprovacao || produto.statusAprovacao === 'aprovado');
+  return produto?.ativo !== false && produto?.vendedorAtivo !== false && (!produto?.statusAprovacao || produto.statusAprovacao === 'aprovado');
 }
 
-function normalizarProduto(snapshotDoc) {
-  const produto = snapshotDoc.data();
-  return { ...produto, id: String(produto.id || snapshotDoc.id) };
+const pesquisaCache = new Map();
+const pesquisaEmCurso = new Map();
+
+function mapearProdutoSupabase(row) {
+  if (!row) return null;
+  return {
+    id: String(row.id || ''),
+    ordem: Number(row.ordem || 999999),
+    nome: row.nome || '',
+    categoria: row.categoria || '',
+    preco: row.preco || '',
+    precoValor: row.preco_valor,
+    precoAntigo: row.preco_antigo || '',
+    desconto: row.desconto || '',
+    parcelas: row.parcelas || '',
+    freteGratis: row.frete_gratis === true,
+    descricao: row.descricao || '',
+    imagens: Array.isArray(row.imagens) ? row.imagens : [],
+    marca: row.marca || '',
+    sku: row.sku || '',
+    tag: row.tag || '',
+    estoque: Number(row.estoque || 0),
+    vendedorId: row.vendedor_id || '',
+    vendedorNome: row.vendedor_nome || '',
+    vendedorAtivo: true,
+    ativo: true,
+    statusAprovacao: 'aprovado',
+    monetizacao: row.monetizacao || {},
+    criadoEm: row.criado_em || null,
+    atualizadoEm: row.atualizado_em || null,
+    avaliacaoMedia: Number(row.avaliacao_media || 0),
+    avaliacaoTotal: Number(row.avaliacao_total || 0),
+    resumoAvaliacoesCarregado: true
+  };
 }
 
-function normalizarProdutoLocal(produto) {
-  return { ...produto, id: String(produto?.id || '') };
+function chavePesquisa(opcoes = {}) {
+  return JSON.stringify({
+    busca: String(opcoes.busca || '').trim().toLocaleLowerCase(),
+    categoria: String(opcoes.categoria || '').trim(),
+    precoMin: opcoes.precoMin ?? null,
+    precoMax: opcoes.precoMax ?? null,
+    vendedorId: opcoes.vendedorId || null,
+    disponibilidade: opcoes.disponibilidade || 'todos',
+    minAvaliacao: Number(opcoes.minAvaliacao || 0),
+    dataDias: Number(opcoes.dataDias || 0),
+    ordenacao: opcoes.ordenacao || 'relevancia',
+    limite: Math.min(Math.max(Number(opcoes.limite || 20), 1), 50),
+    offset: Math.max(Number(opcoes.offset || 0), 0)
+  });
 }
 
-function revisaoCatalogo() {
-  return localStorage.getItem(`${CONFIG.CACHE_KEY}:revision`) || '0';
-}
+export async function buscarCatalogo(opcoes = {}) {
+  const chave = chavePesquisa(opcoes);
+  if (pesquisaCache.has(chave)) return pesquisaCache.get(chave);
+  if (pesquisaEmCurso.has(chave)) return pesquisaEmCurso.get(chave);
 
-function cacheValido(cache) {
-  return Array.isArray(cache?.data)
-    && cache.data.length > 0
-    && String(cache?.revision || '') === revisaoCatalogo()
-    && Number.isFinite(Number(cache.timestamp))
-    && Date.now() - Number(cache.timestamp) < CONFIG.CACHE_TTL;
-}
-
-async function carregarCatalogoBase() {
-  const resposta = await fetch('produtos.json', { cache: 'no-store' });
-  if (!resposta.ok) throw new Error(`HTTP ${resposta.status}`);
-  const dados = await resposta.json();
-  if (!Array.isArray(dados)) throw new Error('produtos.json não contém uma lista de produtos.');
-  return dados.map(normalizarProdutoLocal);
-}
-
-async function carregarCatalogoSupabase() {
-  const snapshot = await getDocs(collection(db, 'produtos'));
-  return snapshot.docs.map(normalizarProduto);
-}
-
-function combinarCatalogos(produtosBase, produtosSupabase) {
-  // Os produtos-base mantêm a loja disponível durante a migração. Um produto
-  // com o mesmo ID no Supabase substitui a sua versão local.
-  const porId = new Map();
-  produtosBase.forEach((produto) => porId.set(String(produto.id), produto));
-  produtosSupabase.forEach((produto) => porId.set(String(produto.id), produto));
-  return [...porId.values()];
-}
-
-async function buscarCatalogoAtual() {
-  const [base, remoto] = await Promise.allSettled([
-    carregarCatalogoBase(),
-    carregarCatalogoSupabase()
-  ]);
-
-  const produtosBase = base.status === 'fulfilled' ? base.value : [];
-  const produtosSupabase = remoto.status === 'fulfilled' ? remoto.value : [];
-  if (!produtosBase.length && remoto.status === 'rejected') throw remoto.reason;
-  if (!produtosBase.length && !produtosSupabase.length) throw new Error('Nenhum produto foi encontrado.');
-
-  const produtos = combinarCatalogos(produtosBase, produtosSupabase).filter(produtoPublico);
-  return ordenarProdutosMonetizados(await aplicarResumoAvaliacoes(produtos));
-}
-
-async function aplicarResumoAvaliacoes(produtos) {
-  try {
-    const resumo = await getDocs(collection(db, 'produtoAvaliacoesResumo'));
-    const porProduto = new Map(resumo.docs.map((doc) => {
-      const dados = doc.data();
-      return [String(dados.produtoId || doc.id), dados];
-    }));
-    return produtos.map((produto) => {
-      const dados = porProduto.get(String(produto.id));
-      return {
-        ...produto,
-        avaliacaoMedia: Number(dados?.media || 0),
-        avaliacaoTotal: Number(dados?.total || 0),
-        resumoAvaliacoesCarregado: true
-      };
+  const entrada = JSON.parse(chave);
+  const promise = (async () => {
+    const { data, error } = await supabase.rpc('buscar_catalogo_publico', {
+      p_busca: entrada.busca,
+      p_categoria: entrada.categoria === 'todos' ? '' : entrada.categoria,
+      p_preco_min: Number.isFinite(Number(entrada.precoMin)) ? Number(entrada.precoMin) : null,
+      p_preco_max: Number.isFinite(Number(entrada.precoMax)) ? Number(entrada.precoMax) : null,
+      p_vendedor_id: entrada.vendedorId || null,
+      p_disponibilidade: entrada.disponibilidade,
+      p_min_avaliacao: entrada.minAvaliacao,
+      p_data_dias: entrada.dataDias,
+      p_ordenacao: entrada.ordenacao,
+      p_limite: entrada.limite,
+      p_offset: entrada.offset
     });
-  } catch (_) {
-    // A página continua funcional caso a view ainda não tenha sido publicada.
-    return produtos;
-  }
+    if (error) throw error;
+    const rows = Array.isArray(data) ? data : [];
+    const produtos = rows.map(mapearProdutoSupabase).filter(Boolean);
+    const total = Number(rows[0]?.total_resultados || 0);
+    const resultado = { produtos, total, offset: entrada.offset, limite: entrada.limite };
+    pesquisaCache.set(chave, resultado);
+    return resultado;
+  })();
+  pesquisaEmCurso.set(chave, promise);
+  try { return await promise; }
+  finally { pesquisaEmCurso.delete(chave); }
+}
+
+export async function obterProdutoPublico(id) {
+  const produtoId = String(id || '').trim();
+  if (!produtoId) return null;
+  const { data, error } = await supabase
+    .from('produtos')
+    .select('id,ordem,nome,categoria,preco,preco_valor,preco_antigo,desconto,parcelas,frete_gratis,descricao,imagens,marca,sku,tag,estoque,vendedor_id,vendedor_nome,monetizacao,criado_em,atualizado_em')
+    .eq('id', produtoId)
+    .eq('ativo', true)
+    .eq('vendedor_ativo', true)
+    .eq('status_aprovacao', 'aprovado')
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const { data: resumo, error: erroResumo } = await supabase
+    .from('produto_avaliacoes_resumo')
+    .select('media,total')
+    .eq('produto_id', produtoId)
+    .maybeSingle();
+  if (erroResumo) console.warn('Resumo de avaliação indisponível:', erroResumo);
+  return mapearProdutoSupabase({ ...data, avaliacao_media: resumo?.media || 0, avaliacao_total: resumo?.total || 0 });
+}
+
+export async function obterVendedoresPublicos() {
+  const { data, error } = await supabase
+    .from('lojas_publicas')
+    .select('id,nome_loja,categoria')
+    .order('nome_loja', { ascending: true });
+  if (error) throw error;
+  return Array.isArray(data) ? data : [];
 }
 
 export async function carregarCatalogo(opcoes = {}) {
-  const force = opcoes?.force === true;
-  if (force) {
-    cacheMemoria = null;
-    catalogoPromise = null;
-  }
-  if (cacheMemoria) return cacheMemoria;
-  if (catalogoPromise) return catalogoPromise;
-  catalogoPromise = (async () => {
-    try {
-      const cache = JSON.parse(localStorage.getItem(CONFIG.CACHE_KEY) || 'null');
-      if (cacheValido(cache)) {
-        cacheMemoria = ordenarProdutosMonetizados(cache.data.filter(produtoPublico));
-        atualizarDoSupabase();
-        return cacheMemoria;
-      }
-    } catch (_) {}
-    try {
-      cacheMemoria = await buscarCatalogoAtual();
-      salvarCache(cacheMemoria);
-      return cacheMemoria;
-    } catch (error) {
-      console.warn('Falha ao buscar catálogo:', error);
-      // Fallback local: a loja continua a apresentar o catálogo-base mesmo
-      // quando o Supabase está temporariamente indisponível.
-      try {
-        const locais = await carregarCatalogoBase();
-        if (locais.length) {
-          cacheMemoria = ordenarProdutosMonetizados(locais.filter(produtoPublico));
-          salvarCache(cacheMemoria);
-          return cacheMemoria;
-        }
-      } catch (fallbackError) {
-        console.warn('Fallback local do catálogo também falhou:', fallbackError);
-      }
-      return [];
-    }
-  })();
-  return catalogoPromise;
-}
-
-function salvarCache(produtos) {
-  localStorage.setItem(CONFIG.CACHE_KEY, JSON.stringify({ data: produtos, revision: revisaoCatalogo(), timestamp: Date.now() }));
-}
-
-window.addEventListener('storage', (event) => {
-  if (event.key === `${CONFIG.CACHE_KEY}:revision`) {
-    cacheMemoria = null;
-    catalogoPromise = null;
-    atualizarDoSupabase();
-  }
-});
-
-async function atualizarDoSupabase() {
-  try {
-    cacheMemoria = await buscarCatalogoAtual();
-    salvarCache(cacheMemoria);
-    window.dispatchEvent(new CustomEvent('vora313:catalogo-atualizado', { detail: { total: cacheMemoria.length } }));
-  } catch (_) {}
+  // Compatibilidade com páginas antigas: nunca mais descarrega o catálogo
+  // inteiro. Quem precisa de pesquisa/filtros deve usar buscarCatalogo().
+  const limite = Math.min(Math.max(Number(opcoes?.limite || 50), 1), 50);
+  const resultado = await buscarCatalogo({
+    busca: opcoes?.busca || '',
+    categoria: opcoes?.categoria || '',
+    precoMin: opcoes?.precoMin ?? null,
+    precoMax: opcoes?.precoMax ?? null,
+    vendedorId: opcoes?.vendedorId || null,
+    disponibilidade: opcoes?.disponibilidade || 'todos',
+    minAvaliacao: Number(opcoes?.minAvaliacao || 0),
+    dataDias: Number(opcoes?.dataDias || 0),
+    ordenacao: opcoes?.ordenacao || 'relevancia',
+    limite,
+    offset: Number(opcoes?.offset || 0)
+  });
+  return resultado.produtos;
 }
 
 function elemento(tag, texto, classe = '') {
@@ -232,7 +221,9 @@ export function criarCardProduto(produto) {
   const favorito = elemento('button', verificarFavorito(prod.id) ? '♥' : '♡', `btn-favorito${verificarFavorito(prod.id) ? ' ativo' : ''}`);
   favorito.type = 'button';
   favorito.dataset.produtoId = prod.id;
-  favorito.setAttribute('aria-label', 'Adicionar aos favoritos');
+  favorito.setAttribute('aria-label', verificarFavorito(prod.id) ? 'Remover produto dos favoritos' : 'Adicionar produto aos favoritos');
+  favorito.setAttribute('aria-pressed', verificarFavorito(prod.id) ? 'true' : 'false');
+  favorito.title = verificarFavorito(prod.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos';
   card.append(favorito);
 
   const acoes = elemento('div', null, 'acoes-produto');

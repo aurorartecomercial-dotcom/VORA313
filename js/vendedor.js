@@ -14,7 +14,8 @@ let levantamentos = [];
 let destaques = [];
 let videos = [];
 let videoPreviewUrl = '';
-let avaliacaoDaLoja = { media: 0, total: 0 };
+let dashboardOperacional = { estado: 'loading', dados: null, erro: '' };
+const secoesCarregadas = { videos: false, financas: false, promocoes: false };
 let viewAtual = 'resumo';
 let modoRecuperacao = /(?:^|[?&#])type=recovery(?:&|#|$)/.test(location.href) || new URLSearchParams(location.search).has('code');
 
@@ -262,43 +263,51 @@ async function lerColecao(nome, filtros = []) {
 async function carregarDadosLoja() {
   const vendedorId = auth.currentUser?.id;
   if (!vendedorId) return;
+  dashboardOperacional = { estado: 'loading', dados: null, erro: '' };
+  secoesCarregadas.videos = false;
+  secoesCarregadas.financas = false;
+  secoesCarregadas.promocoes = false;
   const resultados = await Promise.allSettled([
     lerColecao('produtos', [where('vendedorId', '==', vendedorId)]),
     lerColecao('vendasVendedor', [where('uidVendedor', '==', vendedorId)]),
-    lerColecao('movimentosVendedores', [where('uidVendedor', '==', vendedorId)]),
-    lerColecao('levantamentos', [where('uidVendedor', '==', vendedorId)]),
-    lerColecao('destaquesSolicitados', [where('uidVendedor', '==', vendedorId)]),
-    supabase.from('videos_vendedores').select('*').eq('vendedor_id', vendedorId).order('criado_em', { ascending: false })
+    call('obterDashboardVendedor')()
   ]);
-  const nomes = ['produtos', 'pedidos', 'movimentos', 'levantamentos', 'destaques', 'videos'];
+  const nomes = ['produtos', 'pedidos', 'dashboard'];
   const falhas = [];
   resultados.forEach((resultado, indice) => {
     if (resultado.status === 'fulfilled') {
       if (nomes[indice] === 'produtos') produtos = resultado.value;
       if (nomes[indice] === 'pedidos') pedidos = resultado.value;
-      if (nomes[indice] === 'movimentos') movimentos = resultado.value;
-      if (nomes[indice] === 'levantamentos') levantamentos = resultado.value;
-      if (nomes[indice] === 'destaques') destaques = resultado.value;
-      if (nomes[indice] === 'videos') videos = Array.isArray(resultado.value?.data) ? resultado.value.data : [];
+      if (nomes[indice] === 'dashboard') dashboardOperacional = { estado: 'ready', dados: resultado.value?.data || resultado.value || null, erro: '' };
+    } else if (nomes[indice] === 'dashboard') {
+      dashboardOperacional = { estado: 'error', dados: null, erro: erroTexto(resultado.reason) };
     } else falhas.push(nomes[indice]);
   });
   if (falhas.length) mensagem(`Alguns dados não puderam ser atualizados agora: ${falhas.join(', ')}. Atualize a página dentro de instantes.`, false);
-  await carregarAvaliacaoDaLoja();
 }
 
-async function carregarAvaliacaoDaLoja() {
-  avaliacaoDaLoja = { media: 0, total: 0 };
-  const ids = produtos.map((produto) => String(produto.id || '')).filter(Boolean);
-  if (!ids.length) return;
-  const { data, error } = await supabase
-    .from('produto_avaliacoes_resumo')
-    .select('produto_id,media,total')
-    .in('produto_id', ids);
-  if (error) return;
-  const resumo = data || [];
-  const total = resumo.reduce((soma, item) => soma + Number(item.total || 0), 0);
-  const somaNotas = resumo.reduce((soma, item) => soma + Number(item.media || 0) * Number(item.total || 0), 0);
-  avaliacaoDaLoja = { media: total ? somaNotas / total : 0, total };
+async function carregarSecaoVendedor(nome) {
+  const vendedorId = auth.currentUser?.id;
+  if (!vendedorId) return;
+  if (nome === 'videos' && !secoesCarregadas.videos) {
+    const { data, error } = await supabase.from('videos_vendedores').select('id,titulo,descricao,video_url,produto_id,mime_type,tamanho_bytes,duracao_segundos,visualizacoes,curtidas,status,criado_em,atualizado_em,motivo_recusa,revisado_em,revisado_por_email').eq('vendedor_id', vendedorId).order('criado_em', { ascending: false }).limit(20);
+    if (error) throw error;
+    videos = Array.isArray(data) ? data : [];
+    secoesCarregadas.videos = true;
+  }
+  if (nome === 'financas' && !secoesCarregadas.financas) {
+    const [mov, lev] = await Promise.all([
+      lerColecao('movimentosVendedores', [where('uidVendedor', '==', vendedorId)]),
+      lerColecao('levantamentos', [where('uidVendedor', '==', vendedorId)])
+    ]);
+    movimentos = mov;
+    levantamentos = lev;
+    secoesCarregadas.financas = true;
+  }
+  if (nome === 'promocoes' && !secoesCarregadas.promocoes) {
+    destaques = await lerColecao('destaquesSolicitados', [where('uidVendedor', '==', vendedorId)]);
+    secoesCarregadas.promocoes = true;
+  }
 }
 
 async function carregarCentral() {
@@ -316,7 +325,7 @@ async function carregarCentral() {
   alterarVisibilidade('vendAuth', false);
   alterarVisibilidade('vendRecuperacao', false);
   alterarVisibilidade('vendDashboard', true);
-  produtos = []; pedidos = []; movimentos = []; levantamentos = []; destaques = []; videos = []; avaliacaoDaLoja = { media: 0, total: 0 };
+  produtos = []; pedidos = []; movimentos = []; levantamentos = []; destaques = []; videos = []; dashboardOperacional = { estado: 'loading', dados: null, erro: '' };
   await carregarDadosLoja();
   renderizarCentral();
   abrirView(viewAtual, true);
@@ -453,20 +462,31 @@ function valorPedido(pedido) {
 }
 
 function renderizarResumo() {
-  const publicados = produtos.filter((produto) => estadoProduto(produto) === 'aprovado').length;
-  const emAprovacao = produtos.filter((produto) => estadoProduto(produto) === 'aguardando_aprovacao').length;
-  const faturamento = pedidos.reduce((soma, pedido) => soma + valorPedido(pedido), 0);
+  const kpis = dashboardOperacional.dados?.kpis || {};
   const grade = document.querySelector('#viewResumo .seller-kpi-grid');
   grade?.classList.add('seller-kpi-grid-dashboard');
-  if (grade) grade.innerHTML = '<article><span>Produtos</span><strong id="kpiProdutos">—</strong><small id="kpiProdutosAjuda">A carregar</small></article><article><span>Em aprovação</span><strong id="kpiEmAprovacao">—</strong><small>A aguardar validação</small></article><article><span>Pedidos</span><strong id="kpiPedidos">—</strong><small>Vendas registadas</small></article><article><span>Faturamento</span><strong id="kpiFaturamento">—</strong><small>Valor das vendas</small></article><article><span>Saldo disponível</span><strong id="kpiSaldo">—</strong><small>Elegível para levantamento</small></article><article><span>Avaliações</span><strong id="kpiAvaliacao">—</strong><small id="kpiAvaliacaoAjuda">A carregar avaliações</small></article>';
-  setTexto('kpiProdutos', produtos.length);
-  setTexto('kpiProdutosAjuda', `${publicados} publicado${publicados === 1 ? '' : 's'}`);
-  setTexto('kpiEmAprovacao', emAprovacao);
-  setTexto('kpiPedidos', pedidos.length);
-  setTexto('kpiFaturamento', moeda(faturamento));
-  setTexto('kpiSaldo', moeda(vendedor.saldoDisponivel));
-  setTexto('kpiAvaliacao', avaliacaoDaLoja.total ? `${avaliacaoDaLoja.media.toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : '—');
-  setTexto('kpiAvaliacaoAjuda', avaliacaoDaLoja.total ? `${avaliacaoDaLoja.total} avaliação${avaliacaoDaLoja.total === 1 ? '' : 'ões'} verificada${avaliacaoDaLoja.total === 1 ? '' : 's'}` : 'Ainda sem avaliações verificadas');
+  if (dashboardOperacional.estado === 'loading') {
+    if (grade) grade.innerHTML = '<article class="is-loading"><span>Vendas</span><strong>…</strong><small>A carregar dados reais</small></article>'.repeat(8);
+  } else if (dashboardOperacional.estado === 'error') {
+    if (grade) grade.innerHTML = '<article class="seller-dashboard-state seller-dashboard-error"><strong>Não foi possível carregar o resumo operacional.</strong><small>Os dados detalhados continuam disponíveis nas áreas abaixo. Tente atualizar a página.</small></article>';
+  } else if (grade) {
+    grade.innerHTML = `<article><span>Vendas</span><strong>${escapeHTML(Number(kpis.vendas || 0).toLocaleString('pt-AO'))}</strong><small>Pedidos com pagamento confirmado</small></article><article><span>Receita</span><strong>${escapeHTML(moeda(kpis.receita))}</strong><small>Valor líquido do vendedor</small></article><article><span>Pedidos pendentes</span><strong>${escapeHTML(Number(kpis.pedidosPendentes || 0).toLocaleString('pt-AO'))}</strong><small>Pago, preparação ou envio</small></article><article><span>Produtos ativos</span><strong>${escapeHTML(Number(kpis.produtosAtivos || 0).toLocaleString('pt-AO'))}</strong><small>Publicados na loja</small></article><article><span>Produtos ocultos</span><strong>${escapeHTML(Number(kpis.produtosOcultos || 0).toLocaleString('pt-AO'))}</strong><small>Aprovados, mas fora da vitrine</small></article><article><span>Sem estoque</span><strong>${escapeHTML(Number(kpis.produtosSemEstoque || 0).toLocaleString('pt-AO'))}</strong><small>Produtos ativos com estoque 0</small></article><article><span>Avaliações</span><strong>${kpis.avaliacoesTotal ? `${Number(kpis.avaliacaoMedia || 0).toLocaleString('pt-AO', { minimumFractionDigits: 1, maximumFractionDigits: 1 })} ★` : '—'}</strong><small>${kpis.avaliacoesTotal ? `${Number(kpis.avaliacoesTotal).toLocaleString('pt-AO')} avaliações verificadas` : 'Ainda sem avaliações verificadas'}</small></article><article><span>Visualizações</span><strong>${escapeHTML(Number(kpis.visualizacoesProdutos || 0).toLocaleString('pt-AO'))}</strong><small>Tracking real de produtos</small></article>`;
+  }
+  renderizarPainelOperacional();
+  const fonte = $('dashboardFonteDados');
+  if (fonte) {
+    fonte.className = `seller-dashboard-source ${dashboardOperacional.estado === 'error' ? 'is-error' : dashboardOperacional.estado === 'loading' ? 'is-loading' : ''}`;
+    fonte.textContent = dashboardOperacional.estado === 'ready'
+      ? `Dados reais do Supabase · atualizado em ${dataHora(dashboardOperacional.dados?.geradoEm)}`
+      : dashboardOperacional.estado === 'error'
+        ? `Não foi possível atualizar o resumo operacional agora. ${dashboardOperacional.erro || ''}`
+        : 'Dados do Supabase · a carregar métricas reais…';
+  }
+  const lojaLink = `loja.html?id=${encodeURIComponent(vendedor.id)}`;
+  const linkAvaliacoes = `${lojaLink}#avaliacoesLoja`;
+  if ($('btnVerAvaliacoes')) $('btnVerAvaliacoes').href = linkAvaliacoes;
+  if ($('btnAtalhoAvaliacoes')) $('btnAtalhoAvaliacoes').href = linkAvaliacoes;
+  if ($('btnAtalhoLoja')) $('btnAtalhoLoja').href = lojaLink;
   setTexto('navProdutosCount', produtos.length);
   setTexto('navPedidosCount', pedidos.length);
   const logo = urlSegura(perfilPublico().logoUrl, '');
@@ -476,11 +496,55 @@ function renderizarResumo() {
   $('resumoPedidos').innerHTML = recentes.length ? recentes.map((pedido) => linhaPedido(pedido)).join('') : vazio('Ainda não há pedidos registados para esta loja.');
 }
 
+function renderizarPainelOperacional() {
+  const d = dashboardOperacional.dados || {};
+  const alertas = Array.isArray(d.alertas) ? d.alertas : [];
+  const vendidos = Array.isArray(d.produtosMaisVendidos) ? d.produtosMaisVendidos : [];
+  const vistos = Array.isArray(d.produtosMaisVistos) ? d.produtosMaisVistos : [];
+  const avaliacoes = Array.isArray(d.avaliacoesRecentes) ? d.avaliacoesRecentes : [];
+  const alertasBox = $('dashboardAlertas');
+  const vendidosBox = $('dashboardMaisVendidos');
+  const vistosBox = $('dashboardMaisVistos');
+  const avaliacoesBox = $('dashboardAvaliacoes');
+  if (!alertasBox || !vendidosBox || !vistosBox || !avaliacoesBox) return;
+  alertasBox.innerHTML = alertas.length ? alertas.map((item) => `<button type="button" class="seller-alert seller-alert-${escapeHTML(item.nivel || 'informacao')}" data-go="${escapeHTML(item.acao || 'produtos')}"><span>${escapeHTML(item.nivel === 'urgente' ? '⚠️' : item.nivel === 'atencao' ? '🔔' : 'ℹ️')}</span><div><strong>${escapeHTML(item.titulo || 'Alerta')}</strong><small>${escapeHTML(item.descricao || '')}${Number(item.quantidade || 0) ? ` · ${Number(item.quantidade).toLocaleString('pt-AO')}` : ''}</small></div></button>`).join('') : vazio('Nenhum alerta operacional no momento.');
+  vendidosBox.innerHTML = vendidos.length ? vendidos.map((item, i) => `<div class="seller-ranking-row"><b>${i + 1}</b><div><strong>${escapeHTML(item.nome || 'Produto')}</strong><small>${Number(item.quantidadeVendida || 0).toLocaleString('pt-AO')} unidade${Number(item.quantidadeVendida || 0) === 1 ? '' : 's'}</small></div><span>${escapeHTML(moeda(item.receita))}</span></div>`).join('') : vazio('Ainda não há vendas pagas suficientes para formar este ranking.');
+  vistosBox.innerHTML = vistos.length ? vistos.map((item, i) => `<div class="seller-ranking-row"><b>${i + 1}</b><div><strong>${escapeHTML(item.nome || 'Produto')}</strong><small>${Number(item.visualizacoes || 0).toLocaleString('pt-AO')} visualização${Number(item.visualizacoes || 0) === 1 ? '' : 'ões'} únicas</small></div><span>👁️</span></div>`).join('') : vazio('Não há visualizações registadas pelo tracking de produtos.');
+  avaliacoesBox.innerHTML = avaliacoes.length ? avaliacoes.map((item) => `<article class="seller-review-mini"><strong>${'★'.repeat(Number(item.nota || 0))}${'☆'.repeat(Math.max(0, 5 - Number(item.nota || 0)))}</strong><p>${escapeHTML(item.comentario || 'Cliente deixou apenas a nota.')}</p><small>${escapeHTML(dataHora(item.data))}</small></article>`).join('') : vazio('Ainda não existem avaliações verificadas da loja.');
+}
+
 function vazio(texto) { return `<div class="seller-empty">${escapeHTML(texto)}</div>`; }
+
+function proximoEstadoVendedor(status) {
+  return ({ pago: 'em_preparacao', em_preparacao: 'enviado', enviado: 'entregue' })[status] || '';
+}
+
+function textoAcaoEstadoVendedor(status) {
+  return ({ pago: '📦 Preparar pedido', em_preparacao: '🚚 Marcar como enviado', enviado: '🏠 Confirmar entrega' })[status] || '';
+}
 
 function linhaPedido(pedido) {
   const status = String(pedido.status || 'aguardando_pagamento');
-  return `<div class="seller-row"><div><strong>${escapeHTML(pedido.codigoRastreio || pedido.codigo_rastreio || pedido.id || 'Pedido')}</strong><small>${escapeHTML(pedido.produtosResumo || pedido.produtos_resumo || 'Produtos da loja')} · ${escapeHTML(dataHora(pedido.criadoEm || pedido.criado_em))}</small></div><div><span class="seller-chip ${classeEstado(status)}">${escapeHTML(nomeEstado(status))}</span><b>${escapeHTML(moeda(valorPedido(pedido)))}</b></div></div>`;
+  const proximo = proximoEstadoVendedor(status);
+  const acao = proximo
+    ? `<button class="seller-btn seller-btn-quiet seller-pedido-acao" type="button" data-avancar-pedido="${escapeHTML(pedido.codigoRastreio || pedido.codigo_rastreio || '')}" data-avancar-status="${proximo}">${textoAcaoEstadoVendedor(status)}</button>`
+    : '';
+  return `<div class="seller-row seller-pedido-row"><div><strong>${escapeHTML(pedido.codigoRastreio || pedido.codigo_rastreio || pedido.id || 'Pedido')}</strong><small>${escapeHTML(pedido.produtosResumo || pedido.produtos_resumo || 'Produtos da loja')} · ${escapeHTML(dataHora(pedido.criadoEm || pedido.criado_em))}</small></div><div class="seller-pedido-meta"><span class="seller-chip ${classeEstado(status)}">${escapeHTML(nomeEstado(status))}</span><b>${escapeHTML(moeda(valorPedido(pedido)))}</b>${acao}</div></div>`;
+}
+
+async function atualizarPedidoVendedor(codigoRastreio, status) {
+  if (!codigoRastreio || !status) return;
+  const mensagens = { em_preparacao: 'Colocar o pedido em preparação?', enviado: 'Marcar o pedido como enviado?', entregue: 'Confirmar que o pedido foi entregue?' };
+  if (!window.confirm(mensagens[status] || 'Atualizar o estado deste pedido?')) return;
+  try {
+    await call('atualizarEstadoPedidoVendedor')({ codigoRastreio, status });
+    mensagem(`Pedido ${codigoRastreio} atualizado para ${nomeEstado(status)}.`);
+    await carregarDadosLoja();
+    renderizarCentral();
+    abrirView('pedidos', true);
+  } catch (erro) {
+    mensagem(erroTexto(erro), false);
+  }
 }
 
 function renderizarProdutos() {
@@ -810,8 +874,14 @@ function abrirView(nome, silencioso = false) {
   $('sellerSidebar').classList.remove('open');
   $('btnMenuVendedor').setAttribute('aria-expanded', 'false');
   if (nome === 'produtos') renderizarProdutos();
-  if (nome === 'videos') renderizarVideos();
   if (nome === 'pedidos') renderizarPedidos();
+  if (['videos', 'financas', 'promocoes'].includes(nome)) {
+    carregarSecaoVendedor(nome).then(() => {
+      if (nome === 'videos') renderizarVideos();
+      if (nome === 'financas') renderizarFinancas();
+      if (nome === 'promocoes') renderizarPromocoes();
+    }).catch((erro) => mensagem(`Não foi possível carregar ${nome}: ${erroTexto(erro)}`, false));
+  }
 }
 
 async function enviarCadastro(evento) {
@@ -1111,16 +1181,20 @@ function ligarEventos() {
   document.addEventListener('click', (evento) => {
     const nav = evento.target.closest('[data-view]');
     const ir = evento.target.closest('[data-go]');
+    const novoProduto = evento.target.closest('[data-go-novo-produto]');
     const editar = evento.target.closest('[data-editar-produto]');
     const destacar = evento.target.closest('[data-destacar-produto]');
     const alternar = evento.target.closest('[data-alternar-produto]');
     const eliminarVideoBotao = evento.target.closest('[data-eliminar-video]');
     if (nav) abrirView(nav.dataset.view);
+    if (novoProduto) { abrirView('produtos'); abrirEditorProduto(); }
     if (ir) abrirView(ir.dataset.go);
     if (editar) { const produto = produtos.find((item) => String(item.id) === String(editar.dataset.editarProduto)); if (produto) { abrirView('produtos'); abrirEditorProduto(produto); } }
-    if (destacar) { abrirView('promocoes'); $('vendProdutoDestaque').value = destacar.dataset.destacarProduto; }
+    if (destacar) { abrirView('promocoes'); carregarSecaoVendedor('promocoes').then(() => { renderizarPromocoes(); if ($('vendProdutoDestaque')) $('vendProdutoDestaque').value = destacar.dataset.destacarProduto; }).catch((erro) => mensagem(erroTexto(erro), false)); }
     if (alternar) alterarDisponibilidadeProduto(alternar.dataset.alternarProduto, alternar.dataset.produtoAtivo === 'true');
+    const avancarPedido = evento.target.closest('[data-avancar-pedido]');
     if (eliminarVideoBotao) eliminarVideo(eliminarVideoBotao.dataset.eliminarVideo);
+    if (avancarPedido) atualizarPedidoVendedor(avancarPedido.dataset.avancarPedido, avancarPedido.dataset.avancarStatus);
   });
 }
 

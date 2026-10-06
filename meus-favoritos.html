@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meus favoritos — VORA 313</title>
+  <meta name="description" content="Produtos e lojas favoritos da sua conta VORA 313." />
+  <link rel="icon" type="image/png" href="logo-vora-313.png" />
+  <link rel="stylesheet" href="style.css?v=44" />
+</head>
+<body class="page-standalone page-favoritos">
+  <header class="header-principal" role="banner">
+    <div class="header-top">
+      <a href="index.html" class="logo" aria-label="Voltar para a VORA 313"><img src="logo-vora-313.png" alt="VORA 313"><span class="logo-wordmark">VORA <span>313</span></span></a>
+      <div class="header-icones"><a href="perfil.html" class="btn-entrar" style="text-decoration:none">👤 Minha conta</a></div>
+    </div>
+  </header>
+  <main class="favoritos-page">
+    <div class="favoritos-page-header">
+      <div><h1>❤️ Meus favoritos</h1><p>Os produtos e lojas que guardaste na tua conta.</p></div>
+      <a href="index.html" class="btn-perfil" style="display:inline-block;text-decoration:none">Continuar a comprar</a>
+    </div>
+    <div class="favoritos-tabs" role="tablist" aria-label="Tipo de favorito">
+      <button class="favoritos-tab ativo" type="button" data-tipo="todos">Todos</button>
+      <button class="favoritos-tab" type="button" data-tipo="produtos">Produtos</button>
+      <button class="favoritos-tab" type="button" data-tipo="lojas">Lojas</button>
+    </div>
+    <section id="meusFavoritosLista" class="favoritos-lista" aria-live="polite"><div class="favorito-loading">⏳ A carregar os teus favoritos...</div></section>
+  </main>
+  <script type="module" src="js/meus-favoritos.js?v=1"></script>
+</body>
+</html>

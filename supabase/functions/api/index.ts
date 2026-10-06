@@ -601,90 +601,30 @@ async function iniciarPagamentoPedido(req: Request, input: any) {
   }
   const idempotencyKey = chaveRecebida || code('PAY');
 
-  const { data: pedido, error: pedidoErro } = await db
-    .from('vendas')
-    .select('id,uid_cliente,codigo_rastreio,numero_fatura,status,valor_total,expira_em,pagamento')
-    .eq('id', pedidoId)
-    .eq('uid_cliente', user.id)
-    .maybeSingle();
-  if (pedidoErro) throw pedidoErro;
-  if (!pedido) err('Pedido não encontrado.', 'not_found');
-  if (pedido.status !== 'aguardando_pagamento') {
-    err('Este pedido já não está disponível para pagamento.', 'failed_precondition');
-  }
-  if (pedido.expira_em && new Date(pedido.expira_em).getTime() < Date.now()) {
-    err('Este pedido expirou. Crie um novo pedido.', 'failed_precondition');
-  }
-
-  const { data: existente, error: existenteErro } = await db
-    .from('pagamentos')
-    .select('*')
-    .eq('venda_id', pedido.id)
-    .eq('idempotency_key', idempotencyKey)
-    .maybeSingle();
-  if (existenteErro) throw existenteErro;
-  if (existente) return respostaPagamento(existente);
-
   // Nesta primeira fase só o fluxo manual é disponibilizado. A integração
-  // automática será ligada quando a VORA tiver o contrato/credenciais do banco
-  // ou gateway; não é seguro inventar uma referência ou confirmação.
+  // automática permanece intacta e será ligada apenas quando existir gateway
+  // e credenciais reais configurados no backend.
   if (metodo !== 'transferencia_manual') {
     err('Este método ainda está em ativação pela VORA 313. Escolha transferência manual ou tente novamente quando o gateway estiver ativo.', 'not_configured');
   }
 
-  const agora = new Date().toISOString();
-  const { data: criado, error: criarErro } = await db
-    .from('pagamentos')
-    .insert({
-      venda_id: pedido.id,
-      uid_cliente: user.id,
-      codigo_rastreio: pedido.codigo_rastreio,
-      numero_fatura: pedido.numero_fatura,
-      valor: Number(pedido.valor_total),
-      moeda: 'AOA',
-      metodo,
-      provedor: 'manual',
-      referencia: pedido.numero_fatura,
-      status: 'aguarda_comprovativo',
-      expira_em: pedido.expira_em || null,
-      idempotency_key: idempotencyKey,
-      metadados: { criadoVia: 'checkout_web', criadoEm: agora }
-    })
-    .select('*')
-    .single();
-  if (criarErro) {
-    if (criarErro.code === '23505') {
-      const { data: repetido, error: repetidoErro } = await db
-        .from('pagamentos').select('*').eq('venda_id', pedido.id).eq('idempotency_key', idempotencyKey).maybeSingle();
-      if (repetidoErro) throw repetidoErro;
-      if (repetido) return respostaPagamento(repetido);
+  const { data, error } = await db.rpc('iniciar_pagamento_vora', {
+    p_venda_id: pedidoId,
+    p_uid_cliente: user.id,
+    p_metodo: metodo,
+    p_idempotency_key: idempotencyKey
+  });
+  if (error) {
+    const mensagem = String(error.message || '');
+    if (/não encontrado/i.test(mensagem)) err('Pedido não encontrado.', 'not_found');
+    if (/já não está disponível|expirou|método|chave|pagamento inválido|não pertence/i.test(mensagem)) {
+      err(mensagem, 'failed_precondition');
     }
-    throw criarErro;
+    throw error;
   }
 
-  const { error: eventoErro } = await db.from('pagamentos_eventos').insert({
-    pagamento_id: criado.id,
-    uid_cliente: user.id,
-    origem: 'cliente',
-    tipo: 'comprovativo_solicitado',
-    detalhes: { metodo, referencia: pedido.numero_fatura }
-  });
-  if (eventoErro) throw eventoErro;
-
-  const { error: vendaErro } = await db.from('vendas').update({
-    pagamento: {
-      ...(pedido.pagamento || {}),
-      metodo,
-      status: 'aguarda_comprovativo',
-      pagamentoId: criado.id,
-      referencia: pedido.numero_fatura,
-      atualizadoEm: agora
-    },
-    atualizado_em: agora
-  }).eq('id', pedido.id).eq('uid_cliente', user.id);
-  if (vendaErro) throw vendaErro;
-
-  return respostaPagamento(criado);
+  const pagamento = data?.pagamento || data;
+  return respostaPagamento(pagamento);
 }
 
 async function consultarPagamentoPedido(req: Request, input: any) {
@@ -708,31 +648,70 @@ async function listarMeusPedidos(req: Request) {
   if (vendasErro) throw vendasErro;
   const ids = (vendas || []).map((venda: any) => venda.id);
   if (!ids.length) return { pedidos: [] };
-  const [{ data: itens, error: itensErro }, { data: pagamentos, error: pagamentosErro }] = await Promise.all([
+  const [{ data: itens, error: itensErro }, { data: pagamentos, error: pagamentosErro }, { data: historico, error: historicoErro }] = await Promise.all([
     db.from('venda_itens').select('*').in('venda_id', ids),
-    db.from('pagamentos').select('id,venda_id,metodo,provedor,status,referencia,valor,moeda,expira_em,pago_em,criado_em').eq('uid_cliente', user.id).in('venda_id', ids).order('criado_em', { ascending: false })
+    db.from('pagamentos').select('id,venda_id,metodo,provedor,status,referencia,valor,moeda,expira_em,pago_em,criado_em').eq('uid_cliente', user.id).in('venda_id', ids).order('criado_em', { ascending: false }),
+    db.from('pedido_status_historico').select('id,venda_id,status_anterior,status_novo,origem,ator_id,detalhes,criado_em').in('venda_id', ids).order('criado_em', { ascending: true })
   ]);
   if (itensErro) throw itensErro;
   if (pagamentosErro) throw pagamentosErro;
+  if (historicoErro) throw historicoErro;
   const porVenda = new Map<string, any[]>();
   (itens || []).forEach((item: any) => porVenda.set(item.venda_id, [...(porVenda.get(item.venda_id) || []), camelRow(item)]));
   const pagamentoPorVenda = new Map<string, any>();
   (pagamentos || []).forEach((pagamento: any) => {
     if (!pagamentoPorVenda.has(pagamento.venda_id)) pagamentoPorVenda.set(pagamento.venda_id, camelRow(pagamento));
   });
-  return { pedidos: (vendas || []).map((venda: any) => ({ ...camelRow(venda), itens: porVenda.get(venda.id) || [], pagamentoDetalhe: pagamentoPorVenda.get(venda.id) || null })) };
+  const historicoPorVenda = new Map<string, any[]>();
+  (historico || []).forEach((evento: any) => historicoPorVenda.set(evento.venda_id, [...(historicoPorVenda.get(evento.venda_id) || []), camelRow(evento)]));
+  return { pedidos: (vendas || []).map((venda: any) => ({ ...camelRow(venda), itens: porVenda.get(venda.id) || [], pagamentoDetalhe: pagamentoPorVenda.get(venda.id) || null, historicoStatus: historicoPorVenda.get(venda.id) || [] })) };
 }
 
 async function consultarElegibilidadeAvaliacao(req: Request, input: any) {
   const user = await requireUser(req);
   const produtoId = text(input?.produtoId, 'Produto', 128);
-  if (!user.email) return { elegivel: false, motivo: 'Inicie sessão com a sua conta para avaliar uma compra entregue.' };
-  const { data: pedidos, error: pedidosErro } = await db.from('vendas').select('id').eq('uid_cliente', user.id).eq('status', 'entregue').limit(100);
+  const itemIdInformado = text(input?.itemId, 'Item da compra', 80, false);
+  const userDb = dbDoUtilizador(req);
+  const { data: pedidos, error: pedidosErro } = await userDb.from('vendas')
+    .select('id,criado_em').eq('uid_cliente', user.id).eq('status', 'entregue')
+    .order('criado_em', { ascending: false }).limit(100);
   if (pedidosErro) throw pedidosErro;
-  if (!(pedidos || []).length) return { elegivel: false, motivo: 'A avaliação fica disponível após a entrega do pedido.' };
-  const { data: item, error: itemErro } = await db.from('venda_itens').select('id').eq('produto_id', produtoId).in('venda_id', pedidos.map((pedido: any) => pedido.id)).limit(1).maybeSingle();
-  if (itemErro) throw itemErro;
-  return item ? { elegivel: true, motivo: '' } : { elegivel: false, motivo: 'Só pode avaliar produtos que comprou e recebeu.' };
+  const idsPedidos = (pedidos || []).map((p: any) => p.id);
+  if (!idsPedidos.length) return { elegivel: false, podeAvaliarProduto: false, podeAvaliarVendedor: false, motivo: 'A avaliação fica disponível após a entrega do pedido.' };
+  const { data: itens, error: itensErro } = await userDb.from('venda_itens')
+    .select('id,venda_id,produto_id,vendedor_id').eq('produto_id', produtoId)
+    .in('venda_id', idsPedidos)
+    .order('venda_id', { ascending: false }).limit(20);
+  if (itensErro) throw itensErro;
+  if (!(itens || []).length) return { elegivel: false, podeAvaliarProduto: false, podeAvaliarVendedor: false, motivo: 'Só pode avaliar produtos que comprou e recebeu.' };
+  const idsItens = (itens || []).map((row: any) => row.id);
+  const { data: produtoReviewsTodos, error: produtoErroTodos } = await db.from('avaliacoes')
+    .select('id,venda_item_id').eq('produto_id', produtoId).eq('uid_cliente', user.id).in('venda_item_id', idsItens);
+  if (produtoErroTodos) throw produtoErroTodos;
+  const revisados = new Set((produtoReviewsTodos || []).map((row: any) => String(row.venda_item_id)));
+  const item = itemIdInformado
+    ? (itens || []).find((row: any) => String(row.id) === itemIdInformado)
+    : (itens || []).find((row: any) => !revisados.has(String(row.id))) || (itens || [])[0];
+  if (!item) return { elegivel: false, podeAvaliarProduto: false, podeAvaliarVendedor: false, motivo: 'Só pode avaliar produtos que comprou e recebeu.' };
+  const [{ data: produtoReviews, error: produtoErro }, { data: sellerReviews, error: sellerErro }] = await Promise.all([
+    db.from('avaliacoes').select('id').eq('produto_id', produtoId).eq('venda_item_id', item.id).eq('uid_cliente', user.id).limit(1),
+    item.vendedor_id
+      ? db.from('avaliacoes_vendedores').select('id').eq('venda_id', item.venda_id).eq('vendedor_id', item.vendedor_id).eq('uid_cliente', user.id).limit(1)
+      : Promise.resolve({ data: [], error: null } as any)
+  ]);
+  if (produtoErro) throw produtoErro;
+  if (sellerErro) throw sellerErro;
+  return {
+    elegivel: !produtoReviews?.length,
+    podeAvaliarProduto: !produtoReviews?.length,
+    podeAvaliarVendedor: Boolean(item.vendedor_id) && !sellerReviews?.length,
+    itemId: item.id,
+    pedidoId: item.venda_id,
+    vendedorId: item.vendedor_id || null,
+    produtoJaAvaliado: Boolean(produtoReviews?.length),
+    vendedorJaAvaliado: Boolean(sellerReviews?.length),
+    motivo: produtoReviews?.length ? 'Este produto já foi avaliado por esta compra.' : ''
+  };
 }
 
 async function confirmarPagamentoManual(req: Request, input: any) {
@@ -756,10 +735,37 @@ async function confirmarPagamentoManual(req: Request, input: any) {
 }
 
 async function atualizarEstadoPedido(req:Request,input:any){
-  const admin=await requireAdmin(req);const codigo=text(input?.codigoRastreio,'Código de rastreio',64).toUpperCase();const novo=text(input?.status,'Estado',32);if(!ESTADOS.has(novo))err('Estado inválido.');
-  const {data,error}=await db.rpc('atualizar_estado_pedido',{p_codigo:codigo,p_novo_status:novo});
+  const admin=await requireAdmin(req);
+  const codigo=text(input?.codigoRastreio,'Código de rastreio',64).toUpperCase();
+  const novo=text(input?.status,'Estado',32);
+  if(!ESTADOS.has(novo))err('Estado inválido.');
+  // Usa o JWT do administrador no RPC para que o histórico guarde o ator real.
+  const userDb=dbDoUtilizador(req);
+  const {data,error}=await userDb.rpc('alterar_estado_pedido_autorizado',{p_codigo:codigo,p_novo_status:novo});
   if(error)throw error;
   await registarEventoSeguranca(admin.id,'pagamento','estado_pedido_alterado',codigo,{status:novo});
+  return camelRow(data);
+}
+
+async function obterDashboardVendedor(req: Request) {
+  const vendedor = await requireUser(req);
+  const userDb = dbDoUtilizador(req);
+  const { data, error } = await userDb.rpc('dashboard_operacional_vendedor');
+  if (error) throw error;
+  if (!data || String(data.vendedor_id || data.vendedorId || '') !== vendedor.id) err('Não foi possível validar o dashboard do vendedor.','permission_denied');
+  return camelRow(data);
+}
+
+async function atualizarEstadoPedidoVendedor(req:Request,input:any){
+  const vendedor=await requireSeller(req);
+  const codigo=text(input?.codigoRastreio,'Código de rastreio',64).toUpperCase();
+  const novo=text(input?.status,'Estado',32);
+  if(!ESTADOS.has(novo))err('Estado inválido.');
+  if(!['em_preparacao','enviado','entregue'].includes(novo))err('O vendedor só pode atualizar preparação, envio ou entrega.','permission_denied');
+  const userDb=dbDoUtilizador(req);
+  const {data,error}=await userDb.rpc('alterar_estado_pedido_autorizado',{p_codigo:codigo,p_novo_status:novo});
+  if(error)throw error;
+  await registarEventoSeguranca(vendedor.id,'vendedor','estado_pedido_alterado',codigo,{status:novo});
   return camelRow(data);
 }
 
@@ -851,6 +857,25 @@ async function eliminarCatalogoVendedorAdmin(req: Request, input: any) {
   return camelRow(data);
 }
 
+async function administrarProdutoVendedor(req: Request, input: any) {
+  const admin = await requireAdmin(req);
+  const produtoId = text(input?.produtoId, 'Produto', 128);
+  const acao = text(input?.acao, 'Ação', 20).toLowerCase();
+  if (!['ocultar', 'reativar'].includes(acao)) err('Ação de produto inválida.');
+
+  // A decisão também é validada no PostgreSQL com auth.uid()/is_admin().
+  // Não usamos o cliente service-role para esta operação, para que o banco
+  // participe efetivamente da autorização.
+  const userDb = dbDoUtilizador(req);
+  const { data, error } = await userDb.rpc('administrar_produto_vendedor', {
+    p_produto_id: produtoId,
+    p_acao: acao
+  });
+  if (error) throw error;
+  await registarEventoSeguranca(admin.id, 'vendedor', acao === 'ocultar' ? 'produto_ocultado_admin' : 'produto_reativado_admin', produtoId, { acao });
+  return camelRow(data);
+}
+
 async function handle(req:Request,name:string,input:any){
   const limites: Record<string, [number, number]> = {
     criarPedido: [5, 15 * 60],
@@ -870,7 +895,8 @@ async function handle(req:Request,name:string,input:any){
     alterarDisponibilidadeProdutoVendedor: [60, 60 * 60],
     solicitarDestaque: [10, 24 * 60 * 60],
     solicitarLevantamento: [5, 24 * 60 * 60],
-    adicionarAvaliacao: [20, 24 * 60 * 60]
+    adicionarAvaliacao: [20, 24 * 60 * 60],
+    obterDashboardVendedor: [30, 15 * 60]
   };
   if (limites[name]) {
     const user = await requireUser(req);
@@ -886,6 +912,8 @@ async function handle(req:Request,name:string,input:any){
     case 'consultarElegibilidadeAvaliacao': return consultarElegibilidadeAvaliacao(req,input);
     case 'confirmarPagamentoManual': return confirmarPagamentoManual(req,input);
     case 'atualizarEstadoPedido': return atualizarEstadoPedido(req,input);
+    case 'atualizarEstadoPedidoVendedor': return atualizarEstadoPedidoVendedor(req,input);
+    case 'obterDashboardVendedor': return obterDashboardVendedor(req);
     case 'liberarSaldosVencidos': return liberarSaldosVencidos(req);
     case 'abrirDisputaFinanceira': return abrirDisputaFinanceira(req,input);
     case 'resolverDisputaFinanceira': return resolverDisputaFinanceira(req,input);
@@ -904,15 +932,50 @@ async function handle(req:Request,name:string,input:any){
     case 'atualizarProdutoVendedor': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128);const {data:p}=await db.from('produtos').select('*').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id)err('Produto não pertence à sua loja.','permission_denied');const x=input?.produto||{};const estoque=Number(x.estoque);if(!Number.isInteger(estoque)||estoque<0||estoque>100000)err('Estoque inválido.');const preco=text(x.preco,'Preço',60);const patch={nome:text(x.nome,'Nome',160),categoria:text(x.categoria,'Categoria',80),preco,preco_valor:money(priceCents(preco)),preco_antigo:text(x.precoAntigo,'Preço antigo',60,false),desconto:text(x.desconto,'Desconto',30,false),parcelas:text(x.parcelas,'Parcelas',80,false),frete_gratis:x.freteGratis===true,descricao:text(x.descricao,'Descrição',3000),imagens:Array.isArray(x.imagens)?x.imagens.slice(0,8):[],marca:text(x.marca,'Marca',120,false),sku:text(x.sku,'SKU',80,false),tag:text(x.tag,'Tag',80,false),estoque,variacoes:variacoesSeguras(x.variacoes),status_aprovacao:'aguardando_aprovacao',ativo:false,vendedor_ativo:true,motivo_recusa:null,revisado_em:null,revisado_por:null,revisado_por_email:null,revisao_notas:null,revisao_checklist:null,atualizado_em:new Date().toISOString()};const {error}=await db.from('produtos').update(patch).eq('id',id);if(error)throw error;return {ok:true,status:'aguardando_aprovacao'};}
     case 'solicitarDestaque': {const u=await requireSeller(req);const id=text(input?.produtoId,'Produto',128),dias=Number(input?.dias),precos:any={7:5000,15:9000,30:15000};if(!precos[dias])err('Período de destaque inválido.');const {data:p}=await db.from('produtos').select('*').eq('id',id).maybeSingle();if(!p||p.vendedor_id!==u.id||p.status_aprovacao!=='aprovado'||p.ativo!==true)err('Produto não está aprovado e publicado.','permission_denied');const {data:exist}=await db.from('destaques_solicitados').select('*').eq('uid_vendedor',u.id).eq('produto_id',id);if((exist||[]).some((d:any)=>['aguardando_pagamento','pendente'].includes(d.status)||(d.status==='ativo'&&d.fim&&new Date(d.fim)>new Date())))err('Já existe uma solicitação ativa ou pendente.','already_exists');const {data:row,error}=await db.from('destaques_solicitados').insert({uid_vendedor:u.id,produto_id:id,nome_produto:p.nome,dias,valor:precos[dias],status:'aguardando_pagamento'}).select('id,valor').single();if(error)throw error;return {ok:true,requestId:row.id,valor:row.valor};}
     case 'solicitarLevantamento': {const u=await requireSeller(req);const informado=input?.valor;const valor=informado===undefined||informado===null||informado===''?null:Number(informado);if(valor!==null&&(!Number.isFinite(valor)||valor<=0))err('Valor de levantamento inválido.','failed_precondition');const {data,error}=await db.rpc('solicitar_levantamento_atomico',{p_vendedor:u.id,p_valor:valor});if(error)throw error;await registarEventoSeguranca(u.id,'vendedor','levantamento_solicitado',u.id,{});return camelRow(data);}
-    case 'gerirVendedor': {const admin=await requireAdmin(req);const uid=text(input?.uid,'Vendedor',128),acao=text(input?.acao,'Ação',30),motivoRecusa=text(input?.motivoRecusa,'Motivo da recusa',600,false);if(!['aprovar','reativar','recusar','suspender'].includes(acao))err('Ação inválida.');const status=acao==='aprovar'||acao==='reativar'?'aprovado':acao==='recusar'?'recusado':'suspenso';const ativo=status==='aprovado';const {error}=await db.from('vendedores').update({status,ativo,motivo_recusa:acao==='recusar'?motivoRecusa:null,atualizado_em:new Date().toISOString()}).eq('id',uid);if(error)throw error;await db.from('produtos').update({vendedor_ativo:ativo}).eq('vendedor_id',uid);await registarEventoSeguranca(admin.id,'vendedor','estado_vendedor_alterado',uid,{acao,status});return {ok:true,status};}
+    case 'gerirVendedor': {const admin=await requireAdmin(req);const uid=text(input?.uid,'Vendedor',128),acao=text(input?.acao,'Ação',30),motivoRecusa=text(input?.motivoRecusa,'Motivo da recusa',600,false);if(!['aprovar','reativar','recusar','suspender'].includes(acao))err('Ação inválida.');const status=acao==='aprovar'||acao==='reativar'?'aprovado':acao==='recusar'?'recusado':'suspenso';const ativo=status==='aprovado';const userDb=dbDoUtilizador(req);const {error}=await userDb.from('vendedores').update({status,ativo,motivo_recusa:acao==='recusar'?motivoRecusa:null,atualizado_em:new Date().toISOString()}).eq('id',uid);if(error)throw error;const {error:produtosError}=await userDb.from('produtos').update({vendedor_ativo:ativo}).eq('vendedor_id',uid);if(produtosError)throw produtosError;await registarEventoSeguranca(admin.id,'vendedor','estado_vendedor_alterado',uid,{acao,status});return {ok:true,status};}
     case 'aprovarProdutoVendedor': return moderarProdutoVendedor(req, input);
     case 'eliminarProdutoVendedorAdmin': return eliminarProdutoVendedorAdmin(req, input);
     case 'eliminarCatalogoVendedorAdmin': return eliminarCatalogoVendedorAdmin(req, input);
+    case 'administrarProdutoVendedor': return administrarProdutoVendedor(req, input);
     case 'definirDestaqueManual': {const admin=await requireAdmin(req);const id=text(input?.produtoId,'Produto',128),ativo=input?.ativo===true;const {data:p}=await db.from('produtos').select('*').eq('id',id).maybeSingle();if(!p)err('Produto não encontrado.','not_found');if(ativo&&p.vendedor_id){const {data:v}=await db.from('vendedores').select('status,ativo').eq('id',p.vendedor_id).maybeSingle();if(!v||v.status!=='aprovado'||p.status_aprovacao!=='aprovado')err('O vendedor/produto não está aprovado.','failed_precondition');}const m={...(p.monetizacao||{}),destaque:ativo,destaqueInicio:ativo?new Date().toISOString():null,destaqueFim:ativo?new Date(Date.now()+30*86400000).toISOString():null,atualizadoEm:new Date().toISOString()};const {error}=await db.from('produtos').update({monetizacao:m,atualizado_em:new Date().toISOString()}).eq('id',id);if(error)throw error;await registarEventoSeguranca(admin.id,'vendedor','destaque_manual_alterado',id,{ativo});return {ok:true,ativo};}
     case 'processarDestaque': {const admin=await requireAdmin(req);const id=text(input?.requestId,'Solicitação',128),acao=text(input?.acao,'Ação',20);const {data:d}=await db.from('destaques_solicitados').select('*').eq('id',id).maybeSingle();if(!d)err('Solicitação não encontrada.','not_found');if(!['aguardando_pagamento','pendente'].includes(d.status))err('Esta solicitação já foi processada.','failed_precondition');if(acao==='recusar'){await db.from('destaques_solicitados').update({status:'recusado',atualizado_em:new Date().toISOString()}).eq('id',id);await registarEventoSeguranca(admin.id,'vendedor','destaque_processado',id,{acao});return {ok:true};}if(acao!=='aprovar')err('Ação inválida.');const inicio=new Date(),fim=new Date(inicio.getTime()+Number(d.dias)*86400000);const {error}=await db.from('destaques_solicitados').update({status:'ativo',inicio:inicio.toISOString(),fim:fim.toISOString(),atualizado_em:inicio.toISOString()}).eq('id',id);if(error)throw error;const {data:p}=await db.from('produtos').select('monetizacao').eq('id',d.produto_id).maybeSingle();await db.from('produtos').update({monetizacao:{...(p?.monetizacao||{}),destaque:true,destaqueInicio:inicio.toISOString(),destaqueFim:fim.toISOString(),destaqueSolicitacaoId:id},atualizado_em:inicio.toISOString()}).eq('id',d.produto_id);await registarEventoSeguranca(admin.id,'vendedor','destaque_processado',id,{acao});return {ok:true,fim:fim.toISOString()};}
     case 'definirPlanoVendedor': {const admin=await requireAdmin(req);const uid=text(input?.uid,'Vendedor',128),plano=text(input?.plano,'Plano',20).toLowerCase();if(!['basico','profissional','premium'].includes(plano))err('Plano inválido.');const {error}=await db.from('vendedores').update({plano,atualizado_em:new Date().toISOString()}).eq('id',uid);if(error)throw error;await registarEventoSeguranca(admin.id,'vendedor','plano_vendedor_alterado',uid,{plano});return {ok:true,plano};}
     case 'processarLevantamento': {const admin=await requireAdmin(req);const id=text(input?.levantamentoId,'Levantamento',128),acao=text(input?.acao,'Ação',20),nota=text(input?.nota,'Nota',600,false),comprovativoUrl=text(input?.comprovativoUrl,'Comprovativo',1200,false);if(!['aprovar','recusar'].includes(acao))err('Ação inválida.');const {data,error}=await db.rpc('processar_levantamento_atomico',{p_levantamento_id:id,p_acao:acao,p_nota:nota||null,p_comprovativo_url:comprovativoUrl||null,p_processado_por:admin.id});if(error)throw error;await registarEventoSeguranca(admin.id,'pagamento','levantamento_processado',id,{acao});return camelRow(data);}
-    case 'adicionarAvaliacao': {const u=await requireUser(req);const produtoId=text(input?.produtoId,'Produto',128);const nota=Number(input?.nota);if(!Number.isInteger(nota)||nota<1||nota>5)err('Nota inválida.');const {data:pedidos,error:pedidosErro}=await db.from('vendas').select('id').eq('uid_cliente',u.id).eq('status','entregue');if(pedidosErro)throw pedidosErro;if(!(pedidos||[]).length)err('Só é possível avaliar produtos de pedidos entregues.','permission_denied');const {data:item,error:itemErro}=await db.from('venda_itens').select('id').eq('produto_id',produtoId).in('venda_id',(pedidos||[]).map(p=>p.id)).limit(1).maybeSingle();if(itemErro)throw itemErro;if(!item)err('Só é possível avaliar produtos que comprou e recebeu.','permission_denied');const id=`${u.id}_${produtoId}`;const {error}=await db.from('avaliacoes').upsert({id,produto_id:produtoId,uid_cliente:u.id,nota,data:new Date().toISOString()},{onConflict:'id'});if(error)throw error;return {ok:true};}
+    case 'adicionarAvaliacao': {
+      const u = await requireUser(req);
+      const tipo = text(input?.tipo || 'produto', 'Tipo', 20).toLowerCase();
+      const nota = Number(input?.nota);
+      const comentario = text(input?.comentario, 'Comentário', 1000, false);
+      if (!Number.isInteger(nota) || nota < 1 || nota > 5) err('Nota inválida.');
+      await consumirLimite(u.id, 'adicionar_avaliacao', 20, 24 * 60 * 60);
+      const userDb = dbDoUtilizador(req);
+      if (tipo === 'produto') {
+        const produtoId = text(input?.produtoId, 'Produto', 128);
+        const itemId = text(input?.itemId, 'Item da compra', 80);
+        const { data, error } = await userDb.rpc('registrar_avaliacao_produto', { p_produto_id: produtoId, p_venda_item_id: itemId, p_nota: nota, p_comentario: comentario || null });
+        if (error) {
+          if (error.code === '23505') err('Este item já foi avaliado.', 'already_exists');
+          if (error.code === '42501') err(error.message || 'Esta compra não pode ser avaliada.', 'permission_denied');
+          throw error;
+        }
+        await registarEventoSeguranca(u.id, 'avaliacao', 'produto_avaliado', produtoId, { nota });
+        return { ok: true, tipo, avaliacao: camelRow(data) };
+      }
+      if (tipo === 'vendedor') {
+        const pedidoId = text(input?.pedidoId, 'Pedido', 128);
+        const vendedorId = text(input?.vendedorId, 'Vendedor', 80);
+        const { data, error } = await userDb.rpc('registrar_avaliacao_vendedor', { p_venda_id: pedidoId, p_vendedor_id: vendedorId, p_nota: nota, p_comentario: comentario || null });
+        if (error) {
+          if (error.code === '23505') err('Este vendedor já foi avaliado neste pedido.', 'already_exists');
+          if (error.code === '42501') err(error.message || 'Este pedido não pode ser avaliado.', 'permission_denied');
+          throw error;
+        }
+        await registarEventoSeguranca(u.id, 'avaliacao', 'vendedor_avaliado', vendedorId, { nota, pedidoId });
+        return { ok: true, tipo, avaliacao: camelRow(data) };
+      }
+      err('Tipo de avaliação inválido.');
+    }
+
     case 'criarPagamentoMulticaixa': case 'consultarPagamentoMulticaixa': case 'criarPagamentoCartao': case 'consultarPagamentoCartao': err(`Integração de pagamento "${name}" ainda não está configurada no backend Supabase.`,'not_configured');
     default: err(`Função "${name}" não existe no backend Supabase.`,'not_found');
   }

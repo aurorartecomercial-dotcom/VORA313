@@ -1,5 +1,3 @@
-import { db } from './config.js';
-import { collection, getDocs } from './supabase-compat.js';
 import { imagemProdutoSegura, urlSegura, IMAGEM_FALLBACK, escapeHTML } from './utils.js';
 
 function destaqueAtivo(produto) {
@@ -19,32 +17,51 @@ function perfisPorId(perfis) {
   return new Map((perfis || []).map((perfil) => [String(perfil?.id || ''), perfil]));
 }
 
-export function agruparLojas(produtos, perfis = []) {
+export function agruparLojas(produtos = [], perfis = []) {
   const mapa = new Map();
   const perfisMap = perfisPorId(perfis);
+
+  for (const perfil of perfis || []) {
+    const id = String(perfil?.id || '');
+    if (!id) continue;
+    const nome = String(perfil.nomeLoja || perfil.nome_loja || 'Loja VORA 313').trim();
+    mapa.set(id, {
+      id,
+      nome,
+      categoria: String(perfil.categoria || 'Loja parceira'),
+      logoUrl: urlSegura(perfil?.perfilPublico?.logoUrl, ''),
+      capaUrl: urlSegura(perfil?.perfilPublico?.capaUrl, ''),
+      produtos: [],
+      totalProdutos: Number(perfil.totalProdutos ?? perfil.total_produtos ?? 0),
+      destaque: false
+    });
+  }
+
   for (const produto of produtos || []) {
-    const id = String(produto?.vendedorId || '');
+    const id = String(produto?.vendedorId || produto?.vendedor_id || '');
     if (!id || produto?.ativo === false || produto?.vendedorAtivo === false || (produto?.statusAprovacao && produto.statusAprovacao !== 'aprovado')) continue;
     const perfil = perfisMap.get(id) || {};
-    const nome = String(perfil.nomeLoja || produto.vendedorNome || 'Loja VORA 313').trim();
     if (!mapa.has(id)) {
       mapa.set(id, {
         id,
-        nome,
+        nome: String(perfil.nomeLoja || perfil.nome_loja || produto.vendedorNome || 'Loja VORA 313').trim(),
         categoria: String(perfil.categoria || produto.categoria || 'Loja parceira'),
         logoUrl: urlSegura(perfil?.perfilPublico?.logoUrl, ''),
         capaUrl: urlSegura(perfil?.perfilPublico?.capaUrl, ''),
         produtos: [],
+        totalProdutos: Number(perfil.totalProdutos ?? perfil.total_produtos ?? 0),
         destaque: false
       });
     }
     const loja = mapa.get(id);
     loja.produtos.push(produto);
+    if (!loja.totalProdutos) loja.totalProdutos = loja.produtos.length;
     if (destaqueAtivo(produto)) loja.destaque = true;
   }
+
   return [...mapa.values()].sort((a, b) => {
     if (a.destaque !== b.destaque) return a.destaque ? -1 : 1;
-    return b.produtos.length - a.produtos.length || a.nome.localeCompare(b.nome, 'pt-AO');
+    return (b.totalProdutos - a.totalProdutos) || a.nome.localeCompare(b.nome, 'pt-AO');
   });
 }
 
@@ -66,7 +83,7 @@ export function renderizarLojas(container, dados, limite = 8) {
   container.innerHTML = lojas.map((loja) => {
     const nome = escapeHTML(loja.nome);
     const id = encodeURIComponent(loja.id);
-    const total = loja.produtos.length;
+    const total = Number(loja.totalProdutos || loja.produtos.length || 0);
     const capa = escapeHTML(imagemLoja(loja));
     const logo = urlSegura(loja.logoUrl, '');
     const avatar = logo
@@ -74,7 +91,7 @@ export function renderizarLojas(container, dados, limite = 8) {
       : `<span aria-hidden="true">${escapeHTML(iniciais(loja.nome))}</span>`;
     const destaque = loja.destaque ? '<span class="loja-mini-selo">⭐ Em destaque</span>' : '';
     return `<article class="loja-card-publica">
-      <a href="loja.html?id=${id}" aria-label="Visitar ${nome}">
+      <a href="loja.html?vendedor=${id}" aria-label="Visitar ${nome}">
         <div class="loja-card-capa"><img src="${capa}" alt="Capa da loja ${nome}" loading="lazy" decoding="async"><div class="loja-card-avatar">${avatar}</div></div>
         <div class="loja-card-info">
           ${destaque}
@@ -83,24 +100,28 @@ export function renderizarLojas(container, dados, limite = 8) {
           <span class="loja-card-link">Visitar loja →</span>
         </div>
       </a>
+      <button type="button" class="btn-favorito-loja loja-card-favorito" data-vendedor-id="${id}" aria-pressed="false">♡ Favoritar</button>
     </article>`;
   }).join('');
   return { exibidas: lojas.length, total: todasLojas.length };
 }
 
 export async function carregarLojasPublicas() {
-  const [resultadoProdutos, resultadoPerfis] = await Promise.allSettled([
-    getDocs(collection(db, 'produtos')),
-    getDocs(collection(db, 'lojasPublicas'))
-  ]);
-  const produtos = resultadoProdutos.status === 'fulfilled'
-    ? resultadoProdutos.value.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-      .filter((produto) => produto?.ativo !== false && produto?.vendedorAtivo !== false && (!produto?.statusAprovacao || produto.statusAprovacao === 'aprovado') && produto?.vendedorId)
-    : [];
-  const perfis = resultadoPerfis.status === 'fulfilled'
-    ? resultadoPerfis.value.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-    : [];
-  if (!produtos.length && resultadoProdutos.status === 'rejected') console.warn('Não foi possível carregar as lojas públicas:', resultadoProdutos.reason);
-  if (resultadoPerfis.status === 'rejected') console.warn('Os logótipos das lojas serão carregados quando a view pública estiver disponível.');
-  return { produtos, perfis };
+  const { data, error } = await (await import('./config.js')).supabase
+    .from('lojas_publicas')
+    .select('id,nome_loja,categoria,perfil_publico,total_produtos,criado_em')
+    .order('nome_loja', { ascending: true });
+  if (error) {
+    console.warn('Não foi possível carregar as lojas públicas:', error);
+    return { produtos: [], perfis: [] };
+  }
+  const perfis = (data || []).map((perfil) => ({
+    id: perfil.id,
+    nomeLoja: perfil.nome_loja,
+    categoria: perfil.categoria,
+    totalProdutos: Number(perfil.total_produtos || 0),
+    criadoEm: perfil.criado_em,
+    perfilPublico: perfil.perfil_publico || {}
+  }));
+  return { produtos: [], perfis };
 }

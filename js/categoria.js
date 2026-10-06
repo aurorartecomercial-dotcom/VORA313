@@ -1,4 +1,4 @@
-import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
+import { buscarCatalogo, criarCardProduto } from './catalogo.js?v=4';
 import { initMobileMenu } from './menu.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -22,7 +22,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // A categoria usa a mesma fonte e os mesmos IDs da página inicial e do
     // detalhe. Antes, ela lia uma chave de cache antiga e criava um catálogo
     // diferente do catálogo da página inicial.
-    const catalogo = await carregarCatalogo();
+    let resultado;
+    try {
+        resultado = await buscarCatalogo({ categoria, ordenacao: 'mais-recentes', limite: 50, offset: 0 });
+    } catch (error) {
+        console.error('Erro ao carregar a categoria:', error);
+        resultado = { produtos: [], total: 0 };
+    }
+    const catalogo = resultado.produtos;
 
     document.getElementById('carregandoCategoria').style.display = 'none';
 

@@ -1,10 +1,11 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=10';
-import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=3';
+import { obterProdutoPublico, buscarCatalogo, criarCardProduto } from './catalogo.js?v=4';
 import { initMobileMenu } from './menu.js';
-import { adicionarAvaliacao, consultarElegibilidadeAvaliacao, obterAvaliacao } from './avaliacoes.js';
+import { adicionarAvaliacao, consultarElegibilidadeAvaliacao, obterAvaliacao, obterAvaliacoesRecentes } from './avaliacoes.js';
 import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, imagemProdutoSegura, urlSegura } from './utils.js';
 import { registrarVista } from './fase3.js';
 import { registarAcessoPublico } from './metricas-acesso.js?v=1';
+import { initFavoritos, verificarFavorito } from './favoritos.js';
 
 let catalogoAtual = [];
 let produtoAtual = null;
@@ -31,6 +32,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.__carrinhoInicializado = true;
     }
     initMobileMenu();
+    await initFavoritos();
     const params = new URLSearchParams(window.location.search);
     const idProduto = params.get('id');
 
@@ -38,16 +40,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Nunca procurar o produto num cache legado: os cartões da página inicial
     // e os detalhes têm de vir da mesma lista, com o mesmo identificador.
-    catalogoAtual = await carregarCatalogo();
-    if (!catalogoAtual.length) return mostrarErro('Erro ao carregar catálogo.');
-
-    produtoAtual = catalogoAtual.find(p => String(p.id) === String(idProduto));
+    try {
+        produtoAtual = await obterProdutoPublico(idProduto);
+    } catch (error) {
+        console.error('Erro ao carregar produto:', error);
+        return mostrarErro('Erro ao carregar o produto.');
+    }
     if (!produtoAtual) return mostrarErro('Produto não encontrado.');
+    catalogoAtual = [produtoAtual];
 
     renderizarDetalhes(produtoAtual);
     registarProdutoVisto(produtoAtual);
     void registarVisualizacaoPublica(produtoAtual);
-    renderizarRecomendacoes(produtoAtual);
+    await renderizarRecomendacoes(produtoAtual);
     atualizarMetaTags(produtoAtual.nome, produtoAtual.descricao || 'Detalhes do produto', imagemProdutoSegura(produtoAtual.imagens?.[0], ''));
     registrarVista(produtoAtual);
     carregarAvaliacaoAsync(produtoAtual.id);
@@ -176,7 +181,8 @@ function renderizarDetalhes(prod) {
                 <h2>${escaparAtributo(prod.nome || 'Produto')}</h2>
                 ${prod.marca ? `<div class="detalhe-marca">Marca: <strong>${escaparAtributo(prod.marca)}</strong>${prod.sku ? ` · SKU: ${escaparAtributo(prod.sku)}` : ''}</div>` : (prod.sku ? `<div class="detalhe-marca">SKU: <strong>${escaparAtributo(prod.sku)}</strong></div>` : '')}
                 ${renderizarDestaques(prod)}
-                ${prod.vendedorId || prod.vendedorNome ? `<a class="detalhe-loja-card" href="loja.html?id=${encodeURIComponent(prod.vendedorId || '')}"><span class="detalhe-loja-avatar">🏪</span><span><small>Vendido por</small><strong>${escaparAtributo(prod.vendedorNome || 'Loja VORA 313')}</strong><em>✓ Loja ativa · Ver loja →</em></span></a>` : ''}
+                ${prod.vendedorId || prod.vendedorNome ? `<a class="detalhe-loja-card" href="loja.html?vendedor=${encodeURIComponent(prod.vendedorId || '')}"><span class="detalhe-loja-avatar">🏪</span><span><small>Vendido por</small><strong>${escaparAtributo(prod.vendedorNome || 'Loja VORA 313')}</strong><em>Ver loja →</em></span></a>` : ''}
+                <button type="button" class="btn-favorito detalhe-btn-favorito ${verificarFavorito(prod.id) ? 'ativo' : ''}" data-produto-id="${escaparAtributo(prod.id)}" aria-pressed="${verificarFavorito(prod.id) ? 'true' : 'false'}" aria-label="${verificarFavorito(prod.id) ? 'Remover produto dos favoritos' : 'Adicionar produto aos favoritos'}" title="${verificarFavorito(prod.id) ? 'Remover dos favoritos' : 'Adicionar aos favoritos'}">${verificarFavorito(prod.id) ? '♥' : '♡'} Favorito</button>
                 <div class="detalhes-precos">
                     ${prod.precoAntigo ? `<span class="preco-antigo">${escaparAtributo(prod.precoAntigo)}</span>` : ''}
                     <span class="preco-destaque">${escaparAtributo(prod.preco || '')}</span>
@@ -319,56 +325,80 @@ function partilharProduto(prod) {
     else window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(texto)}`, '_blank', 'noopener,noreferrer');
 }
 
-function renderizarRecomendacoes(prod) {
+async function renderizarRecomendacoes(prod) {
     const container = document.getElementById('detalhesConteudo');
-    if (!container || !catalogoAtual.length) return;
+    if (!container) return;
+    try {
+        const categoria = normalizar(prod.categoria);
+        const [mesmaCategoria, gerais] = await Promise.all([
+            buscarCatalogo({ categoria: prod.categoria, ordenacao: 'relevancia', limite: 10, offset: 0 }),
+            buscarCatalogo({ ordenacao: 'ordem', limite: 10, offset: 0 })
+        ]);
+        const usados = new Set([String(prod.id)]);
+        const secao1 = mesmaCategoria.produtos.filter((p) => normalizar(p.categoria) === categoria && !usados.has(String(p.id))).slice(0, 10);
+        secao1.forEach((p) => usados.add(String(p.id)));
+        const secao2 = gerais.produtos.filter((p) => !usados.has(String(p.id))).slice(0, 10);
 
-    const categoria = normalizar(prod.categoria);
-    const relacionados = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && (!p.statusAprovacao || p.statusAprovacao === 'aprovado') && String(p.id) !== String(prod.id) && normalizar(p.categoria) === categoria);
-    const outros = catalogoAtual.filter(p => p.ativo !== false && p.vendedorAtivo !== false && (!p.statusAprovacao || p.statusAprovacao === 'aprovado') && String(p.id) !== String(prod.id) && normalizar(p.categoria) !== categoria);
-    const usados = new Set();
-    const combinar = (lista, limite) => lista.filter(p => !usados.has(String(p.id))).slice(0, limite).map(p => { usados.add(String(p.id)); return p; });
-
-    const secao1 = combinar(relacionados, 10);
-    const secao2 = combinar(outros.sort((a,b) => Number(b.ordem || 0) - Number(a.ordem || 0)), 10);
-    const criarSecao = (titulo, subtitulo, produtos) => {
-        if (!produtos.length) return '';
-        const railId = `rail-${Math.random().toString(36).slice(2, 8)}`;
-        return `<section class="recomendacoes-secao"><div class="secao-titulo"><h2>${titulo}</h2><span class="ver-todos">Deslize para ver mais →</span></div><p class="recomendacoes-subtitulo">${subtitulo}</p><div id="${railId}" class="grade-produtos produtos-rail"></div></section>`;
-    };
-
-    const html1 = criarSecao('Produtos relacionados', 'Mais opções da mesma categoria', secao1);
-    const html2 = criarSecao('Também podes gostar', 'Sugestões para continuar a explorar a VORA 313', secao2);
-    const wrapper = document.createElement('div');
-    wrapper.innerHTML = html1 + html2;
-    const secoes = [...wrapper.children];
-    secoes.forEach((secao, index) => {
-        const produtos = index === 0 ? secao1 : secao2;
-        const rail = secao.querySelector('.produtos-rail');
-        const fragment = document.createDocumentFragment();
-        produtos.forEach(p => fragment.appendChild(criarCardProduto(p)));
-        rail?.appendChild(fragment);
-    });
-    container.appendChild(wrapper);
+        const criarSecao = (titulo, subtitulo, produtos) => {
+            if (!produtos.length) return '';
+            const railId = `rail-${Math.random().toString(36).slice(2, 8)}`;
+            return `<section class="recomendacoes-secao"><div class="secao-titulo"><h2>${titulo}</h2><span class="ver-todos">Deslize para ver mais →</span></div><p class="recomendacoes-subtitulo">${subtitulo}</p><div id="${railId}" class="grade-produtos produtos-rail"></div></section>`;
+        };
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = criarSecao('Produtos relacionados', 'Mais opções da mesma categoria', secao1) + criarSecao('Também podes gostar', 'Sugestões para continuar a explorar a VORA 313', secao2);
+        [...wrapper.children].forEach((secao, index) => {
+            const produtos = index === 0 ? secao1 : secao2;
+            const rail = secao.querySelector('.produtos-rail');
+            const fragment = document.createDocumentFragment();
+            produtos.forEach((p) => {
+                const card = criarCardProduto(p);
+                if (card) fragment.appendChild(card);
+            });
+            rail?.appendChild(fragment);
+        });
+        container.appendChild(wrapper);
+    } catch (error) {
+        console.warn('Não foi possível carregar recomendações:', error);
+    }
 }
 
 async function carregarAvaliacaoAsync(prodId) {
     try {
-        const [avaliacao, elegibilidade] = await Promise.all([obterAvaliacao(prodId), consultarElegibilidadeAvaliacao(prodId)]);
+        const [resumo, recentes, elegibilidade] = await Promise.all([
+            obterAvaliacao(prodId),
+            obterAvaliacoesRecentes(prodId, 6),
+            consultarElegibilidadeAvaliacao(prodId)
+        ]);
         const container = document.getElementById('avaliacaoContainer');
         if (!container) return;
-        const formulario = elegibilidade?.elegivel
-            ? '<div class="avaliar-form"><label for="notaAvaliacao">Sua nota:</label><select id="notaAvaliacao"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5</option></select><button id="btnAvaliar" class="btn-avaliar">Avaliar</button></div>'
-            : `<small class="avaliacao-aviso">${escapeHTML(elegibilidade?.motivo || 'A avaliação fica disponível após a entrega.')}</small>`;
-        container.innerHTML = `<span>⭐ ${Number(avaliacao.media || 0).toFixed(1)} (${avaliacao.total || 0} avaliações)</span>${formulario}`;
-        document.getElementById('btnAvaliar')?.addEventListener('click', async () => {
-            const nota = Number.parseInt(document.getElementById('notaAvaliacao')?.value || '5', 10);
-            await adicionarAvaliacao(prodId, nota);
-            mostrarToast('Avaliação registada!', 'sucesso');
-            carregarAvaliacaoAsync(prodId);
+        const estrelas = Number(resumo.total || 0) ? '★'.repeat(Math.round(Number(resumo.media || 0))) + '☆'.repeat(Math.max(0, 5 - Math.round(Number(resumo.media || 0)))) : '☆☆☆☆☆';
+        const distribuicao = [5,4,3,2,1].map((nota) => {
+            const quantidade = Number(resumo[`estrelas_${nota}`] || 0);
+            const percentagem = resumo.total ? Math.round((quantidade / Number(resumo.total)) * 100) : 0;
+            return `<div class="avaliacao-barra"><span>${nota}★</span><i><b style="width:${percentagem}%"></b></i><small>${quantidade}</small></div>`;
+        }).join('');
+        const reviews = recentes.length
+            ? `<div class="avaliacoes-recentes">${recentes.map((review) => `<article class="avaliacao-review"><div><strong>${'★'.repeat(Number(review.nota))}${'☆'.repeat(5 - Number(review.nota))}</strong><span>${review.verificada ? '✓ Compra verificada' : ''}</span></div>${review.comentario ? `<p>${escapeHTML(review.comentario)}</p>` : '<p class="sem-comentario">Cliente avaliou este produto sem comentário.</p>'}<small>${new Date(review.data).toLocaleDateString('pt-AO')}</small></article>`).join('')}</div>`
+            : '<p class="avaliacao-vazia">Ainda não existem avaliações verificadas para este produto.</p>';
+        const formulario = elegibilidade?.podeAvaliarProduto
+            ? `<form class="avaliar-form" id="formAvaliarProduto"><div class="avaliar-campos"><label>Como avalia a compra?<select id="notaAvaliacao" required><option value="5">★★★★★ — Excelente</option><option value="4">★★★★☆ — Muito boa</option><option value="3">★★★☆☆ — Boa</option><option value="2">★★☆☆☆ — Fraca</option><option value="1">★☆☆☆☆ — Muito fraca</option></select></label><label>Comentário <span>(opcional)</span><textarea id="comentarioAvaliacao" maxlength="1000" rows="3" placeholder="Conte como foi a sua experiência com este produto."></textarea></label></div><button id="btnAvaliar" class="btn-avaliar" type="submit">Publicar avaliação verificada</button></form>`
+            : `<small class="avaliacao-aviso">${escapeHTML(elegibilidade?.motivo || (elegibilidade?.produtoJaAvaliado ? 'Você já avaliou este item.' : 'A avaliação fica disponível após a entrega do pedido.'))}</small>`;
+        container.innerHTML = `<div class="avaliacao-resumo"><div><strong class="avaliacao-nota">${resumo.total ? Number(resumo.media).toFixed(1) : '—'}</strong><span class="avaliacao-estrelas">${estrelas}</span><small>${Number(resumo.total || 0)} avaliação${Number(resumo.total || 0) === 1 ? '' : 'ões'} verificada${Number(resumo.total || 0) === 1 ? '' : 's'}</small></div><div class="avaliacao-distribuicao">${distribuicao}</div></div>${reviews}${formulario}`;
+        document.getElementById('formAvaliarProduto')?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const botao = document.getElementById('btnAvaliar');
+            botao.disabled = true;
+            try {
+                await adicionarAvaliacao(prodId, Number(document.getElementById('notaAvaliacao')?.value || 5), document.getElementById('comentarioAvaliacao')?.value || '', { itemId: elegibilidade.itemId, tipo: 'produto' });
+                mostrarToast('Avaliação verificada publicada!', 'sucesso');
+                await carregarAvaliacaoAsync(prodId);
+            } catch (erro) {
+                mostrarToast(erro?.message || 'Não foi possível publicar a avaliação.', 'erro');
+                botao.disabled = false;
+            }
         });
     } catch (_) {
         const container = document.getElementById('avaliacaoContainer');
-        if (container) container.innerHTML = '<span>⭐ Ainda sem avaliações</span>';
+        if (container) container.innerHTML = '<span>⭐ As avaliações não estão disponíveis neste momento.</span>';
     }
 }

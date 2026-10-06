@@ -170,7 +170,7 @@ function renderizar() {
     if (estado === 'pendente') acoes = `<button class="adm-btn" data-acao="aprovar" data-id="${escapeHTML(vendedor.id)}">Aprovar</button><button class="adm-btn danger" data-acao="recusar" data-id="${escapeHTML(vendedor.id)}">Recusar</button>`;
     else if (estado === 'aprovado' && vendedor.ativo !== false) acoes = `<button class="adm-btn warn" data-acao="suspender" data-id="${escapeHTML(vendedor.id)}">Suspender</button>`;
     else acoes = `<button class="adm-btn" data-acao="reativar" data-id="${escapeHTML(vendedor.id)}">Reativar</button>`;
-    const loja = estado === 'aprovado' && vendedor.ativo !== false ? `<a class="adm-btn alt" target="_blank" rel="noopener" href="loja.html?id=${encodeURIComponent(vendedor.id)}">Ver loja</a>` : '';
+    const loja = estado === 'aprovado' && vendedor.ativo !== false ? `<a class="adm-btn alt" target="_blank" rel="noopener" href="loja.html?vendedor=${encodeURIComponent(vendedor.id)}">Ver loja</a>` : '';
     const quantidadeProdutos = produtosPorVendedor[vendedor.id] || 0;
     const limparCatalogo = quantidadeProdutos
       ? `<button class="adm-btn danger" data-limpar-catalogo="${escapeHTML(vendedor.id)}">Limpar catálogo</button>`
@@ -188,7 +188,7 @@ function mostrarDetalheVendedor(id, tipo) {
   if (tipo === 'produtos') {
     const lista = produtos.filter(eProdutos);
     const tituloLoja = escapeHTML(vendedor.nomeLoja || vendedor.nome || 'vendedor');
-    alvo.innerHTML = `<strong>Produtos de ${tituloLoja}</strong><p class="adm-detail-note">Cada eliminação é definitiva. Produtos que já têm pedido não podem ser apagados para proteger a fatura e a contabilidade.</p>${lista.length ? `<div class="adm-product-list">${lista.map((produto) => `<div class="adm-product-row"><span><strong>${escapeHTML(produto.nome || 'Produto')}</strong><small>${escapeHTML(produto.statusAprovacao || produto.status_aprovacao || 'sem estado')} · ${escapeHTML(moeda(produto.precoValor ?? produto.preco_valor ?? 0))}</small></span><button class="adm-btn danger" type="button" data-eliminar-produto-vendedor="${escapeHTML(produto.id)}">Eliminar produto</button></div>`).join('')}</div>` : 'Nenhum produto registado.'}`;
+    alvo.innerHTML = `<strong>Produtos de ${tituloLoja}</strong><p class="adm-detail-note">Cada eliminação é definitiva. Produtos que já têm pedido não podem ser apagados para proteger a fatura e a contabilidade.</p>${lista.length ? `<div class="adm-product-list">${lista.map((produto) => { const status = produto.statusAprovacao || produto.status_aprovacao || 'sem estado'; const ativo = produto.ativo !== false && produto.vendedor_ativo !== false; const disponibilidade = status === 'aprovado' ? `<button class="adm-btn ${ativo ? 'warn' : ''}" type="button" data-disponibilidade-produto="${escapeHTML(produto.id)}" data-acao-produto="${ativo ? 'ocultar' : 'reativar'}">${ativo ? '🙈 Ocultar' : '👁️ Reativar'}</button>` : ''; return `<div class="adm-product-row"><span><strong>${escapeHTML(produto.nome || 'Produto')}</strong><small>${escapeHTML(status)} · ${ativo ? '🟢 Publicado' : '⚪ Oculto'} · ${escapeHTML(moeda(produto.precoValor ?? produto.preco_valor ?? 0))}</small></span><div class="adm-actions">${disponibilidade}<button class="adm-btn danger" type="button" data-eliminar-produto-vendedor="${escapeHTML(produto.id)}">Eliminar</button></div></div>`; }).join('')}</div>` : 'Nenhum produto registado.'}`;
   } else {
     const lista = vendas.filter(eVenda);
     alvo.innerHTML = `<strong>Vendas de ${escapeHTML(vendedor.nomeLoja || vendedor.nome || 'vendedor')}</strong><br>${lista.length ? lista.map((venda) => `${escapeHTML(venda.codigoRastreio || venda.codigo_rastreio || venda.id)} · ${escapeHTML(venda.status || 'sem estado')} · ${escapeHTML(moeda(venda.valorVenda ?? venda.valor_venda ?? venda.valorVendedor ?? venda.valor_vendedor ?? 0))}`).join('<br>') : 'Nenhuma venda registada.'}`;
@@ -200,23 +200,18 @@ async function alterarVendedor(id, acao) {
   const verbo = { aprovar: 'aprovar', recusar: 'recusar', suspender: 'suspender', reativar: 'reativar' }[acao] || acao;
   if (!confirm(`Confirmar ${verbo} este vendedor?`)) return;
   const motivo = acao === 'recusar' ? String(prompt('Motivo da recusa (opcional):') || '').trim() : '';
+  const botoes = [...document.querySelectorAll('[data-acao]')].filter(btn => btn.dataset.id === String(id));
+  botoes.forEach(btn => { btn.disabled = true; btn.dataset.originalText = btn.textContent; btn.textContent = 'A processar…'; });
   try {
     await httpsCallable(functions, 'gerirVendedor')({ uid: id, acao, motivoRecusa: motivo });
-    mostrarMensagem('Vendedor atualizado com sucesso.');
-  } catch (erroEdge) {
-    try {
-      const status = acao === 'aprovar' || acao === 'reativar' ? 'aprovado' : acao === 'recusar' ? 'recusado' : 'suspenso';
-      const ativo = status === 'aprovado';
-      const { error } = await supabase.from('vendedores').update({ status, ativo, motivo_recusa: motivo || null, atualizado_em: new Date().toISOString() }).eq('id', id);
-      if (error) throw error;
-      const { error: produtosErro } = await supabase.from('produtos').update({ vendedor_ativo: ativo, atualizado_em: new Date().toISOString() }).eq('vendedor_id', id);
-      if (produtosErro) throw produtosErro;
-      mostrarMensagem('Vendedor atualizado pelo acesso administrativo de contingência.');
-    } catch (erro) { throw new Error(`Edge Function: ${erroEdge.message || erroEdge}. Atualização administrativa: ${erro.message || erro}`); }
+    mostrarMensagem(`Vendedor ${verbo} concluído com sucesso.`);
+    await carregar();
+  } catch (erro) {
+    mostrarMensagem(`Não foi possível ${verbo} o vendedor. ${erro.message || erro}`, false);
+  } finally {
+    botoes.forEach(btn => { if (btn.isConnected) { btn.disabled = false; btn.textContent = btn.dataset.originalText || verbo; } });
   }
-  await carregar();
 }
-
 function confirmarEliminacao(pergunta) {
   const resposta = prompt(`${pergunta}\n\nEsta ação é definitiva. Escreva ELIMINAR para continuar.`);
   if (resposta === null) return false;
@@ -225,6 +220,24 @@ function confirmarEliminacao(pergunta) {
     return false;
   }
   return true;
+}
+
+async function alterarDisponibilidadeProdutoAdmin(produtoId, acao) {
+  if (!produtoId || !['ocultar', 'reativar'].includes(acao)) return;
+  const produto = produtos.find((item) => String(item.id) === String(produtoId));
+  if (!produto) { mostrarMensagem('Produto não encontrado. Atualize a lista e tente novamente.', false); return; }
+  const nome = String(produto.nome || 'este produto');
+  const pergunta = acao === 'ocultar'
+    ? `Ocultar “${nome}” da loja pública? O histórico de vendas será preservado.`
+    : `Reativar “${nome}” na loja pública? O produto e o vendedor precisam estar aprovados e ativos.`;
+  if (!confirm(pergunta)) return;
+  try {
+    await httpsCallable(functions, 'administrarProdutoVendedor')({ produtoId, acao });
+    mostrarMensagem(acao === 'ocultar' ? `Produto “${nome}” ocultado com segurança.` : `Produto “${nome}” reativado.`);
+    await carregar();
+  } catch (erro) {
+    mostrarMensagem(`Não foi possível ${acao === 'ocultar' ? 'ocultar' : 'reativar'} o produto. ${erro.message || erro}`, false);
+  }
 }
 
 async function eliminarProdutoVendedorAdmin(produtoId) {
@@ -278,11 +291,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     const detalhe = evento.target.closest('[data-detalhe]');
     const video = evento.target.closest('[data-moderar-video]');
     const produto = evento.target.closest('[data-eliminar-produto-vendedor]');
+    const disponibilidade = evento.target.closest('[data-disponibilidade-produto]');
     const catalogo = evento.target.closest('[data-limpar-catalogo]');
     if (botao) alterarVendedor(botao.dataset.id, botao.dataset.acao).catch((erro) => mostrarMensagem(erro.message || erro, false));
     if (detalhe) mostrarDetalheVendedor(detalhe.dataset.id, detalhe.dataset.detalhe);
     if (video) moderarVideo(video.dataset.moderarVideo, video.dataset.acaoVideo, video);
     if (produto) eliminarProdutoVendedorAdmin(produto.dataset.eliminarProdutoVendedor).catch((erro) => mostrarMensagem(erro.message || 'Não foi possível eliminar o produto.', false));
+    if (disponibilidade) alterarDisponibilidadeProdutoAdmin(disponibilidade.dataset.disponibilidadeProduto, disponibilidade.dataset.acaoProduto).catch((erro) => mostrarMensagem(erro.message || 'Não foi possível alterar a disponibilidade do produto.', false));
     if (catalogo) eliminarCatalogoVendedorAdmin(catalogo.dataset.limparCatalogo).catch((erro) => mostrarMensagem(erro.message || 'Não foi possível limpar o catálogo.', false));
   });
 });

@@ -1,5 +1,5 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=10';
-import { carregarCatalogo, filtrarEOrdenar, renderizarGrade, criarCardProduto } from './catalogo.js?v=3';
+import { buscarCatalogo, obterProdutoPublico, obterVendedoresPublicos, renderizarGrade, criarCardProduto } from './catalogo.js?v=4';
 import { initMobileMenu } from './menu.js';
 import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';
 import { initFidelidade } from './fidelidade.js';
@@ -7,28 +7,23 @@ import { initFavoritos } from './favoritos.js';
 import { initRecomendacoes, initAfiliados, initI18n, initChatbot } from './fase3.js';
 import { renderizarLojas, carregarLojasPublicas } from './lojas-publicas.js?v=10';
 import { registarPaginaPublica } from './metricas-acesso.js?v=1';
+import { supabase } from './config.js';
 
 let catalogo = [];
 let paginaAtual = 1;
-const ITENS_POR_PAGINA = 10;
+const ITENS_POR_PAGINA = 12;
+let totalResultados = 0;
 let carregandoMaisProdutos = false;
+let pesquisaSequencia = 0;
 let dadosLojasPublicas = null;
 let limiteLojasPublicas = 8;
 let categoriaAtiva = 'todos';
 let termoBusca = '';
 let precoMin = 0;
 let precoMax = Infinity;
-let ordenacao = 'ordem';
+let ordenacao = 'relevancia';
 let minAvaliacao = 0;
 let dataFiltro = '';
-
-window.addEventListener('vora313:catalogo-atualizado', () => {
-    catalogo = [];
-    carregarCatalogo({ force: true }).then((dados) => {
-        catalogo = dados;
-        renderizarTudo();
-    }).catch(() => {});
-});
 
 document.addEventListener('DOMContentLoaded', async () => {
     registarPaginaPublica(location.pathname.toLowerCase().endsWith('/categoria.html') ? 'categoria' : 'inicio');
@@ -62,15 +57,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         carregando.textContent = '⏳ Carregando produtos...';
     }
 
-    try {
-        catalogo = await carregarCatalogo();
-    } catch (e) {
-        console.error('Erro ao carregar catálogo:', e);
-        catalogo = [];
-    }
-
+    catalogo = [];
     renderizarTudo();
     await renderizarDestaquesVora();
+    preencherFiltroVendedores();
     carregarLojasPublicas().then((dados) => {
         dadosLojasPublicas = dados;
         limiteLojasPublicas = 8;
@@ -80,9 +70,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         atualizarLojasPublicas();
     });
     if (carregando) carregando.style.display = 'none';
-
-    // Quando existe cache, carregarCatalogo já atualiza o Supabase em segundo plano.
-    atualizarCatalogoDoSupabase();
 
     // Chamar recomendações após o catálogo estar pronto
     initRecomendacoes();
@@ -113,7 +100,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (precoMaxInput) {
         precoMaxInput.addEventListener('input', () => {
-            precoMax = parseInt(precoMaxInput.value) || Infinity;
+            precoMax = precoMaxInput.value === '' ? Infinity : Number(precoMaxInput.value);
             if (precoMaxLabel) precoMaxLabel.textContent = precoMax;
             paginaAtual = 1;
             aplicarFiltros();
@@ -133,6 +120,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (minAvaliacaoSelect) {
         minAvaliacaoSelect.addEventListener('change', (e) => {
             minAvaliacao = parseFloat(e.target.value) || 0;
+            paginaAtual = 1;
+            aplicarFiltros();
+        });
+    }
+
+    const disponibilidadeSelect = document.getElementById('disponibilidade');
+    if (disponibilidadeSelect) {
+        disponibilidadeSelect.addEventListener('change', () => {
+            paginaAtual = 1;
+            aplicarFiltros();
+        });
+    }
+
+    const vendedorSelect = document.getElementById('vendedorFiltro');
+    if (vendedorSelect) {
+        vendedorSelect.addEventListener('change', () => {
             paginaAtual = 1;
             aplicarFiltros();
         });
@@ -172,8 +175,7 @@ document.addEventListener('click', async function(e) {
         // fonte em vez de deixar esse primeiro clique sem efeito.
         if (!produto) {
             try {
-                catalogo = await carregarCatalogo();
-                produto = catalogo.find((item) => String(item.id) === String(btnAdd.dataset.produtoId));
+                produto = await obterProdutoPublico(btnAdd.dataset.produtoId);
             } catch (_) {}
         }
         if (produto && Array.isArray(produto.variacoes) && produto.variacoes.some((grupo) => grupo?.nome && Array.isArray(grupo?.opcoes) && grupo.opcoes.length)) {
@@ -200,87 +202,152 @@ document.addEventListener('click', async function(e) {
 });
 
 function renderizarTudo() {
-    renderizarMaisComprados();
-    renderizarDestaquesVora();
-    aplicarFiltros();
+    void renderizarMaisComprados();
+    void aplicarFiltros();
 }
 
-function destaqueAtivo(produto) {
-    if (produto?.monetizacao?.destaque !== true) return false;
-    const fim = produto?.monetizacao?.destaqueFim;
-    if (!fim) return true;
-    const data = fim?.toDate ? fim.toDate() : new Date(fim);
-    return Number.isNaN(data.getTime()) || data.getTime() > Date.now();
-}
-
-async function renderizarDestaquesVora() {
-    const grid = document.getElementById('destaquesVoraGrid');
-    if (!grid) return;
-    const destaques = catalogo.filter(destaqueAtivo);
-    grid.innerHTML = '';
-    if (!destaques.length) {
-        grid.innerHTML = '<div class="destaques-vazio"><strong>⭐ Ainda não existem produtos patrocinados</strong><span>Os produtos destacados pelos vendedores aparecerão aqui automaticamente.</span><a href="vendedor.html">Quero vender na VORA →</a></div>';
-        return;
-    }
-    const fragment = document.createDocumentFragment();
-    destaques.slice(0, 12).forEach((produto) => {
-        const card = criarCardProduto(produto);
-        if (card) fragment.appendChild(card);
-    });
-    grid.appendChild(fragment);
-}
-
-async function atualizarCatalogoDoSupabase() {
-    try {
-        catalogo = await carregarCatalogo();
-        renderizarTudo();
-    } catch (e) {
-        console.warn('Erro ao atualizar do Supabase:', e);
-    }
-}
-
-async function aplicarFiltros(resetPagina = true) {
-    if (resetPagina) paginaAtual = 1;
-    const filtrados = filtrarEOrdenar(catalogo, categoriaAtiva, termoBusca, precoMin, precoMax, ordenacao, minAvaliacao, dataFiltro);
-    const container = document.getElementById('gradeProdutos');
-    if (!container) return;
-    const totalPaginas = Math.ceil(filtrados.length / ITENS_POR_PAGINA);
-    // Se o catálogo mudar enquanto o visitante está numa página seguinte,
-    // o botão nunca pode apontar para uma página que deixou de existir.
-    if (!totalPaginas) paginaAtual = 1;
-    else if (paginaAtual > totalPaginas) paginaAtual = totalPaginas;
-    if (paginaAtual === 1) container.innerHTML = '';
-    await renderizarGrade(filtrados, container, paginaAtual, ITENS_POR_PAGINA);
-    atualizarControleCarregarMais(totalPaginas);
-}
-
-function atualizarControleCarregarMais(totalPaginas) {
+function atualizarControleCarregarMais() {
     const btn = document.getElementById('carregarMais');
     if (!btn) return;
-    const temMais = paginaAtual < totalPaginas;
-    btn.textContent = !totalPaginas ? 'Sem mais produtos' : (temMais ? 'Carregar mais produtos' : 'Todos os produtos carregados');
+    const temMais = catalogo.length < totalResultados;
+    btn.textContent = totalResultados === 0
+        ? 'Sem resultados'
+        : (temMais ? `Carregar mais produtos (${catalogo.length} de ${totalResultados})` : 'Todos os produtos carregados');
     btn.disabled = carregandoMaisProdutos || !temMais;
     btn.setAttribute('aria-disabled', String(btn.disabled));
 }
 
-async function carregarMaisProdutos() {
-    if (carregandoMaisProdutos) return;
-    const filtrados = filtrarEOrdenar(catalogo, categoriaAtiva, termoBusca, precoMin, precoMax, ordenacao, minAvaliacao, dataFiltro);
-    const totalPaginas = Math.ceil(filtrados.length / ITENS_POR_PAGINA);
-    if (paginaAtual >= totalPaginas) {
-        atualizarControleCarregarMais(totalPaginas);
-        return;
+function estadoCatalogo(mensagem, classe = '') {
+    const container = document.getElementById('gradeProdutos');
+    if (!container) return;
+    container.replaceChildren();
+    const aviso = document.createElement('div');
+    aviso.className = `catalogo-estado ${classe}`.trim();
+    aviso.textContent = mensagem;
+    aviso.style.cssText = 'grid-column:1/-1;text-align:center;padding:60px 20px;color:#777;font-size:16px;';
+    container.append(aviso);
+}
+
+async function aplicarFiltros(resetPagina = true) {
+    if (resetPagina) {
+        paginaAtual = 1;
+        catalogo = [];
+        totalResultados = 0;
     }
-    carregandoMaisProdutos = true;
-    atualizarControleCarregarMais(totalPaginas);
+    const sequencia = ++pesquisaSequencia;
+    const carregando = document.getElementById('carregandoProdutos');
+    if (carregando) {
+        carregando.style.display = 'block';
+        carregando.textContent = paginaAtual === 1 ? '⏳ A pesquisar produtos...' : '⏳ A carregar mais produtos...';
+    }
     const btn = document.getElementById('carregarMais');
-    if (btn) btn.textContent = 'A carregar produtos…';
+    if (btn) btn.disabled = true;
+
+    try {
+        const resultado = await buscarCatalogo({
+            busca: termoBusca,
+            categoria: categoriaAtiva,
+            precoMin,
+            precoMax: Number.isFinite(precoMax) ? precoMax : null,
+            disponibilidade: document.getElementById('disponibilidade')?.value || 'todos',
+            vendedorId: document.getElementById('vendedorFiltro')?.value || null,
+            minAvaliacao,
+            dataDias: Number.parseInt(dataFiltro, 10) || 0,
+            ordenacao: ordenacao === 'data' ? 'mais-recentes' : (ordenacao === 'nome' ? 'relevancia' : ordenacao),
+            limite: ITENS_POR_PAGINA,
+            offset: (paginaAtual - 1) * ITENS_POR_PAGINA
+        });
+        if (sequencia !== pesquisaSequencia) return;
+        totalResultados = resultado.total;
+        if (paginaAtual === 1) catalogo = resultado.produtos;
+        else catalogo = [...catalogo, ...resultado.produtos];
+
+        const container = document.getElementById('gradeProdutos');
+        if (!container) return;
+        if (paginaAtual === 1) container.replaceChildren();
+        if (!resultado.produtos.length && paginaAtual === 1) {
+            estadoCatalogo(termoBusca || categoriaAtiva !== 'todos' ? '🔎 Nenhum produto corresponde aos filtros selecionados.' : '📦 Ainda não existem produtos publicados.', 'vazio');
+        } else {
+            const fragment = document.createDocumentFragment();
+            resultado.produtos.forEach((produto) => {
+                const card = criarCardProduto(produto);
+                if (card) fragment.append(card);
+            });
+            container.append(fragment);
+        }
+        atualizarControleCarregarMais();
+    } catch (error) {
+        if (sequencia !== pesquisaSequencia) return;
+        console.error('Erro na pesquisa do catálogo:', error);
+        if (paginaAtual === 1) estadoCatalogo('⚠️ Não foi possível pesquisar agora. Tente novamente.', 'erro');
+        else if (btn) btn.disabled = false;
+    } finally {
+        if (sequencia === pesquisaSequencia && carregando) carregando.style.display = 'none';
+    }
+}
+
+async function carregarMaisProdutos() {
+    if (carregandoMaisProdutos || catalogo.length >= totalResultados) return;
+    carregandoMaisProdutos = true;
+    atualizarControleCarregarMais();
     try {
         paginaAtual += 1;
         await aplicarFiltros(false);
     } finally {
         carregandoMaisProdutos = false;
-        atualizarControleCarregarMais(totalPaginas);
+        atualizarControleCarregarMais();
+    }
+}
+
+async function renderizarDestaquesVora() {
+    const grid = document.getElementById('destaquesVoraGrid');
+    if (!grid) return;
+    try {
+        const { data, error } = await supabase
+            .from('produtos')
+            .select('id,ordem,nome,categoria,preco,preco_valor,preco_antigo,desconto,parcelas,frete_gratis,descricao,imagens,marca,sku,tag,estoque,vendedor_id,vendedor_nome,monetizacao,criado_em,atualizado_em')
+            .eq('ativo', true).eq('vendedor_ativo', true).eq('status_aprovacao', 'aprovado')
+            .order('criado_em', { ascending: false }).limit(12);
+        if (error) throw error;
+        const destaques = (data || []).filter((p) => {
+            if (p?.monetizacao?.destaque !== true) return false;
+            const fim = p?.monetizacao?.destaqueFim;
+            if (!fim) return true;
+            const d = new Date(fim);
+            return Number.isNaN(d.getTime()) || d.getTime() > Date.now();
+        });
+        grid.replaceChildren();
+        if (!destaques.length) {
+            grid.innerHTML = '<div class="destaques-vazio"><strong>⭐ Ainda não existem produtos patrocinados</strong><span>Os produtos destacados pelos vendedores aparecerão aqui automaticamente.</span><a href="vendedor.html">Quero vender na VORA →</a></div>';
+            return;
+        }
+        const { buscarCatalogo } = await import('./catalogo.js?v=4');
+        const ids = new Set(destaques.map((p) => String(p.id)));
+        const resultado = await buscarCatalogo({ ordenacao: 'mais-recentes', limite: 50 });
+        resultado.produtos.filter((p) => ids.has(String(p.id))).forEach((p) => {
+            const card = criarCardProduto(p);
+            if (card) grid.append(card);
+        });
+    } catch (error) {
+        console.warn('Não foi possível carregar os destaques:', error);
+        grid.replaceChildren();
+    }
+}
+
+async function preencherFiltroVendedores() {
+    const select = document.getElementById('vendedorFiltro');
+    if (!select) return;
+    try {
+        const vendedores = await obterVendedoresPublicos();
+        vendedores.forEach((vendedor) => {
+            if (!vendedor?.id) return;
+            const option = document.createElement('option');
+            option.value = vendedor.id;
+            option.textContent = vendedor.nome_loja || vendedor.categoria || 'Loja';
+            select.append(option);
+        });
+    } catch (error) {
+        console.warn('Não foi possível carregar os vendedores públicos:', error);
     }
 }
 
@@ -302,18 +369,21 @@ function atualizarLojasPublicas() {
 async function renderizarMaisComprados() {
     const grid = document.getElementById('maisCompradosGrid');
     if (!grid) return;
-    const ordens = [1, 2, 3, 4, 5, 6, 7, 8];
-    const produtos = catalogo
-        .filter(p => ordens.includes(p.ordem))
-        .sort((a, b) => a.ordem - b.ordem);
-    grid.innerHTML = '';
-    const fragment = document.createDocumentFragment();
-    for (const prod of produtos) {
-        const card = criarCardProduto(prod);
-        if (card) fragment.appendChild(card);
+    try {
+        const resultado = await buscarCatalogo({ ordenacao: 'ordem', limite: 8, offset: 0 });
+        grid.replaceChildren();
+        const fragment = document.createDocumentFragment();
+        resultado.produtos.forEach((prod) => {
+            const card = criarCardProduto(prod);
+            if (card) fragment.append(card);
+        });
+        grid.append(fragment);
+    } catch (error) {
+        console.warn('Não foi possível carregar a vitrine inicial:', error);
+        grid.replaceChildren();
     }
-    grid.appendChild(fragment);
 }
+
 
 export function initVoraThemePicker() {
     if (document.getElementById('vora-theme-picker')) return;
@@ -387,15 +457,6 @@ export function initBuscaAutocomplete() {
         }
     });
 
-    campoBusca.addEventListener('input', debounce(() => {
-        const termo = campoBusca.value.trim();
-        if (termo.length >= 2) {
-            mostrarSugestoes(termo, containerSugestoes);
-        } else {
-            containerSugestoes.style.display = 'none';
-        }
-    }, 300));
-
     campoBusca.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') containerSugestoes.style.display = 'none';
     });
@@ -409,57 +470,31 @@ export function initBuscaAutocomplete() {
 
 async function mostrarSugestoes(termo, container) {
     try {
-        const catalogo = await carregarCatalogo();
-        const resultados = catalogo.filter(prod => 
-            prod.nome.toLowerCase().includes(termo.toLowerCase()) ||
-            prod.categoria.toLowerCase().includes(termo.toLowerCase()) ||
-            (prod.tag || '').toLowerCase().includes(termo.toLowerCase())
-        ).slice(0, 8);
-
-        const categorias = [...new Set(catalogo
-            .filter(prod => prod.categoria.toLowerCase().includes(termo.toLowerCase()))
-            .map(prod => prod.categoria)
-        )].slice(0, 3);
-
+        const resultado = await buscarCatalogo({ busca: termo, ordenacao: 'relevancia', limite: 12, offset: 0 });
+        const resultados = resultado.produtos.slice(0, 8);
+        const categorias = [...new Set(resultados.map((prod) => prod.categoria).filter(Boolean))].slice(0, 3);
         if (resultados.length === 0 && categorias.length === 0) {
-            container.innerHTML = '<div style="padding:12px; color:#999; text-align:center;">Nenhum resultado encontrado</div>';
+            container.textContent = 'Nenhum resultado encontrado';
             container.style.display = 'block';
             return;
         }
-
-        let html = '';
-        if (categorias.length > 0) {
-            html += '<div style="padding:8px 12px; font-size:11px; text-transform:uppercase; color:#888; background:#f5f5f5; font-weight:700;">Categorias</div>';
-            categorias.forEach(cat => {
-                html += `
-                    <a href="categoria.html?cat=${encodeURIComponent(cat)}" style="display:block; padding:10px 12px; text-decoration:none; color:var(--cor-esmeralda); border-bottom:1px solid #f0f0f0; font-weight:600; font-size:14px;">
-                        📂 ${escapeHTML(cat.charAt(0).toUpperCase() + cat.slice(1))}
-                    </a>
-                `;
-            });
-        }
-
-        if (resultados.length > 0) {
-            html += '<div style="padding:8px 12px; font-size:11px; text-transform:uppercase; color:#888; background:#f5f5f5; font-weight:700;">Produtos</div>';
-            resultados.forEach(prod => {
-                const preco = prod.preco || '';
-                const imgSrc = prod.imagens && prod.imagens[0] ? prod.imagens[0] : '';
-                html += `
-                    <a href="detalhe.html?id=${encodeURIComponent(prod.id)}" style="display:flex; align-items:center; gap:10px; padding:8px 12px; text-decoration:none; color:#333; border-bottom:1px solid #f0f0f0; transition:0.2s;">
-                        <img src="${escapeHTML(imagemProdutoSegura(imgSrc, IMAGEM_FALLBACK))}" alt="" style="width:40px; height:40px; object-fit:cover; border-radius:4px; background:#f0f0f0;" onerror="this.style.display='none';" />
-                        <div style="flex:1; min-width:0;">
-                            <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHTML(prod.nome)}</div>
-                            <div style="font-size:12px; color:var(--cor-esmeralda); font-weight:700;">${escapeHTML(preco)}</div>
-                        </div>
-                    </a>
-                `;
-            });
-        }
-
-        container.innerHTML = html;
+        container.replaceChildren();
+        resultados.forEach((prod) => {
+            const link = document.createElement('a');
+            link.href = `detalhe.html?id=${encodeURIComponent(prod.id)}`;
+            link.textContent = `${prod.nome || 'Produto'}${prod.categoria ? ` · ${prod.categoria}` : ''}`;
+            link.style.cssText = 'display:block;padding:10px 12px;text-decoration:none;color:var(--cor-esmeralda);border-bottom:1px solid #f0f0f0;font-size:14px;';
+            container.append(link);
+        });
+        categorias.forEach((cat) => {
+            const link = document.createElement('a');
+            link.href = `categoria.html?cat=${encodeURIComponent(cat)}`;
+            link.textContent = `📂 ${cat}`;
+            link.style.cssText = 'display:block;padding:10px 12px;text-decoration:none;color:var(--cor-esmeralda);font-weight:600;font-size:14px;';
+            container.append(link);
+        });
         container.style.display = 'block';
-    } catch (e) {
-        console.error('Erro na busca:', e);
+    } catch (_) {
         container.style.display = 'none';
     }
 }
