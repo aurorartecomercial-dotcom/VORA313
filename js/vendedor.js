@@ -260,6 +260,48 @@ async function lerColecao(nome, filtros = []) {
   return snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
 }
 
+function normalizarProdutoVendedor(row) {
+  if (!row) return null;
+  return {
+    ...row,
+    id: String(row.id || ''),
+    vendedorId: row.vendedorId ?? row.vendedor_id ?? '',
+    vendedorNome: row.vendedorNome ?? row.vendedor_nome ?? '',
+    precoValor: row.precoValor ?? row.preco_valor,
+    precoAntigo: row.precoAntigo ?? row.preco_antigo ?? '',
+    freteGratis: row.freteGratis ?? row.frete_gratis ?? false,
+    statusAprovacao: row.statusAprovacao ?? row.status_aprovacao ?? 'aguardando_aprovacao',
+    vendedorAtivo: row.vendedorAtivo ?? row.vendedor_ativo ?? true,
+    criadoEm: row.criadoEm ?? row.criado_em ?? null,
+    atualizadoEm: row.atualizadoEm ?? row.atualizado_em ?? null,
+    variacoes: Array.isArray(row.variacoes) ? row.variacoes : []
+  };
+}
+
+async function carregarProdutosDoVendedor(vendedorId) {
+  try {
+    const { data, error } = await supabase
+      .from('produtos')
+      .select('*')
+      .eq('vendedor_id', vendedorId)
+      .order('criado_em', { ascending: false });
+    if (error) throw error;
+    return (data || []).map(normalizarProdutoVendedor).filter(Boolean);
+  } catch (erroConsultaDireta) {
+    // A policy de leitura do próprio vendedor pode estar pendente numa base
+    // que foi atualizada parcialmente. A Edge Function autentica o utilizador
+    // e lê somente produtos cuja loja é dele, sem abrir a tabela ao browser.
+    console.warn('[VORA 313] Consulta direta dos produtos do vendedor indisponível; a usar API segura.', erroConsultaDireta?.message || erroConsultaDireta);
+    try {
+      const resultado = await call('listarProdutosVendedor')();
+      const dados = resultado?.data ?? resultado;
+      return (Array.isArray(dados) ? dados : []).map(normalizarProdutoVendedor).filter(Boolean);
+    } catch (erroApi) {
+      throw new Error(`Não foi possível carregar os produtos da sua loja. ${erroTexto(erroApi)}`);
+    }
+  }
+}
+
 async function carregarDadosLoja() {
   const vendedorId = auth.currentUser?.id;
   if (!vendedorId) return;
@@ -268,7 +310,7 @@ async function carregarDadosLoja() {
   secoesCarregadas.financas = false;
   secoesCarregadas.promocoes = false;
   const resultados = await Promise.allSettled([
-    lerColecao('produtos', [where('vendedorId', '==', vendedorId)]),
+    carregarProdutosDoVendedor(vendedorId),
     lerColecao('vendasVendedor', [where('uidVendedor', '==', vendedorId)]),
     call('obterDashboardVendedor')()
   ]);

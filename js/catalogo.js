@@ -4,6 +4,8 @@ import { obterAvaliacao } from './avaliacoes.js';
 import { verificarFavorito } from './favoritos.js';
 import { obterLinkAfiliado } from './fase3.js';
 
+const CAMPOS_PRODUTO_PUBLICO = 'id,ordem,nome,categoria,preco,preco_valor,preco_antigo,desconto,parcelas,frete_gratis,descricao,imagens,marca,sku,tag,estoque,vendedor_id,vendedor_nome,status_aprovacao,ativo,vendedor_ativo,monetizacao,criado_em,atualizado_em';
+const LIMITE_FALLBACK_CATALOGO = 200;
 
 function produtoPublico(produto) {
   return produto?.ativo !== false && produto?.vendedorAtivo !== false && (!produto?.statusAprovacao || produto.statusAprovacao === 'aprovado');
@@ -11,6 +13,28 @@ function produtoPublico(produto) {
 
 const pesquisaCache = new Map();
 const pesquisaEmCurso = new Map();
+
+function arraySegura(valor) {
+  if (Array.isArray(valor)) return valor;
+  if (typeof valor !== 'string') return [];
+  try {
+    const convertido = JSON.parse(valor);
+    return Array.isArray(convertido) ? convertido : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function objetoSeguro(valor) {
+  if (valor && typeof valor === 'object' && !Array.isArray(valor)) return valor;
+  if (typeof valor !== 'string') return {};
+  try {
+    const convertido = JSON.parse(valor);
+    return convertido && typeof convertido === 'object' && !Array.isArray(convertido) ? convertido : {};
+  } catch (_) {
+    return {};
+  }
+}
 
 function mapearProdutoSupabase(row) {
   if (!row) return null;
@@ -26,17 +50,18 @@ function mapearProdutoSupabase(row) {
     parcelas: row.parcelas || '',
     freteGratis: row.frete_gratis === true,
     descricao: row.descricao || '',
-    imagens: Array.isArray(row.imagens) ? row.imagens : [],
+    imagens: arraySegura(row.imagens),
     marca: row.marca || '',
     sku: row.sku || '',
     tag: row.tag || '',
     estoque: Number(row.estoque || 0),
     vendedorId: row.vendedor_id || '',
     vendedorNome: row.vendedor_nome || '',
-    vendedorAtivo: true,
-    ativo: true,
-    statusAprovacao: 'aprovado',
-    monetizacao: row.monetizacao || {},
+    vendedorAtivo: row.vendedor_ativo !== false,
+    ativo: row.ativo !== false,
+    statusAprovacao: row.status_aprovacao || 'aprovado',
+    monetizacao: objetoSeguro(row.monetizacao),
+    variacoes: arraySegura(row.variacoes),
     criadoEm: row.criado_em || null,
     atualizadoEm: row.atualizado_em || null,
     avaliacaoMedia: Number(row.avaliacao_media || 0),
@@ -61,6 +86,84 @@ function chavePesquisa(opcoes = {}) {
   });
 }
 
+function correspondeTexto(produto, busca) {
+  const termo = String(busca || '').trim().toLocaleLowerCase();
+  if (!termo) return true;
+  return [produto.nome, produto.descricao, produto.categoria, produto.vendedorNome, produto.tag, produto.marca]
+    .some((valor) => String(valor || '').toLocaleLowerCase().includes(termo));
+}
+
+function aplicarFiltrosFallback(produtos, entrada) {
+  const limiteData = Number(entrada.dataDias || 0) > 0
+    ? Date.now() - Math.min(Math.max(Number(entrada.dataDias), 0), 3650) * 86400000
+    : 0;
+  const filtrados = produtos.filter((produto) => {
+    if (!produtoPublico(produto)) return false;
+    if (entrada.categoria && produto.categoria !== entrada.categoria) return false;
+    if (entrada.vendedorId && String(produto.vendedorId) !== String(entrada.vendedorId)) return false;
+    const preco = Number(produto.precoValor ?? extrairValorNumerico(produto.preco));
+    if (Number.isFinite(Number(entrada.precoMin)) && preco < Number(entrada.precoMin)) return false;
+    if (Number.isFinite(Number(entrada.precoMax)) && preco > Number(entrada.precoMax)) return false;
+    if (entrada.disponibilidade === 'disponivel' && Number(produto.estoque) <= 0) return false;
+    if (entrada.disponibilidade === 'esgotado' && Number(produto.estoque) > 0) return false;
+    if (Number(entrada.minAvaliacao || 0) > 0 && Number(produto.avaliacaoMedia || 0) < Number(entrada.minAvaliacao)) return false;
+    if (limiteData && new Date(produto.criadoEm || 0).getTime() < limiteData) return false;
+    return correspondeTexto(produto, entrada.busca);
+  });
+
+  const data = (produto) => new Date(produto.criadoEm || 0).getTime() || 0;
+  filtrados.sort((a, b) => {
+    if (entrada.ordenacao === 'preco-asc') return Number(a.precoValor || 0) - Number(b.precoValor || 0);
+    if (entrada.ordenacao === 'preco-desc') return Number(b.precoValor || 0) - Number(a.precoValor || 0);
+    if (entrada.ordenacao === 'melhor-avaliacao') return Number(b.avaliacaoMedia || 0) - Number(a.avaliacaoMedia || 0);
+    if (entrada.ordenacao === 'ordem') return Number(a.ordem || 0) - Number(b.ordem || 0);
+    return data(b) - data(a);
+  });
+  return filtrados;
+}
+
+async function buscarCatalogoDireto(entrada) {
+  // Compatibilidade de produção: se a migration 030 ainda não chegou ao
+  // projeto Supabase, o catálogo continua a ler somente anúncios públicos.
+  // Esta rota é deliberadamente limitada e usada apenas como contingência.
+  const quantidade = Math.min(Math.max(entrada.offset + entrada.limite, entrada.limite), LIMITE_FALLBACK_CATALOGO);
+  let consulta = supabase
+    .from('produtos')
+    .select(CAMPOS_PRODUTO_PUBLICO, { count: 'exact' })
+    .eq('ativo', true)
+    .eq('vendedor_ativo', true)
+    .eq('status_aprovacao', 'aprovado');
+
+  if (entrada.categoria) consulta = consulta.eq('categoria', entrada.categoria);
+  if (entrada.vendedorId) consulta = consulta.eq('vendedor_id', entrada.vendedorId);
+  if (Number.isFinite(Number(entrada.precoMin))) consulta = consulta.gte('preco_valor', Number(entrada.precoMin));
+  if (Number.isFinite(Number(entrada.precoMax))) consulta = consulta.lte('preco_valor', Number(entrada.precoMax));
+  if (entrada.disponibilidade === 'disponivel') consulta = consulta.gt('estoque', 0);
+  if (entrada.disponibilidade === 'esgotado') consulta = consulta.lte('estoque', 0);
+  if (Number(entrada.dataDias || 0) > 0) {
+    const desde = new Date(Date.now() - Math.min(Math.max(Number(entrada.dataDias), 0), 3650) * 86400000).toISOString();
+    consulta = consulta.gte('criado_em', desde);
+  }
+
+  if (entrada.ordenacao === 'preco-asc') consulta = consulta.order('preco_valor', { ascending: true });
+  else if (entrada.ordenacao === 'preco-desc') consulta = consulta.order('preco_valor', { ascending: false });
+  else if (entrada.ordenacao === 'ordem') consulta = consulta.order('ordem', { ascending: true });
+  else consulta = consulta.order('criado_em', { ascending: false });
+
+  const { data, error } = await consulta.range(0, quantidade - 1);
+  if (error) throw error;
+  const filtrados = aplicarFiltrosFallback((data || []).map(mapearProdutoSupabase).filter(Boolean), entrada);
+  return {
+    produtos: filtrados.slice(entrada.offset, entrada.offset + entrada.limite),
+    // O fallback não promete páginas que ainda não carregou: evita um botão
+    // "Carregar mais" que nunca encontra produtos quando há texto/filtros.
+    total: filtrados.length,
+    offset: entrada.offset,
+    limite: entrada.limite,
+    fallback: true
+  };
+}
+
 export async function buscarCatalogo(opcoes = {}) {
   const chave = chavePesquisa(opcoes);
   if (pesquisaCache.has(chave)) return pesquisaCache.get(chave);
@@ -81,7 +184,10 @@ export async function buscarCatalogo(opcoes = {}) {
       p_limite: entrada.limite,
       p_offset: entrada.offset
     });
-    if (error) throw error;
+    if (error) {
+      console.warn('[VORA 313] Pesquisa avançada indisponível; a usar catálogo compatível.', error.message || error);
+      return buscarCatalogoDireto(entrada);
+    }
     const rows = Array.isArray(data) ? data : [];
     const produtos = rows.map(mapearProdutoSupabase).filter(Boolean);
     const total = Number(rows[0]?.total_resultados || 0);
@@ -99,7 +205,9 @@ export async function obterProdutoPublico(id) {
   if (!produtoId) return null;
   const { data, error } = await supabase
     .from('produtos')
-    .select('id,ordem,nome,categoria,preco,preco_valor,preco_antigo,desconto,parcelas,frete_gratis,descricao,imagens,marca,sku,tag,estoque,vendedor_id,vendedor_nome,monetizacao,criado_em,atualizado_em')
+    // O detalhe pode aproveitar campos novos (por exemplo, variações) sem
+    // tornar a listagem pública dependente de uma coluna opcional.
+    .select('*')
     .eq('id', produtoId)
     .eq('ativo', true)
     .eq('vendedor_ativo', true)
@@ -121,7 +229,27 @@ export async function obterVendedoresPublicos() {
     .from('lojas_publicas')
     .select('id,nome_loja,categoria')
     .order('nome_loja', { ascending: true });
-  if (error) throw error;
+  if (error) {
+    // A lista de vendedores é um filtro auxiliar. Se a view pública ainda não
+    // estiver atualizada, derivar nomes apenas dos produtos já públicos evita
+    // que a página inicial deixe de carregar.
+    console.warn('[VORA 313] Lista de lojas indisponível; a usar catálogo compatível.', error.message || error);
+    const { data: produtos, error: erroProdutos } = await supabase
+      .from('produtos')
+      .select('vendedor_id,vendedor_nome,categoria')
+      .eq('ativo', true)
+      .eq('vendedor_ativo', true)
+      .eq('status_aprovacao', 'aprovado')
+      .limit(LIMITE_FALLBACK_CATALOGO);
+    if (erroProdutos) throw error;
+    const porId = new Map();
+    (produtos || []).forEach((produto) => {
+      if (produto.vendedor_id && produto.vendedor_nome && !porId.has(String(produto.vendedor_id))) {
+        porId.set(String(produto.vendedor_id), { id: produto.vendedor_id, nome_loja: produto.vendedor_nome, categoria: produto.categoria || '' });
+      }
+    });
+    return [...porId.values()].sort((a, b) => String(a.nome_loja).localeCompare(String(b.nome_loja), 'pt-AO'));
+  }
   return Array.isArray(data) ? data : [];
 }
 

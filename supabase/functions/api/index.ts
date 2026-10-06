@@ -756,6 +756,20 @@ async function obterDashboardVendedor(req: Request) {
   return camelRow(data);
 }
 
+async function listarProdutosVendedor(req: Request) {
+  const vendedor = await requireSeller(req);
+  // A consulta usa a chave de serviço somente no servidor, mas o filtro pelo
+  // ID autenticado é obrigatório: um vendedor nunca pode enumerar o catálogo
+  // de outro vendedor por esta rota de contingência.
+  const { data, error } = await db.from('produtos')
+    .select('*')
+    .eq('vendedor_id', vendedor.id)
+    .order('criado_em', { ascending: false })
+    .limit(500);
+  if (error) throw error;
+  return (data || []).map(camelRow);
+}
+
 async function atualizarEstadoPedidoVendedor(req:Request,input:any){
   const vendedor=await requireSeller(req);
   const codigo=text(input?.codigoRastreio,'Código de rastreio',64).toUpperCase();
@@ -896,7 +910,8 @@ async function handle(req:Request,name:string,input:any){
     solicitarDestaque: [10, 24 * 60 * 60],
     solicitarLevantamento: [5, 24 * 60 * 60],
     adicionarAvaliacao: [20, 24 * 60 * 60],
-    obterDashboardVendedor: [30, 15 * 60]
+    obterDashboardVendedor: [30, 15 * 60],
+    listarProdutosVendedor: [60, 15 * 60]
   };
   if (limites[name]) {
     const user = await requireUser(req);
@@ -914,6 +929,7 @@ async function handle(req:Request,name:string,input:any){
     case 'atualizarEstadoPedido': return atualizarEstadoPedido(req,input);
     case 'atualizarEstadoPedidoVendedor': return atualizarEstadoPedidoVendedor(req,input);
     case 'obterDashboardVendedor': return obterDashboardVendedor(req);
+    case 'listarProdutosVendedor': return listarProdutosVendedor(req);
     case 'liberarSaldosVencidos': return liberarSaldosVencidos(req);
     case 'abrirDisputaFinanceira': return abrirDisputaFinanceira(req,input);
     case 'resolverDisputaFinanceira': return resolverDisputaFinanceira(req,input);

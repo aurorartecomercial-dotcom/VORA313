@@ -16,6 +16,7 @@ let categoriaSelecionada = 'todos';
 let produtosFiltradosDaLoja = [];
 let paginaProdutosDaLoja = 1;
 const PRODUTOS_POR_PAGINA_LOJA = 8;
+const CAMPOS_PRODUTO_LOJA = 'id,ordem,nome,categoria,preco,preco_valor,preco_antigo,desconto,parcelas,frete_gratis,descricao,imagens,marca,sku,tag,estoque,vendedor_id,vendedor_nome,status_aprovacao,ativo,vendedor_ativo,monetizacao,criado_em,atualizado_em';
 const PRODUTOS_DEMO = [
   { id: 'demo-1', nome: 'Smartphone VORA X Pro 256GB', preco: '245.000 Kz', categoria: 'Tecnologia', imagens: ['oferta-4-smartphones.png'], estoque: 8, freteGratis: true, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
   { id: 'demo-2', nome: 'Relógio Smart Premium', preco: '58.500 Kz', categoria: 'Acessórios', imagens: ['oferta-6-semana.png'], estoque: 4, vendedorNome: 'Kwanza Tech', ativo: true, monetizacao: { destaque: true } },
@@ -525,17 +526,6 @@ function aplicarFiltrosDaLoja() {
   mostrarProdutosDaLoja(lista);
 }
 
-function renderizarProdutos(lista, alvo = 'produtos', textoVazio = 'Esta loja ainda não tem produtos publicados.') {
-  const grid = $(alvo);
-  if (!grid) return;
-  grid.classList.toggle('loja-grid-publica--single', lista.length === 1);
-  if (!lista.length) {
-    grid.innerHTML = '<div class="loja-vazia">' + escapeHTML(textoVazio) + '</div>';
-    return;
-  }
-  grid.replaceChildren(...lista.map(criarCartaoSeguro).filter(Boolean));
-}
-
 function mostrarProdutosDaLoja(lista, textoVazio = 'Esta loja ainda não tem produtos publicados.') {
   produtosFiltradosDaLoja = Array.isArray(lista) ? lista : [];
   paginaProdutosDaLoja = 1;
@@ -720,8 +710,6 @@ function carregarDemo() {
   };
   const editorial = demosEditoriais[estiloDemo];
   produtosDaLoja = editorial ? editorial.produtos : PRODUTOS_DEMO;
-  const nota = $('demoNote');
-  if (nota) nota.style.display = 'block';
   preencherPerfil({
     nomeLoja: editorial?.nomeLoja || 'Kwanza Tech',
     categoria: editorial?.categoria || 'Tecnologia',
@@ -748,13 +736,17 @@ function carregarDemo() {
 
 function mapearLojaPublica(row) {
   if (!row) return null;
+  let perfil = row.perfil_publico;
+  if (typeof perfil === 'string') {
+    try { perfil = JSON.parse(perfil); } catch (_) { perfil = {}; }
+  }
   return {
     id: row.id,
     nomeLoja: row.nome_loja || '',
     telefone: row.telefone || '',
     categoria: row.categoria || '',
     descricao: row.descricao || '',
-    perfilPublico: row.perfil_publico && typeof row.perfil_publico === 'object' ? row.perfil_publico : {},
+    perfilPublico: perfil && typeof perfil === 'object' && !Array.isArray(perfil) ? perfil : {},
     totalVendas: Number(row.total_vendas || 0),
     totalProdutos: Number(row.total_produtos || 0),
     criadoEm: row.criado_em || null,
@@ -768,12 +760,74 @@ function mapearProdutoPublico(row) {
     ...row,
     vendedorId: row.vendedor_id,
     vendedorNome: row.vendedor_nome,
-    statusAprovacao: row.status_aprovacao,
-    vendedorAtivo: row.vendedor_ativo,
+    statusAprovacao: row.status_aprovacao || 'aprovado',
+    vendedorAtivo: row.vendedor_ativo !== false,
+    ativo: row.ativo !== false,
     precoAntigo: row.preco_antigo,
     freteGratis: row.frete_gratis,
+    variacoes: Array.isArray(row.variacoes) ? row.variacoes : [],
     criadoEm: row.criado_em,
     atualizadoEm: row.atualizado_em
+  };
+}
+
+async function carregarPerfilPublicoDaLoja() {
+  const camposCompletos = 'id,nome_loja,telefone,categoria,descricao,perfil_publico,total_vendas,total_produtos,criado_em';
+  const primeiraTentativa = await supabase
+    .from('lojas_publicas')
+    .select(camposCompletos)
+    .eq('id', vendedorId)
+    .maybeSingle();
+  if (!primeiraTentativa.error) return primeiraTentativa.data || null;
+
+  // Algumas instalações antigas ainda expõem uma versão reduzida da view.
+  // Tentar o conjunto mínimo mantém o nome e o logótipo publicados visíveis
+  // até a migration de atualização ser aplicada.
+  console.warn('[VORA 313] Perfil completo da loja indisponível; a tentar formato compatível.', primeiraTentativa.error.message || primeiraTentativa.error);
+  const segundaTentativa = await supabase
+    .from('lojas_publicas')
+    .select('id,nome_loja,categoria,descricao,perfil_publico,criado_em')
+    .eq('id', vendedorId)
+    .maybeSingle();
+  if (!segundaTentativa.error) return segundaTentativa.data || null;
+  throw primeiraTentativa.error;
+}
+
+async function carregarProdutosPublicosDaLoja() {
+  const { data, error } = await supabase
+    .from('produtos')
+    .select(CAMPOS_PRODUTO_LOJA)
+    .eq('vendedor_id', vendedorId)
+    .eq('ativo', true)
+    .eq('vendedor_ativo', true)
+    .eq('status_aprovacao', 'aprovado')
+    .order('criado_em', { ascending: false });
+  if (!error) return (Array.isArray(data) ? data : []).map(mapearProdutoPublico);
+
+  // A mesma contingência do catálogo principal: nunca esconder uma loja por
+  // depender de uma consulta mais nova do que o schema em produção.
+  console.warn('[VORA 313] Consulta direta da loja indisponível; a usar catálogo compatível.', error.message || error);
+  const catalogo = await carregarCatalogo({ vendedorId, ordenacao: 'mais-recentes', limite: 50, offset: 0 });
+  return Array.isArray(catalogo) ? catalogo.map(mapearProdutoPublico) : [];
+}
+
+function criarLojaAPartirDosProdutos(lista) {
+  const referencia = Array.isArray(lista) ? lista[0] : null;
+  if (!referencia) return null;
+  // A identidade reduzida é usada somente enquanto a view segura estiver
+  // indisponível. Não tenta ler a tabela privada de vendedores no navegador.
+  return {
+    id: vendedorId,
+    nomeLoja: referencia.vendedorNome || 'Loja parceira VORA 313',
+    telefone: '',
+    categoria: referencia.categoria || 'Loja parceira',
+    descricao: 'Veja os produtos publicados por esta loja na VORA 313.',
+    perfilPublico: {},
+    totalVendas: 0,
+    totalProdutos: lista.length,
+    criadoEm: null,
+    status: 'aprovado',
+    ativo: true
   };
 }
 
@@ -809,35 +863,23 @@ async function carregarLojaReal() {
     return;
   }
 
-  // A loja pública é a única fonte de identidade do vendedor nesta página.
-  // Nunca consultamos a tabela vendedores diretamente, evitando exposição de dados privados.
-  const { data: lojaRow, error: lojaError } = await supabase
-    .from('lojas_publicas')
-    .select('id,nome_loja,telefone,categoria,descricao,perfil_publico,total_vendas,total_produtos,criado_em')
-    .eq('id', vendedorId)
-    .maybeSingle();
+  // Perfil e produtos são independentes. Uma falha temporária da view de
+  // perfil nunca deve apagar anúncios públicos que já podem ser mostrados.
+  const [resultadoLoja, resultadoProdutos] = await Promise.allSettled([
+    carregarPerfilPublicoDaLoja(),
+    carregarProdutosPublicosDaLoja()
+  ]);
+  const lojaRow = resultadoLoja.status === 'fulfilled' ? resultadoLoja.value : null;
+  produtosDaLoja = resultadoProdutos.status === 'fulfilled' ? resultadoProdutos.value : [];
 
-  if (lojaError) throw lojaError;
-  if (!lojaRow) {
-    // Uma loja suspensa/inativa deixa de existir na view pública. Não tentamos
-    // reconstruir a vitrine a partir do cache ou de produtos antigos.
+  if (!lojaRow && !produtosDaLoja.length) {
+    if (resultadoLoja.status === 'rejected' && resultadoProdutos.status === 'rejected') throw resultadoLoja.reason;
     mostrarLojaIndisponivel('Esta loja foi suspensa, desativada ou ainda não está aprovada pela VORA 313.');
     await carregarAvaliacaoDaLoja();
     return;
   }
 
-  const { data: produtoRows, error: produtosError } = await supabase
-    .from('produtos')
-    .select('id,nome,categoria,preco,preco_valor,preco_antigo,desconto,parcelas,frete_gratis,descricao,imagens,marca,sku,tag,estoque,vendedor_id,vendedor_nome,status_aprovacao,ativo,vendedor_ativo,monetizacao,criado_em,atualizado_em')
-    .eq('vendedor_id', vendedorId)
-    .eq('ativo', true)
-    .eq('vendedor_ativo', true)
-    .eq('status_aprovacao', 'aprovado')
-    .order('criado_em', { ascending: false });
-
-  if (produtosError) throw produtosError;
-  produtosDaLoja = (Array.isArray(produtoRows) ? produtoRows : []).map(mapearProdutoPublico);
-  const vendedor = mapearLojaPublica(lojaRow);
+  const vendedor = mapearLojaPublica(lojaRow) || criarLojaAPartirDosProdutos(produtosDaLoja);
 
   await Promise.all([carregarAvaliacaoDaLoja(), carregarVideosDaLoja()]);
 
