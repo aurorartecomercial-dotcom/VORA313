@@ -36,6 +36,15 @@ function objetoSeguro(valor) {
   }
 }
 
+// Number(null) é 0 em JavaScript. Para filtros de preço, isso é perigoso:
+// quando o utilizador deixa o preço máximo vazio, `null` precisa continuar
+// significando "sem limite", e nunca virar `preco_valor <= 0`.
+function numeroFiltroOpcional(valor) {
+  if (valor === null || valor === undefined || valor === '') return null;
+  const numero = Number(valor);
+  return Number.isFinite(numero) ? numero : null;
+}
+
 function mapearProdutoSupabase(row) {
   if (!row) return null;
   return {
@@ -94,6 +103,8 @@ function correspondeTexto(produto, busca) {
 }
 
 function aplicarFiltrosFallback(produtos, entrada) {
+  const precoMin = numeroFiltroOpcional(entrada.precoMin);
+  const precoMax = numeroFiltroOpcional(entrada.precoMax);
   const limiteData = Number(entrada.dataDias || 0) > 0
     ? Date.now() - Math.min(Math.max(Number(entrada.dataDias), 0), 3650) * 86400000
     : 0;
@@ -102,8 +113,8 @@ function aplicarFiltrosFallback(produtos, entrada) {
     if (entrada.categoria && produto.categoria !== entrada.categoria) return false;
     if (entrada.vendedorId && String(produto.vendedorId) !== String(entrada.vendedorId)) return false;
     const preco = Number(produto.precoValor ?? extrairValorNumerico(produto.preco));
-    if (Number.isFinite(Number(entrada.precoMin)) && preco < Number(entrada.precoMin)) return false;
-    if (Number.isFinite(Number(entrada.precoMax)) && preco > Number(entrada.precoMax)) return false;
+    if (precoMin !== null && preco < Math.max(precoMin, 0)) return false;
+    if (precoMax !== null && preco > Math.max(precoMax, 0)) return false;
     if (entrada.disponibilidade === 'disponivel' && Number(produto.estoque) <= 0) return false;
     if (entrada.disponibilidade === 'esgotado' && Number(produto.estoque) > 0) return false;
     if (Number(entrada.minAvaliacao || 0) > 0 && Number(produto.avaliacaoMedia || 0) < Number(entrada.minAvaliacao)) return false;
@@ -127,6 +138,8 @@ async function buscarCatalogoDireto(entrada) {
   // projeto Supabase, o catálogo continua a ler somente anúncios públicos.
   // Esta rota é deliberadamente limitada e usada apenas como contingência.
   const quantidade = Math.min(Math.max(entrada.offset + entrada.limite, entrada.limite), LIMITE_FALLBACK_CATALOGO);
+  const precoMin = numeroFiltroOpcional(entrada.precoMin);
+  const precoMax = numeroFiltroOpcional(entrada.precoMax);
   let consulta = supabase
     .from('produtos')
     .select(CAMPOS_PRODUTO_PUBLICO, { count: 'exact' })
@@ -136,8 +149,8 @@ async function buscarCatalogoDireto(entrada) {
 
   if (entrada.categoria) consulta = consulta.eq('categoria', entrada.categoria);
   if (entrada.vendedorId) consulta = consulta.eq('vendedor_id', entrada.vendedorId);
-  if (Number.isFinite(Number(entrada.precoMin))) consulta = consulta.gte('preco_valor', Number(entrada.precoMin));
-  if (Number.isFinite(Number(entrada.precoMax))) consulta = consulta.lte('preco_valor', Number(entrada.precoMax));
+  if (precoMin !== null) consulta = consulta.gte('preco_valor', Math.max(precoMin, 0));
+  if (precoMax !== null) consulta = consulta.lte('preco_valor', Math.max(precoMax, 0));
   if (entrada.disponibilidade === 'disponivel') consulta = consulta.gt('estoque', 0);
   if (entrada.disponibilidade === 'esgotado') consulta = consulta.lte('estoque', 0);
   if (Number(entrada.dataDias || 0) > 0) {
@@ -171,11 +184,13 @@ export async function buscarCatalogo(opcoes = {}) {
 
   const entrada = JSON.parse(chave);
   const promise = (async () => {
+    const precoMin = numeroFiltroOpcional(entrada.precoMin);
+    const precoMax = numeroFiltroOpcional(entrada.precoMax);
     const { data, error } = await supabase.rpc('buscar_catalogo_publico', {
       p_busca: entrada.busca,
       p_categoria: entrada.categoria === 'todos' ? '' : entrada.categoria,
-      p_preco_min: Number.isFinite(Number(entrada.precoMin)) ? Number(entrada.precoMin) : null,
-      p_preco_max: Number.isFinite(Number(entrada.precoMax)) ? Number(entrada.precoMax) : null,
+      p_preco_min: precoMin === null ? null : Math.max(precoMin, 0),
+      p_preco_max: precoMax === null ? null : Math.max(precoMax, 0),
       p_vendedor_id: entrada.vendedorId || null,
       p_disponibilidade: entrada.disponibilidade,
       p_min_avaliacao: entrada.minAvaliacao,

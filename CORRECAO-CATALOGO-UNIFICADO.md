@@ -1,5 +1,14 @@
 # Correção do catálogo público — VORA 313
 
+## Causa confirmada
+
+O Supabase devolve os produtos publicamente: a consulta devolveu os 10
+registos com `ativo = true`, `vendedor_ativo = true` e
+`status_aprovacao = 'aprovado'`. O defeito estava no navegador: JavaScript
+transformava o campo vazio de **preço máximo** (`null`) em `0` e enviava a
+consulta como `preco_valor <= 0`. Como nenhum produto custa zero, a página
+principal e todas as categorias apareciam vazias.
+
 ## O que foi corrigido
 
 - A página inicial passa a usar a consulta pública directa como contingência
@@ -13,13 +22,15 @@
   o seu recorte próprio.
 - Todas as páginas públicas passam a carregar a mesma versão do módulo de
   catálogo e o cache do Service Worker foi renovado.
+- O preço máximo vazio agora continua como `null` na RPC e na consulta directa;
+  isso significa correctamente **sem limite máximo**.
 
 ## Publicar esta correção
 
 1. Publique o conteúdo desta pasta no repositório/hosting da VORA 313,
    substituindo os ficheiros existentes.
 2. Aguarde o deploy do GitHub Pages terminar.
-3. Abra o site uma vez com Internet. O cache `v63-catalogo-unificado` substitui
+3. Abra o site uma vez com Internet. O cache `v64-preco-sem-limite` substitui
    automaticamente o cache anterior; se o navegador continuar antigo, faça
    uma atualização forçada (`Ctrl+F5`).
 

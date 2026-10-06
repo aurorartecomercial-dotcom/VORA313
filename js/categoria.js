@@ -1,4 +1,4 @@
-import { buscarCatalogo, criarCardProduto } from './catalogo.js?v=6-catalogo-unificado';
+import { buscarCatalogo, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
 import { encontrarCategoria } from './categorias-vora.js';
 import { initMobileMenu } from './menu.js';
 

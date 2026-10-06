@@ -15,6 +15,11 @@ assert.match(catalogo, /async function buscarCatalogoDireto/);
 assert.match(catalogo, /Pesquisa avançada indisponível; a usar catálogo compatível/);
 assert.match(catalogo, /\.eq\('ativo', true\)[\s\S]*\.eq\('vendedor_ativo', true\)[\s\S]*\.eq\('status_aprovacao', 'aprovado'\)/);
 assert.match(catalogo, /A RPC não devolveu anúncios; a usar o catálogo público compatível/);
+assert.match(catalogo, /function numeroFiltroOpcional\(valor\)/);
+assert.match(catalogo, /valor === null \|\| valor === undefined \|\| valor === ''/);
+assert.match(catalogo, /if \(precoMax !== null\) consulta = consulta\.lte\('preco_valor', Math\.max\(precoMax, 0\)\)/);
+assert.match(catalogo, /p_preco_max: precoMax === null \? null : Math\.max\(precoMax, 0\)/);
+assert.doesNotMatch(catalogo, /Number\.isFinite\(Number\(entrada\.precoMax\)\)/, 'Preço máximo vazio não pode ser convertido em zero.');
 
 const renderizadores = loja.match(/^function renderizarProdutos\(/gm) || [];
 assert.equal(renderizadores.length, 1, 'A vitrine deve declarar renderizarProdutos uma única vez.');

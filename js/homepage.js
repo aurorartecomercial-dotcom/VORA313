@@ -1,4 +1,4 @@
-import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=6-catalogo-unificado';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
 import { CATEGORIAS_VORA } from './categorias-vora.js';
 import { auth } from './config.js';
 import { extrairValorNumerico, escapeHTML } from './utils.js';
