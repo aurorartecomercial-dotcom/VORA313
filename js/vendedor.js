@@ -982,8 +982,13 @@ async function recuperarSenha() {
   const email = String($('vendLoginEmail').value || auth.currentUser?.email || '').trim();
   if (!email) return mensagem('Informe o e-mail para receber o link de recuperação.', false);
   try {
-    await sendPasswordResetEmail(auth, email, `${location.origin}${location.pathname}`);
-    mensagem('Enviámos o link de recuperação. Abra-o no navegador para definir a nova palavra-passe.');
+    // Usa sempre a página que contém o formulário seguro de nova palavra-passe
+    // e remove parâmetros/hash antigos que poderiam tornar a URL inválida.
+    const retorno = new URL('vendedor.html', window.location.href);
+    retorno.search = '';
+    retorno.hash = '';
+    await sendPasswordResetEmail(auth, email, retorno.toString());
+    mensagem('Enviámos o link de recuperação. Verifique também Spam/Lixo e abra o link no mesmo navegador para definir a nova palavra-passe.');
   } catch (erro) { mensagem(erroTexto(erro), false); }
 }
 

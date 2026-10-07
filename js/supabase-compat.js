@@ -276,11 +276,24 @@ function normalizeAuthError(error) {
   const original = error?.message || 'Erro de autenticação.';
   const limiteEmail = error?.code === 'over_email_send_rate_limit'
     || /email rate limit|email.*rate.*limit|too many.*email/i.test(original);
+  const emailNaoAutorizado = error?.code === 'email_address_not_authorized'
+    || /email address not authorized|email.*not.*authorized/i.test(original);
+  const falhaEnvioRecuperacao = /error sending recovery email|error sending.*email|failed to send.*email/i.test(original);
+  const redirecionamentoNaoAutorizado = /redirect.*(?:not allowed|not authorized)|requested redirect url/i.test(original);
   const mensagem = limiteEmail
-    ? 'Limite de e-mails do Supabase atingido. A confirmação e a recuperação usam o mesmo limite de 2 e-mails por hora. Aguarde uma hora ou configure SMTP próprio no Supabase.'
-    : original;
+    ? 'Limite de e-mails do Supabase atingido. Aguarde uma hora antes de tentar novamente ou configure SMTP próprio em Authentication → Emails → SMTP Settings.'
+    : emailNaoAutorizado
+      ? 'Este e-mail não está autorizado pelo SMTP padrão do Supabase. Adicione-o à equipa do projeto para testes ou configure SMTP próprio para enviar a clientes.'
+      : redirecionamentoNaoAutorizado
+        ? 'O endereço de retorno não está autorizado no Supabase. Em Authentication → URL Configuration, adicione a URL completa de vendedor.html.'
+        : falhaEnvioRecuperacao
+          ? 'O Supabase não conseguiu enviar o e-mail de recuperação. Verifique Authentication → Emails → SMTP Settings. O e-mail padrão é apenas para testes e possui restrições de destinatário e de envio.'
+          : original;
   const e = new Error(mensagem);
   const map = { 'Invalid login credentials': 'Credenciais inválidas.', 'User already registered': 'auth/email-already-in-use' };
-  e.code = limiteEmail ? 'auth/email-rate-limit' : (map[error?.message] || error?.code || 'auth/error');
+  e.code = limiteEmail ? 'auth/email-rate-limit'
+    : (emailNaoAutorizado ? 'auth/email-not-authorized'
+      : (falhaEnvioRecuperacao ? 'auth/email-delivery-failed'
+        : (map[error?.message] || error?.code || 'auth/error')));
   return e;
 }

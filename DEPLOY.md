@@ -26,9 +26,16 @@ A autorização de vendedor usa `public.vendedores.status = 'aprovado'` e `ativo
 
 As contas de Authentication não são, por si só, candidaturas de vendedor. Quando a confirmação de e-mail está ativa, o utilizador deve confirmar o e-mail, entrar e enviar o formulário de candidatura. A candidatura então aparece como `pendente` no painel administrativo.
 
-## 5. Limite de e-mails de autenticação
+## 5. Recuperação de palavra-passe e e-mails de autenticação
 
-Não existe limite diário de vendedores implementado no site. No plano de e-mail padrão do Supabase, os e-mails de confirmação e recuperação compartilham um limite baixo de 2 mensagens por hora. Para produção, configure SMTP próprio em **Authentication → Emails → SMTP Settings**; depois ajuste **Authentication → Rate Limits** de acordo com o serviço de e-mail escolhido.
+O botão **Recuperar palavra-passe** chama o serviço de autenticação do Supabase; o site não envia nem guarda palavras-passe por conta própria. Para o fluxo funcionar em produção, conclua esta configuração no painel do Supabase:
+
+1. Em **Authentication → URL Configuration**, defina a **Site URL** como `https://aurorartecomercial-dotcom.github.io/VORA313/` e inclua `https://aurorartecomercial-dotcom.github.io/VORA313/vendedor.html` em **Redirect URLs**. O endereço deve ser exatamente o da implantação, sem uma página inexistente no final.
+2. Em **Authentication → Emails → SMTP Settings**, configure um SMTP da empresa (remetente, servidor, porta, utilizador e palavra-passe do provedor). O SMTP padrão do Supabase serve apenas para testes e pode recusar destinatários que não sejam membros do projeto.
+3. Depois de confirmar que o SMTP entrega e-mails, reveja **Authentication → Rate Limits** de acordo com o limite contratado no provedor. Sem SMTP próprio, os e-mails de confirmação e recuperação compartilham um limite muito baixo, normalmente 2 mensagens por hora.
+4. Se o pedido ainda falhar, abra **Authentication → Logs** logo após uma única tentativa e procure o código do erro. `email_address_not_authorized` indica a restrição do SMTP padrão; `over_email_send_rate_limit` indica limite de envio. Aguarde pelo menos 60 segundos entre tentativas para não acionar o limite de recuperação.
+
+O frontend apresenta agora mensagens específicas para estes casos e sempre pede que o link abra `vendedor.html`, onde está o formulário seguro de nova palavra-passe. Não repita vários pedidos seguidos: isso não recupera a palavra-passe mais depressa e pode atingir o limite do provedor.
 
 ## 6. Pagamentos
 
