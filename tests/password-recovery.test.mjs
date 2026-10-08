@@ -16,10 +16,20 @@ for (const codigo of ['over_email_send_rate_limit', 'email_address_not_authorize
   if (!compat.includes(codigo)) throw new Error(`A causa ${codigo} não recebe uma mensagem útil.`);
 }
 
+if (!/O Supabase não conseguiu enviar o e-mail de autenticação\./.test(compat)) {
+  throw new Error('A falha de SMTP não explica que ela também pode afetar o cadastro.');
+}
+
 if (!/new URL\('vendedor\.html', window\.location\.href\)/.test(vendedor)
     || !/retorno\.search = ''/.test(vendedor)
     || !/retorno\.hash = ''/.test(vendedor)) {
   throw new Error('A URL de retorno da recuperação pode reutilizar parâmetros inválidos.');
+}
+
+if (!/function limparMensagem\(\)/.test(vendedor)
+    || !/function mostrarCadastro\(\) \{\s*\/\/ Não levar um erro/s.test(vendedor)
+    || !/function mostrarLogin\(\) \{\s*\/\/ A mensagem útil/s.test(vendedor)) {
+  throw new Error('Uma mensagem antiga ainda pode ser mostrada no formulário errado.');
 }
 
 if (!/Authentication → Emails → SMTP Settings/.test(deploy)

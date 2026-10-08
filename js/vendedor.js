@@ -26,6 +26,13 @@ function mensagem(texto, ok = true) {
   box.className = `seller-message ${ok ? 'ok' : 'err'}`;
 }
 
+function limparMensagem() {
+  const box = $('vendMensagem');
+  if (!box) return;
+  box.textContent = '';
+  box.className = 'seller-message';
+}
+
 function erroTexto(erro) {
   return String(erro?.message || erro || 'Ocorreu um erro inesperado.');
 }
@@ -122,6 +129,9 @@ function limparRascunho() {
 }
 
 function mostrarCadastro() {
+  // Não levar um erro de recuperação de palavra-passe para a candidatura.
+  // Isto evita que uma mensagem antiga pareça falha do novo cadastro.
+  limparMensagem();
   alterarVisibilidade('vendCadastro', true);
   alterarVisibilidade('vendAuth', false);
   alterarVisibilidade('vendDashboard', false);
@@ -130,6 +140,8 @@ function mostrarCadastro() {
 }
 
 function mostrarLogin() {
+  // A mensagem útil, quando existir, é escrita logo após esta transição.
+  limparMensagem();
   alterarVisibilidade('vendCadastro', false);
   alterarVisibilidade('vendAuth', true);
   alterarVisibilidade('vendDashboard', false);

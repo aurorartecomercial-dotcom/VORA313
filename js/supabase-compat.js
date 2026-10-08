@@ -278,7 +278,8 @@ function normalizeAuthError(error) {
     || /email rate limit|email.*rate.*limit|too many.*email/i.test(original);
   const emailNaoAutorizado = error?.code === 'email_address_not_authorized'
     || /email address not authorized|email.*not.*authorized/i.test(original);
-  const falhaEnvioRecuperacao = /error sending recovery email|error sending.*email|failed to send.*email/i.test(original);
+  // Abrange tanto a confirmação de cadastro quanto a recuperação de palavra-passe.
+  const falhaEnvioEmail = /error sending recovery email|error sending.*email|failed to send.*email/i.test(original);
   const redirecionamentoNaoAutorizado = /redirect.*(?:not allowed|not authorized)|requested redirect url/i.test(original);
   const mensagem = limiteEmail
     ? 'Limite de e-mails do Supabase atingido. Aguarde uma hora antes de tentar novamente ou configure SMTP próprio em Authentication → Emails → SMTP Settings.'
@@ -286,14 +287,14 @@ function normalizeAuthError(error) {
       ? 'Este e-mail não está autorizado pelo SMTP padrão do Supabase. Adicione-o à equipa do projeto para testes ou configure SMTP próprio para enviar a clientes.'
       : redirecionamentoNaoAutorizado
         ? 'O endereço de retorno não está autorizado no Supabase. Em Authentication → URL Configuration, adicione a URL completa de vendedor.html.'
-        : falhaEnvioRecuperacao
-          ? 'O Supabase não conseguiu enviar o e-mail de recuperação. Verifique Authentication → Emails → SMTP Settings. O e-mail padrão é apenas para testes e possui restrições de destinatário e de envio.'
+        : falhaEnvioEmail
+          ? 'O Supabase não conseguiu enviar o e-mail de autenticação. Verifique Authentication → Emails → SMTP Settings. O e-mail padrão é apenas para testes e possui restrições de destinatário e de envio.'
           : original;
   const e = new Error(mensagem);
   const map = { 'Invalid login credentials': 'Credenciais inválidas.', 'User already registered': 'auth/email-already-in-use' };
   e.code = limiteEmail ? 'auth/email-rate-limit'
     : (emailNaoAutorizado ? 'auth/email-not-authorized'
-      : (falhaEnvioRecuperacao ? 'auth/email-delivery-failed'
+      : (falhaEnvioEmail ? 'auth/email-delivery-failed'
         : (map[error?.message] || error?.code || 'auth/error')));
   return e;
 }
