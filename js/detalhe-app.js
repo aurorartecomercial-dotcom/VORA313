@@ -1,4 +1,4 @@
-import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=11-manual-proforma';
+import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=12-proforma-sem-sessao';
 import { obterProdutoPublico, buscarCatalogo, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
 import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, consultarElegibilidadeAvaliacao, obterAvaliacao, obterAvaliacoesRecentes } from './avaliacoes.js';

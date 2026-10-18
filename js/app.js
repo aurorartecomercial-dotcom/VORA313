@@ -1,4 +1,4 @@
-import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=11-manual-proforma';
+import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=12-proforma-sem-sessao';
 import { buscarCatalogo, obterProdutoPublico, obterVendedoresPublicos, renderizarGrade, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
 import { initMobileMenu } from './menu.js';
 import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';

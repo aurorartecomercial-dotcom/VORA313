@@ -1,7 +1,7 @@
 import { supabase } from './config.js';
 import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
 import { escapeHTML, imagemProdutoSegura, urlSegura } from './utils.js';
-import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=11-manual-proforma';
+import { adicionarProdutoCarrinho, quantidadeItensCarrinho } from './carrinho.js?v=12-proforma-sem-sessao';
 import { registarPaginaPublica } from './metricas-acesso.js?v=1';
 import { obterResumoVendedor, obterAvaliacoesVendedor } from './avaliacoes.js';
 import { initFavoritos, atualizarEstadoFavoritosNaPagina } from './favoritos.js';

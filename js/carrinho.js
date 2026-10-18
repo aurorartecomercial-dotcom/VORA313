@@ -23,8 +23,19 @@ let btnSalvarCliente;
 let cupomAplicado = '';
 let pedidoEmPagamento = null;
 let metodoPagamentoSelecionado = 'transferencia_manual';
+let sessaoAnonimaIndisponivel = false;
 const CHECKOUT_IDEMPOTENCY_KEY = 'vora313_checkout_idempotency';
 const PAYMENT_IDEMPOTENCY_PREFIX = 'vora313_payment_idempotency_';
+// Estes valores repetem a tabela usada no servidor apenas para a proforma
+// provisória. O pedido definitivo continua a ser calculado no servidor.
+const FRETES_PROFORMA = Object.freeze({
+  'Luanda Centro': 1000, Ingombota: 1000, Maianga: 1200, Rangel: 1500,
+  Cazenga: 2000, Viana: 3500, Talatona: 4000, Kilamba: 4500, Benfica: 3000,
+  'Ondjiva (Cunene)': 1500, 'Cuanhama (Ondjiva)': 1500,
+  'Ombadja (Xangongo)': 2500, 'Cuvelai (Cunene)': 2500,
+  'Namacunde (Santa Clara)': 2000, 'Curoca (Cunene)': 3500,
+  'Cahama (Cunene)': 3000, 'Outro (Cunene)': 4000
+});
 
 function normalizarVariacaoCarrinho(variacao) {
   if (!variacao || typeof variacao !== 'object' || Array.isArray(variacao)) return {};
@@ -387,6 +398,64 @@ async function garantirSessao() {
   return (await signInAnonymously(auth)).user;
 }
 
+function sessaoAnonimaFoiDesativada(error) {
+  const codigo = String(error?.code || '').toLowerCase();
+  const mensagem = String(error?.message || '').toLowerCase();
+  return codigo === 'auth/operation-not-allowed'
+    || codigo === 'auth/admin-restricted-operation'
+    || mensagem.includes('anonymous sign-ins are disabled')
+    || mensagem.includes('anonymous sign-in is disabled');
+}
+
+function referenciaProformaManual() {
+  const momento = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
+  const aleatorio = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+    ? crypto.randomUUID().replaceAll('-', '').slice(0, 8).toUpperCase()
+    : Math.random().toString(36).slice(2, 10).toUpperCase();
+  return `PRO-${momento}-${aleatorio}`;
+}
+
+function criarProformaManual(cliente) {
+  const itens = carrinho.map((item) => ({
+    produtoId: item.produtoId,
+    nome: String(item.nome || 'Produto'),
+    preco: extrairValorNumerico(item.preco),
+    quantidade: Math.max(1, Number(item.quantidade) || 1),
+    observacao: String(item.observacao || ''),
+    variacao: normalizarVariacaoCarrinho(item.variacao)
+  }));
+  const subtotal = itens.reduce((soma, item) => soma + (Number(item.preco) * Number(item.quantidade)), 0);
+  const frete = Number(FRETES_PROFORMA[cliente.bairro] || 0);
+  const agora = new Date();
+  const referencia = referenciaProformaManual();
+  return {
+    // Não existe uma venda gravada neste modo. A equipa confirma a solicitação
+    // recebida pelo WhatsApp antes de pedir qualquer pagamento.
+    pedidoId: null,
+    codigoRastreio: 'A confirmar pela VORA',
+    numeroFatura: referencia,
+    status: 'aguardando_validacao',
+    subtotal,
+    frete,
+    valorDesconto: 0,
+    valorTotal: subtotal + frete,
+    itens,
+    cliente,
+    emitidoEm: agora.toISOString(),
+    expiraEm: new Date(agora.getTime() + (2 * 60 * 60 * 1000)).toISOString(),
+    cupomAplicado: null,
+    proformaManual: true
+  };
+}
+
+function abrirFluxoProformaManual(cliente) {
+  const pedido = criarProformaManual(cliente);
+  fecharModalCliente();
+  abrirModalPagamento(pedido);
+  const avisoCupom = cupomAplicado ? ' O cupom será validado pela equipa.' : '';
+  mostrarToast(`Fatura proforma provisória pronta para imprimir.${avisoCupom}`, 'info');
+}
+
 async function finalizarPedido() {
   const cliente = {
     nome: inputNome?.value.trim() || '',
@@ -408,6 +477,10 @@ async function finalizarPedido() {
   try {
     btnSalvarCliente.disabled = true;
     btnSalvarCliente.textContent = '⏳ A validar pedido…';
+    if (sessaoAnonimaIndisponivel) {
+      abrirFluxoProformaManual(cliente);
+      return;
+    }
     await garantirSessao();
     const criarPedido = httpsCallable(functions, 'criarPedido');
     const resposta = await criarPedido({
@@ -421,6 +494,14 @@ async function finalizarPedido() {
     limparCarrinho();
     abrirModalPagamento(resposta.data);
   } catch (error) {
+    if (sessaoAnonimaFoiDesativada(error)) {
+      // A configuração atual do Supabase não permite convidados. Não
+      // bloqueamos o cliente: emitimos apenas uma proforma provisória,
+      // que não cria pedido nem confirma pagamento.
+      sessaoAnonimaIndisponivel = true;
+      abrirFluxoProformaManual(cliente);
+      return;
+    }
     console.error('Erro ao criar pedido:', error);
     mostrarToast(error.message || 'Não foi possível criar o pedido.', 'info');
   } finally {
@@ -480,7 +561,11 @@ function definirMetodoPagamento(metodo) {
   const mensagem = document.getElementById('pagMetodoEstado');
   const botaoConfirmar = document.getElementById('btnConfirmarPagamento');
   if (metodo === 'transferencia_manual') {
-    if (mensagem) mensagem.textContent = '1. Guarde a fatura proforma. 2. Envie o pedido no WhatsApp. 3. Receba os dados bancários e envie o comprovativo com a referência.';
+    if (mensagem) {
+      mensagem.textContent = pedidoEmPagamento?.proformaManual
+        ? '1. Guarde a fatura proforma provisória. 2. Envie a solicitação no WhatsApp. 3. Aguarde a confirmação de stock, total e dados de pagamento da VORA.'
+        : '1. Guarde a fatura proforma. 2. Envie o pedido no WhatsApp. 3. Receba os dados bancários e envie o comprovativo com a referência.';
+    }
     if (botaoConfirmar) {
       botaoConfirmar.disabled = false;
       botaoConfirmar.textContent = '💬 2. Enviar pedido pelo WhatsApp';
@@ -495,6 +580,10 @@ async function iniciarPagamentoManual() {
   if (!pedido) return;
   if (metodoPagamentoSelecionado !== 'transferencia_manual') {
     mostrarToast('Este método de pagamento ainda não está ativo.', 'info');
+    return;
+  }
+  if (pedido.proformaManual) {
+    enviarPedidoWhatsApp(pedido);
     return;
   }
   const botao = document.getElementById('btnConfirmarPagamento');
@@ -535,26 +624,35 @@ function limparCarrinho() {
 }
 
 function enviarPedidoWhatsApp(pedido) {
+  const proformaManual = pedido.proformaManual === true;
   const linhas = pedido.itens.map((item) => `• ${item.nome} (x${item.quantidade}) - ${formatarMoeda(item.preco * item.quantidade)}`);
   const texto = [
-    '*VORA 313 — PEDIDO PARA PAGAMENTO MANUAL*', '',
-    `Pedido: ${pedido.codigoRastreio}`,
+    `*VORA 313 — ${proformaManual ? 'SOLICITAÇÃO COM FATURA PROFORMA' : 'PEDIDO PARA PAGAMENTO MANUAL'}*`, '',
+    `${proformaManual ? 'Solicitação' : 'Pedido'}: ${pedido.codigoRastreio}`,
     `Referência: ${pedido.numeroFatura}`,
     ...linhas, '',
     `Total: ${formatarMoeda(pedido.valorTotal)}`, '',
-    'Guardei a fatura proforma e solicito os dados para efetuar o pagamento.',
+    proformaManual
+      ? 'Guardei a fatura proforma provisória. Peço confirmação de disponibilidade, valor final e dados para pagamento.'
+      : 'Guardei a fatura proforma e solicito os dados para efetuar o pagamento.',
     'Enviarei o comprovativo com esta referência depois da transferência.'
   ].join('\n');
   window.open(`https://api.whatsapp.com/send?phone=${CONFIG.NUMERO_WHATSAPP}&text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
   fecharModalPagamento();
-  mostrarToast('Pedido enviado ao WhatsApp. Aguarde as instruções de pagamento.', 'sucesso');
+  mostrarToast(
+    proformaManual
+      ? 'Solicitação enviada ao WhatsApp. A equipa confirmará os dados antes do pagamento.'
+      : 'Pedido enviado ao WhatsApp. Aguarde as instruções de pagamento.',
+    'sucesso'
+  );
 }
 
 export function gerarFaturaHTML(pedido) {
   const cliente = pedido.cliente || {};
   const pago = String(pedido.status || '').toLowerCase() === 'pago';
+  const proformaManual = pedido.proformaManual === true;
   const tipoDocumento = pago ? 'FATURA / RECIBO' : 'FATURA PROFORMA';
-  const estadoDocumento = pago ? 'PAGAMENTO CONFIRMADO' : 'AGUARDANDO PAGAMENTO';
+  const estadoDocumento = pago ? 'PAGAMENTO CONFIRMADO' : proformaManual ? 'AGUARDANDO VALIDAÇÃO' : 'AGUARDANDO PAGAMENTO';
   const dataEmissao = pedido.emitidoEm
     ? new Date(pedido.emitidoEm).toLocaleString('pt-AO', { dateStyle: 'medium', timeStyle: 'short' })
     : new Date().toLocaleString('pt-AO', { dateStyle: 'medium', timeStyle: 'short' });
@@ -572,7 +670,10 @@ export function gerarFaturaHTML(pedido) {
   const morada = [cliente.morada, cliente.bairro].filter(Boolean).join(' · ') || 'Não informada';
   const avisoPagamento = pago
     ? 'Pagamento confirmado pela VORA 313. Guarde este documento como comprovativo do pedido.'
-    : 'Este documento é uma fatura proforma e não comprova pagamento. O pedido será processado somente após a confirmação da VORA 313.';
+    : proformaManual
+      ? 'Esta é uma fatura proforma provisória, sem pedido registado. A VORA 313 deve confirmar disponibilidade, entrega e valor final antes de qualquer pagamento.'
+      : 'Este documento é uma fatura proforma e não comprova pagamento. O pedido será processado somente após a confirmação da VORA 313.';
+  const tituloReferenciaPedido = proformaManual ? 'Solicitação' : 'Pedido / rastreio';
   const html = `<!doctype html>
 <html lang="pt-AO"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${tipoDocumento} ${escapeHTML(pedido.numeroFatura || '')} — VORA 313</title>
 <style>
@@ -581,11 +682,11 @@ export function gerarFaturaHTML(pedido) {
 </style></head><body>
 <div class="toolbar"><button class="btn-close" onclick="window.close()">Fechar</button><button class="btn-print" onclick="window.print()">🖨️ Imprimir / Guardar PDF</button></div>
 <main class="invoice"><header class="topo"><div class="marca"><div class="marca-sinal">◔</div><div><div class="marca-nome">VORA <span>313</span></div><small>Marketplace angolano</small></div></div><div class="documento"><h1>${tipoDocumento}</h1><p>Emitida em ${escapeHTML(dataEmissao)}</p><span class="selo">${estadoDocumento}</span></div></header>
-<section class="referencias"><div class="referencia"><span>Número do documento</span><strong>${escapeHTML(pedido.numeroFatura || '—')}</strong></div><div class="referencia"><span>Pedido / rastreio</span><strong>${escapeHTML(pedido.codigoRastreio || '—')}</strong></div><div class="referencia"><span>Vencimento</span><strong>${pedido.expiraEm ? escapeHTML(new Date(pedido.expiraEm).toLocaleString('pt-AO', { dateStyle: 'medium', timeStyle: 'short' })) : '—'}</strong></div></section>
+<section class="referencias"><div class="referencia"><span>Número do documento</span><strong>${escapeHTML(pedido.numeroFatura || '—')}</strong></div><div class="referencia"><span>${tituloReferenciaPedido}</span><strong>${escapeHTML(pedido.codigoRastreio || '—')}</strong></div><div class="referencia"><span>Vencimento</span><strong>${pedido.expiraEm ? escapeHTML(new Date(pedido.expiraEm).toLocaleString('pt-AO', { dateStyle: 'medium', timeStyle: 'short' })) : '—'}</strong></div></section>
 <section class="dados"><div class="bloco"><span class="bloco-titulo">Emitente</span><p><strong>VORA 313</strong></p><p>Marketplace · Luanda, Angola</p><p>NIF: 5000048151</p><p>Atendimento: +244 933 677 628</p></div><div class="bloco"><span class="bloco-titulo">Cliente e entrega</span><p><strong>${escapeHTML(cliente.nome || 'Cliente')}</strong></p><p>Tel.: ${escapeHTML(cliente.telefone || '—')} · NIF: ${escapeHTML(cliente.nif || '—')}</p><p>${escapeHTML(morada)}</p></div></section>
 <table class="tabela-produtos"><thead><tr><th>#</th><th>Produto</th><th class="centro">Qtd.</th><th class="valor">Preço unit.</th><th class="valor">Total</th></tr></thead><tbody>${linhas}</tbody></table>
 <section class="rodape-total"><div class="totais"><div class="total-row"><span>Subtotal dos produtos</span><strong>${escapeHTML(formatarMoeda(pedido.subtotal || 0))}</strong></div>${cupom}<div class="total-row"><span>Entrega</span><strong>${escapeHTML(formatarMoeda(pedido.frete || 0))}</strong></div><div class="total-row total-final"><span>Total a pagar</span><strong>${escapeHTML(formatarMoeda(pedido.valorTotal || 0))}</strong></div></div></section>
-<section class="pagamento"><h2>${pago ? 'Pagamento confirmado' : 'Instrução de pagamento'}</h2><p>${escapeHTML(avisoPagamento)}</p>${pago ? '' : `<p style="margin-top:6px"><strong>Referência para o comprovativo:</strong> ${escapeHTML(pedido.numeroFatura || '—')}</p>`}</section>
+<section class="pagamento"><h2>${pago ? 'Pagamento confirmado' : proformaManual ? 'Validação necessária' : 'Instrução de pagamento'}</h2><p>${escapeHTML(avisoPagamento)}</p>${pago ? '' : `<p style="margin-top:6px"><strong>Referência para o comprovativo:</strong> ${escapeHTML(pedido.numeroFatura || '—')}</p>`}</section>
 <footer class="rodape"><div><strong>VORA 313</strong> · Compra simples, venda com confiança.</div><div>Documento eletrónico · ${escapeHTML(pedido.numeroFatura || '')}</div></footer></main></body></html>`;
   // A fatura é aberta por um clique direto do cliente. Não usamos `noopener`
   // aqui porque alguns navegadores devolvem `null` e impedem escrever no
