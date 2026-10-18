@@ -147,6 +147,16 @@ body {
 #sugestoesBusca a:hover { background: var(--cor-esmeralda-claro); }
 #sugestoesBusca a img { width: 40px; height: 40px; object-fit: cover; border-radius: 4px; background: #f0f0f0; }
 
+/* Busca inteligente: produtos e categorias clicáveis no cabeçalho e no hero. */
+.sugestoes-busca{position:absolute;top:calc(100% + 8px);left:0;right:0;display:none;max-height:min(430px,58vh);overflow-y:auto;background:#fff;border:1px solid #d8e4de;border-radius:15px;box-shadow:0 16px 36px rgba(0,47,39,.22);z-index:10020;color:#173d33;padding:7px}
+#headerBuscaForm{overflow:visible!important}
+.sugestao-busca-titulo{margin:5px 7px 4px;color:#6b7d76;font-size:10px;font-weight:900;letter-spacing:.06em;text-transform:uppercase}
+.sugestao-busca-item{display:grid!important;grid-template-columns:42px minmax(0,1fr) auto;align-items:center;gap:10px;min-height:58px;padding:8px!important;border:0!important;border-radius:10px;text-decoration:none!important;color:#173d33!important;transition:background .16s,transform .16s}
+.sugestao-busca-item:hover,.sugestao-busca-item.ativo{background:#edf7f2!important;transform:translateX(2px)}
+.sugestao-busca-item img{width:42px!important;height:42px!important;object-fit:cover;border-radius:8px;background:#eef3f0}
+.sugestao-busca-textos{display:grid;gap:2px;min-width:0}.sugestao-busca-textos strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}.sugestao-busca-textos small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#687a73;font-size:11px}.sugestao-busca-seta{color:#0b6c58;font-size:22px;line-height:1}.sugestao-categoria{display:flex!important;grid-template-columns:none!important;min-height:38px;color:#075946!important;font-size:12px;font-weight:800}.sugestao-busca-ver-todos{display:block;width:calc(100% - 4px);margin:5px 2px 1px;padding:11px;border:0;border-radius:10px;background:#005a4c;color:#fff;font:inherit;font-size:12px;font-weight:900;cursor:pointer;text-align:center}.sugestao-busca-ver-todos:hover{background:#003d34}.sugestao-busca-vazia{margin:6px;padding:16px 10px;color:#697972;font-size:12px;text-align:center}
+@media(max-width:700px){.sugestoes-busca{max-height:52vh;top:calc(100% + 6px)}.sugestao-busca-item{min-height:54px}.sugestao-busca-textos strong{font-size:12px}}
+
 \.carrossel-ofertas { margin: 20px auto 0; max-width: 1480px; border-radius: var(--raio-borda); overflow: hidden; position: relative; box-shadow: var(--sombra-card); border: 2px solid var(--cor-ouro); }
 .carrossel-container { position: relative; width: 100%; background: #fff; overflow: hidden; }
 .carrossel-slides { width: 100%; }

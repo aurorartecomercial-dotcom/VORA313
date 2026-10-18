@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=46-manual-proforma" />
+    <link rel="stylesheet" href="style.css?v=47-busca-inteligente" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -65,8 +65,8 @@
                 <img src="logo-vora-313.png" alt="Logo VORA 313" />
                 <span class="logo-wordmark">VORA <span>313</span></span>
             </a>
-            <form class="busca-container" role="search" onsubmit="event.preventDefault();">
-                <input type="search" id="campoBusca" placeholder="Buscar produtos..." class="busca-input" aria-label="Buscar produtos" />
+            <form id="headerBuscaForm" class="busca-container" role="search">
+                <input type="search" id="campoBusca" placeholder="Buscar produtos..." class="busca-input" autocomplete="off" aria-label="Buscar produtos" aria-autocomplete="list" aria-expanded="false" />
                 <button type="submit" aria-label="Pesquisar">🔍</button>
             </form>
             <div class="header-icones">
@@ -175,7 +175,7 @@
             <div class="vora-home-hero-search" aria-label="Pesquisa de produtos">
                 <div class="vora-home-search-label">🔎 O que procura hoje?</div>
                 <form id="heroBuscaForm" class="vora-home-search-form" role="search">
-                    <input id="heroCampoBusca" type="search" placeholder="Ex.: smartphone, consola, perfume..." autocomplete="off" aria-label="Pesquisar produtos na VORA 313" />
+                    <input id="heroCampoBusca" type="search" placeholder="Ex.: smartphone, consola, perfume..." autocomplete="off" aria-label="Pesquisar produtos na VORA 313" aria-autocomplete="list" aria-expanded="false" />
                     <button type="submit">Pesquisar</button>
                 </form>
                 <p>Pesquise por nome, categoria ou palavra-chave e encontre produtos disponíveis no catálogo.</p>
@@ -603,7 +603,7 @@
     </script>
 
     <!-- SCRIPTS PRINCIPAIS -->
-    <script type="module" src="js/app.js?v=50-proforma-sem-sessao"></script>
+    <script type="module" src="js/app.js?v=51-busca-inteligente"></script>
     <script type="module" src="js/homepage.js?v=4-preco-sem-limite"></script>
     <script type="module" src="js/carrinho.js?v=12-proforma-sem-sessao"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
