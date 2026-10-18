@@ -3266,3 +3266,98 @@ body.modo-escuro .detalhe-visualizacoes{border-color:#385c51;background:#192b26;
   .loja-grid-publica{grid-template-columns:1fr 1fr!important}
 }
 @media (min-width:769px){.adm-table-wrap::after,.tabela-scroll::after{display:none}}
+
+/* VORA 313 — cartões de benefícios com contraste alto e identidade própria. */
+.vora-home-benefit-card{
+  position:relative;
+  overflow:hidden;
+  border:1px solid transparent;
+  box-shadow:0 14px 30px rgba(0,61,50,.14);
+}
+.vora-home-benefit-card::after{
+  content:'';
+  position:absolute;
+  width:190px;
+  height:190px;
+  right:-72px;
+  top:-88px;
+  border-radius:50%;
+  background:rgba(255,255,255,.1);
+  pointer-events:none;
+}
+.vora-home-benefit-card.buyer{
+  background:linear-gradient(135deg,#7d1d4e 0%,#b52c6c 100%);
+  border-color:#c94d83;
+}
+.vora-home-benefit-card.seller{
+  background:linear-gradient(135deg,#004f43 0%,#087563 100%);
+  border-color:#17816d;
+}
+.vora-home-benefit-card .vora-home-card-icon,
+.vora-home-benefit-card .vora-home-kicker,
+.vora-home-benefit-card h2,
+.vora-home-benefit-card p,
+.vora-home-benefit-card ul,
+.vora-home-benefit-card .vora-home-text-link{
+  position:relative;
+  z-index:1;
+}
+.vora-home-benefit-card .vora-home-card-icon{filter:drop-shadow(0 2px 3px rgba(0,0,0,.2))}
+.vora-home-benefit-card .vora-home-kicker{color:#ffe49a}
+.vora-home-benefit-card h2{color:#fff;text-shadow:0 1px 1px rgba(0,0,0,.18)}
+.vora-home-benefit-card p{color:#fff8fc;font-weight:600}
+.vora-home-benefit-card ul{color:#fff;font-weight:600}
+.vora-home-benefit-card li::marker{color:#ffe49a}
+.vora-home-benefit-card .vora-home-text-link{
+  display:inline-flex;
+  align-items:center;
+  min-height:36px;
+  padding:0 13px;
+  border-radius:999px;
+  background:#fff;
+  color:#064b40;
+  box-shadow:0 5px 12px rgba(0,0,0,.15);
+}
+.vora-home-benefit-card.buyer .vora-home-text-link{color:#871f53}
+.vora-home-benefit-card .vora-home-text-link:hover,
+.vora-home-benefit-card .vora-home-text-link:focus-visible{background:#ffe49a;color:#173d33}
+
+/* Navegação do telemóvel: fundo escuro, textos e ícones bem visíveis. */
+@media (max-width:768px){
+  .v31-mobile-nav{
+    background:linear-gradient(135deg,#003f35,#087563)!important;
+    border-color:rgba(255,222,134,.85)!important;
+    box-shadow:0 12px 30px rgba(0,45,36,.35)!important;
+  }
+  .v31-mobile-nav-item{
+    color:#f7fffc!important;
+    font-weight:800;
+    text-shadow:0 1px 2px rgba(0,0,0,.25);
+  }
+  .v31-mobile-nav-item span{
+    display:grid;
+    place-items:center;
+    min-width:28px;
+    min-height:24px;
+    color:inherit;
+    font-family:Arial,"Segoe UI Symbol",sans-serif;
+    font-weight:900;
+  }
+  .v31-mobile-nav-item small{color:inherit;font-size:8px;font-weight:900}
+  .v31-mobile-nav-item.ativo{
+    background:linear-gradient(135deg,#ffe9a9,#d9b747)!important;
+    color:#063f35!important;
+    box-shadow:0 5px 12px rgba(0,0,0,.2);
+    text-shadow:none;
+  }
+  .v31-mobile-nav-item:not(.ativo):hover,
+  .v31-mobile-nav-item:not(.ativo):focus-visible{background:rgba(255,255,255,.16)}
+  .v31-mobile-nav-item b,
+  .v31-mobile-nav-item #v31MobileCartCount{
+    right:-5px!important;
+    top:-5px!important;
+    background:#ffdf70!important;
+    color:#142d26!important;
+    border-color:#005346!important;
+  }
+}

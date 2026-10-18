@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="style.css?v=45-home-conversao" />
+    <link rel="stylesheet" href="style.css?v=46-manual-proforma" />
     <link rel="icon" type="image/png" href="logo-vora-313.png" />
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="logo-vora-313.png" />
@@ -366,7 +366,7 @@
                 <span>Total da compra:</span>
                 <span><span id="totalCarrinhoLoja">0</span> Kz</span>
             </div>
-            <button id="btnFinalizarWhatsApp" class="btn-finalizar">Finalizar Pedido</button>
+            <button id="btnFinalizarWhatsApp" class="btn-finalizar">Continuar para a fatura</button>
         </div>
     </aside>
 
@@ -416,26 +416,26 @@
             <label for="inputObservacao" style="margin-top:10px;">Observação (opcional)</label>
             <textarea id="inputObservacao" style="width:100%; padding:10px; border-radius:12px; margin-top:4px;" placeholder="Ex: gravar nome, cor, etc."></textarea>
 
-            <button id="btnSalvarCliente" class="btn-modal">✅ Gerar Fatura e Pagar</button>
+            <button id="btnSalvarCliente" class="btn-modal">✅ Gerar pedido e fatura proforma</button>
         </div>
     </div>
 
-    <!-- MODAL DE PAGAMENTO: a confirmação é feita apenas pelo servidor. -->
-    <div id="modalPagamento" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); z-index:10000; align-items:center; justify-content:center; padding:20px;">
+    <!-- PAGAMENTO MANUAL: nunca confirma pagamento pelo navegador. -->
+    <div id="modalPagamento" role="dialog" aria-modal="true" aria-labelledby="tituloPagamentoManual" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); backdrop-filter:blur(6px); z-index:10000; align-items:center; justify-content:center; padding:20px;">
         <div style="background:#fff; max-width:480px; width:100%; max-height:calc(100vh - 40px); overflow:auto; padding:28px; border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,0.3); text-align:center; position:relative;">
-            <h2 style="color:var(--cor-esmeralda); margin-bottom:8px;">💳 Concluir pagamento</h2>
-            <p style="color:#666; font-size:14px; margin:0 0 14px;">O seu pedido foi reservado. Escolha como pretende pagar.</p>
+            <h2 id="tituloPagamentoManual" style="color:var(--cor-esmeralda); margin-bottom:8px;">🧾 Fatura proforma e pagamento manual</h2>
+            <p style="color:#666; font-size:14px; margin:0 0 14px;">O pedido foi registado. Guarde a fatura proforma e envie o pedido no WhatsApp para receber as instruções de pagamento.</p>
 
             <div aria-label="Métodos de pagamento" style="display:grid; grid-template-columns:repeat(3, minmax(0, 1fr)); gap:8px; margin:0 0 14px; text-align:left;">
                 <button type="button" data-metodo-pagamento="transferencia_manual" aria-pressed="true" style="border:2px solid var(--cor-esmeralda); background:#eaf7f2; color:var(--cor-esmeralda); border-radius:12px; padding:10px 8px; font-weight:700; cursor:pointer; font-size:12px; line-height:1.25;">🏦 Transferência<br><span style="font-weight:500; font-size:10px;">com comprovativo</span></button>
                 <button type="button" disabled title="Será ativado quando o gateway bancário estiver contratado" style="border:2px solid #e4e8e6; background:#f6f7f7; color:#8a9691; border-radius:12px; padding:10px 8px; font-weight:700; cursor:not-allowed; font-size:12px; line-height:1.25;">📱 Multicaixa Express<br><span style="font-weight:500; font-size:10px;">em ativação</span></button>
                 <button type="button" disabled title="Visa e cartões BAI, BFA e BIC serão ativados após contrato do gateway" style="border:2px solid #e4e8e6; background:#f6f7f7; color:#8a9691; border-radius:12px; padding:10px 8px; font-weight:700; cursor:not-allowed; font-size:12px; line-height:1.25;">💳 Visa / bancos<br><span style="font-weight:500; font-size:10px;">BAI · BFA · BIC — em ativação</span></button>
             </div>
-            <p id="pagMetodoEstado" role="status" style="margin:0 0 12px; padding:10px 12px; border-radius:10px; background:#f4faf7; color:#35665a; font-size:12px; text-align:left;">Envie o comprovativo. A VORA confirma o pagamento antes de processar o pedido.</p>
+            <p id="pagMetodoEstado" role="status" style="margin:0 0 12px; padding:10px 12px; border-radius:10px; background:#f4faf7; color:#35665a; font-size:12px; text-align:left;">A fatura proforma não confirma pagamento. A VORA só processa o pedido depois de confirmar o valor recebido.</p>
             
             <div style="background:#f4f4f4; padding:16px; border-radius:12px; margin:16px 0; text-align:left; border:1px dashed var(--cor-ouro);">
-                <p style="margin:4px 0; font-size:13px;"><strong>Banco:</strong> BAI / Standard Bank</p>
-                <p style="margin:4px 0; font-size:13px;"><strong>NIF:</strong> 5000048151</p>
+                <p style="margin:4px 0; font-size:13px;"><strong>Forma de pagamento:</strong> transferência manual, confirmada pela VORA.</p>
+                <p style="margin:4px 0; font-size:13px;"><strong>Dados bancários:</strong> serão enviados pela equipa no WhatsApp para garantir que estão atualizados.</p>
                 <p style="margin:4px 0; font-size:13px;"><strong>Subtotal Produtos:</strong> <span id="pagProdutos" style="font-weight:bold;">0 Kz</span></p>
                 <p style="margin:4px 0; font-size:13px; display:none;" id="linhaDesconto"><strong>Desconto:</strong> <span id="pagDesconto" style="color:#E74C3C; font-weight:bold;">0 Kz</span></p>
                 <p style="margin:4px 0; font-size:13px;"><strong>Frete:</strong> <span id="pagFrete" style="font-weight:bold;">0 Kz</span></p>
@@ -450,10 +450,11 @@
 
             <div style="display:flex; flex-direction:column; gap:10px; margin-top:14px;">
                 <button id="btnCopiarRef" style="background:#D4AF37; color:#000; border:none; padding:12px; border-radius:40px; font-weight:700; cursor:pointer;">📋 Copiar Referência</button>
-                <button id="btnConfirmarPagamento" style="background:#25D366; color:#fff; border:none; padding:12px; border-radius:40px; font-weight:700; cursor:pointer;">📤 Enviar comprovativo por WhatsApp</button>
+                <button id="btnImprimirFatura" style="background:var(--cor-esmeralda); color:#fff; border:none; padding:12px; border-radius:40px; font-weight:700; cursor:pointer;">🖨️ 1. Imprimir / guardar fatura proforma</button>
+                <button id="btnConfirmarPagamento" style="background:#25D366; color:#fff; border:none; padding:12px; border-radius:40px; font-weight:700; cursor:pointer;">💬 2. Enviar pedido pelo WhatsApp</button>
                 <button id="btnFecharPagamento" style="background:transparent; color:#999; border:none; cursor:pointer; font-size:13px;">Fechar</button>
             </div>
-            <small style="display:block; margin-top:10px; color:#999; font-size:11px;">O pedido só será processado após a confirmação do pagamento pela VORA 313.</small>
+            <small style="display:block; margin-top:10px; color:#999; font-size:11px;">Depois de receber os dados de pagamento, envie o comprovativo no WhatsApp com esta referência. O pedido só será processado após a confirmação da VORA 313.</small>
         </div>
     </div>
 
@@ -602,9 +603,9 @@
     </script>
 
     <!-- SCRIPTS PRINCIPAIS -->
-    <script type="module" src="js/app.js?v=48-preco-sem-limite"></script>
+    <script type="module" src="js/app.js?v=49-manual-proforma"></script>
     <script type="module" src="js/homepage.js?v=4-preco-sem-limite"></script>
-    <script type="module" src="js/carrinho.js?v=10"></script>
+    <script type="module" src="js/carrinho.js?v=11-manual-proforma"></script>
     <script type="module" src="js/fidelidade.js?v=6"></script>
     <script type="module" src="js/favoritos.js?v=6"></script>
     <script type="module" src="js/fase3.js?v=6"></script>

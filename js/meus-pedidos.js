@@ -1,7 +1,7 @@
 import { auth, functions } from './config.js';
 import { httpsCallable } from './supabase-compat.js';
 import { escapeHTML, formatarMoeda } from './utils.js';
-import { gerarFaturaHTML } from './carrinho.js?v=10';
+import { gerarFaturaHTML } from './carrinho.js?v=11-manual-proforma';
 import { adicionarAvaliacao, consultarElegibilidadeAvaliacao } from './avaliacoes.js';
 
 const ETAPAS_TIMELINE = [

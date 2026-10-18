@@ -105,6 +105,7 @@ export function initCarrinho() {
   document.getElementById('btnAplicarCupom')?.addEventListener('click', () => aplicarCupom(inputCupom?.value));
   document.getElementById('btnFecharModal')?.addEventListener('click', fecharModalCliente);
   document.getElementById('btnFecharPagamento')?.addEventListener('click', fecharModalPagamento);
+  document.getElementById('btnImprimirFatura')?.addEventListener('click', imprimirFaturaPendente);
   document.getElementById('toastFechar')?.addEventListener('click', () => {
     document.getElementById('toast-notificacao').style.top = '-100px';
   });
@@ -424,7 +425,7 @@ async function finalizarPedido() {
     mostrarToast(error.message || 'Não foi possível criar o pedido.', 'info');
   } finally {
     btnSalvarCliente.disabled = false;
-    btnSalvarCliente.textContent = '✅ Gerar Fatura e Pagar';
+    btnSalvarCliente.textContent = '✅ Gerar pedido e fatura proforma';
   }
 }
 
@@ -456,6 +457,16 @@ function abrirModalPagamento(pedido) {
   modalPagamento.style.display = 'flex';
 }
 
+function imprimirFaturaPendente() {
+  if (!pedidoEmPagamento) return;
+  const abriu = gerarFaturaHTML(pedidoEmPagamento);
+  if (!abriu) {
+    mostrarToast('Não foi possível abrir a fatura. Permita janelas pop-up e tente novamente.', 'info');
+    return;
+  }
+  mostrarToast('Fatura proforma aberta. Pode imprimir ou guardar em PDF.', 'sucesso');
+}
+
 function definirMetodoPagamento(metodo) {
   if (!metodo) return;
   metodoPagamentoSelecionado = metodo;
@@ -469,10 +480,10 @@ function definirMetodoPagamento(metodo) {
   const mensagem = document.getElementById('pagMetodoEstado');
   const botaoConfirmar = document.getElementById('btnConfirmarPagamento');
   if (metodo === 'transferencia_manual') {
-    if (mensagem) mensagem.textContent = 'Envie o comprovativo. A VORA confirma o pagamento antes de processar o pedido.';
+    if (mensagem) mensagem.textContent = '1. Guarde a fatura proforma. 2. Envie o pedido no WhatsApp. 3. Receba os dados bancários e envie o comprovativo com a referência.';
     if (botaoConfirmar) {
       botaoConfirmar.disabled = false;
-      botaoConfirmar.textContent = '📤 Enviar comprovativo por WhatsApp';
+      botaoConfirmar.textContent = '💬 2. Enviar pedido pelo WhatsApp';
       botaoConfirmar.style.opacity = '1';
       botaoConfirmar.style.cursor = 'pointer';
     }
@@ -507,7 +518,7 @@ async function iniciarPagamentoManual() {
   } finally {
     if (botao) {
       botao.disabled = false;
-      botao.textContent = '📤 Enviar comprovativo por WhatsApp';
+      botao.textContent = '💬 2. Enviar pedido pelo WhatsApp';
     }
   }
   enviarPedidoWhatsApp(pedido);
@@ -524,19 +535,19 @@ function limparCarrinho() {
 }
 
 function enviarPedidoWhatsApp(pedido) {
-  gerarFaturaHTML(pedido);
   const linhas = pedido.itens.map((item) => `• ${item.nome} (x${item.quantidade}) - ${formatarMoeda(item.preco * item.quantidade)}`);
   const texto = [
-    '*VORA 313 — PEDIDO PENDENTE*', '',
+    '*VORA 313 — PEDIDO PARA PAGAMENTO MANUAL*', '',
     `Pedido: ${pedido.codigoRastreio}`,
     `Referência: ${pedido.numeroFatura}`,
     ...linhas, '',
     `Total: ${formatarMoeda(pedido.valorTotal)}`, '',
-    'Envio o comprovativo de pagamento para confirmação.'
+    'Guardei a fatura proforma e solicito os dados para efetuar o pagamento.',
+    'Enviarei o comprovativo com esta referência depois da transferência.'
   ].join('\n');
   window.open(`https://api.whatsapp.com/send?phone=${CONFIG.NUMERO_WHATSAPP}&text=${encodeURIComponent(texto)}`, '_blank', 'noopener');
   fecharModalPagamento();
-  mostrarToast('Pedido criado. Aguarde a confirmação do pagamento.', 'sucesso');
+  mostrarToast('Pedido enviado ao WhatsApp. Aguarde as instruções de pagamento.', 'sucesso');
 }
 
 export function gerarFaturaHTML(pedido) {
@@ -576,8 +587,14 @@ export function gerarFaturaHTML(pedido) {
 <section class="rodape-total"><div class="totais"><div class="total-row"><span>Subtotal dos produtos</span><strong>${escapeHTML(formatarMoeda(pedido.subtotal || 0))}</strong></div>${cupom}<div class="total-row"><span>Entrega</span><strong>${escapeHTML(formatarMoeda(pedido.frete || 0))}</strong></div><div class="total-row total-final"><span>Total a pagar</span><strong>${escapeHTML(formatarMoeda(pedido.valorTotal || 0))}</strong></div></div></section>
 <section class="pagamento"><h2>${pago ? 'Pagamento confirmado' : 'Instrução de pagamento'}</h2><p>${escapeHTML(avisoPagamento)}</p>${pago ? '' : `<p style="margin-top:6px"><strong>Referência para o comprovativo:</strong> ${escapeHTML(pedido.numeroFatura || '—')}</p>`}</section>
 <footer class="rodape"><div><strong>VORA 313</strong> · Compra simples, venda com confiança.</div><div>Documento eletrónico · ${escapeHTML(pedido.numeroFatura || '')}</div></footer></main></body></html>`;
-  const janela = window.open('', '_blank', 'noopener');
-  if (!janela) return;
+  // A fatura é aberta por um clique direto do cliente. Não usamos `noopener`
+  // aqui porque alguns navegadores devolvem `null` e impedem escrever no
+  // documento em branco. O conteúdo é estático e removemos o opener logo após
+  // criar a janela para não expor a página do checkout.
+  const janela = window.open('', '_blank');
+  if (!janela) return false;
+  janela.opener = null;
   janela.document.write(html);
   janela.document.close();
+  return true;
 }
