@@ -1,5 +1,5 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=12-proforma-sem-sessao';
-import { buscarCatalogo, obterProdutoPublico, obterVendedoresPublicos, renderizarGrade, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
+import { buscarCatalogo, obterProdutoPublico, obterVendedoresPublicos, renderizarGrade, criarCardProduto } from './catalogo.js?v=8-desempenho';
 import { initMobileMenu } from './menu.js';
 import { debounce, extrairValorNumerico, mostrarToast, escapeHTML, imagemProdutoSegura, IMAGEM_FALLBACK } from './utils.js';
 import { initFidelidade } from './fidelidade.js';
@@ -26,6 +26,51 @@ let minAvaliacao = 0;
 let dataFiltro = '';
 let sequenciaSugestoes = 0;
 let categoriasPopularesPromise = null;
+
+// A vitrine principal é a parte que o comprador precisa primeiro. Conteúdos
+// complementares (lojas, destaque e recomendações) só devem usar a ligação
+// quando a pessoa estiver próxima deles. Isto evita que várias consultas e
+// imagens concorram com os primeiros produtos em redes móveis.
+function executarQuandoLivre(tarefa, timeout = 1200) {
+    const executar = () => Promise.resolve().then(tarefa).catch((erro) => {
+        console.warn('Não foi possível concluir um carregamento secundário:', erro);
+    });
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(executar, { timeout });
+    } else {
+        window.setTimeout(executar, 250);
+    }
+}
+
+function carregarQuandoProximo(elemento, tarefa) {
+    if (!elemento) return;
+    if (!('IntersectionObserver' in window)) {
+        executarQuandoLivre(tarefa);
+        return;
+    }
+    const observador = new IntersectionObserver((entradas) => {
+        if (!entradas.some((entrada) => entrada.isIntersecting)) return;
+        observador.disconnect();
+        executarQuandoLivre(tarefa);
+    }, { rootMargin: '700px 0px' });
+    observador.observe(elemento);
+}
+
+function iniciarConteudosSecundarios() {
+    const destaques = document.getElementById('destaquesVoraGrid');
+    carregarQuandoProximo(destaques?.closest('section') || destaques, () => renderizarDestaquesVora());
+
+    const lojas = document.getElementById('lojasPublicasGrid');
+    carregarQuandoProximo(lojas?.closest('section') || lojas, async () => {
+        try {
+            dadosLojasPublicas = await carregarLojasPublicas();
+        } catch (_) {
+            dadosLojasPublicas = { produtos: [], perfis: [] };
+        }
+        limiteLojasPublicas = 8;
+        atualizarLojasPublicas();
+    });
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     registarPaginaPublica(location.pathname.toLowerCase().endsWith('/categoria.html') ? 'categoria' : 'inicio');
@@ -60,21 +105,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     catalogo = [];
-    renderizarTudo();
-    await renderizarDestaquesVora();
-    preencherFiltroVendedores();
-    carregarLojasPublicas().then((dados) => {
-        dadosLojasPublicas = dados;
-        limiteLojasPublicas = 8;
-        atualizarLojasPublicas();
-    }).catch(() => {
-        dadosLojasPublicas = { produtos: [], perfis: [] };
-        atualizarLojasPublicas();
+    // Só existe uma pesquisa inicial do catálogo. Antes, a página iniciava a
+    // mesma consulta duas vezes e ainda aguardava as vitrines secundárias.
+    const catalogoInicial = aplicarFiltros();
+    iniciarConteudosSecundarios();
+    void catalogoInicial.then(() => {
+        // A lista de vendedores e as recomendações não podem atrasar a
+        // primeira grelha de produtos.
+        executarQuandoLivre(() => preencherFiltroVendedores());
+        executarQuandoLivre(() => initRecomendacoes());
     });
-    if (carregando) carregando.style.display = 'none';
-
-    // Chamar recomendações após o catálogo estar pronto
-    initRecomendacoes();
 
     // ✅ Fase 4: Expor função de backup globalmente (para uso no admin)
 
@@ -163,7 +203,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         atualizarLojasPublicas();
     });
 
-    await aplicarFiltros();
 });
 
 document.addEventListener('click', async function(e) {
@@ -202,11 +241,6 @@ document.addEventListener('click', async function(e) {
         return;
     }
 });
-
-function renderizarTudo() {
-    void renderizarMaisComprados();
-    void aplicarFiltros();
-}
 
 function atualizarControleCarregarMais() {
     const btn = document.getElementById('carregarMais');
@@ -323,7 +357,7 @@ async function renderizarDestaquesVora() {
             grid.innerHTML = '<div class="destaques-vazio"><strong>⭐ Ainda não existem produtos patrocinados</strong><span>Os produtos destacados pelos vendedores aparecerão aqui automaticamente.</span><a href="vendedor.html">Quero vender na VORA →</a></div>';
             return;
         }
-        const { buscarCatalogo } = await import('./catalogo.js?v=7-preco-sem-limite');
+        const { buscarCatalogo } = await import('./catalogo.js?v=8-desempenho');
         const ids = new Set(destaques.map((p) => String(p.id)));
         const resultado = await buscarCatalogo({ ordenacao: 'mais-recentes', limite: 50 });
         resultado.produtos.filter((p) => ids.has(String(p.id))).forEach((p) => {
@@ -367,25 +401,6 @@ function atualizarLojasPublicas() {
         ? `Carregar mais lojas (${resultado.exibidas} de ${resultado.total})`
         : 'Todas as lojas foram carregadas';
 }
-
-async function renderizarMaisComprados() {
-    const grid = document.getElementById('maisCompradosGrid');
-    if (!grid) return;
-    try {
-        const resultado = await buscarCatalogo({ ordenacao: 'ordem', limite: 8, offset: 0 });
-        grid.replaceChildren();
-        const fragment = document.createDocumentFragment();
-        resultado.produtos.forEach((prod) => {
-            const card = criarCardProduto(prod);
-            if (card) fragment.append(card);
-        });
-        grid.append(fragment);
-    } catch (error) {
-        console.warn('Não foi possível carregar a vitrine inicial:', error);
-        grid.replaceChildren();
-    }
-}
-
 
 export function initVoraThemePicker() {
     if (document.getElementById('vora-theme-picker')) return;

@@ -1,9 +1,10 @@
-import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
+import { carregarCatalogo, criarCardProduto } from './catalogo.js?v=8-desempenho';
 import { CATEGORIAS_VORA } from './categorias-vora.js';
 import { auth } from './config.js';
 import { extrairValorNumerico, escapeHTML } from './utils.js';
 
 const LIMITE_PRODUTOS_HOME = 8;
+let produtosHomepagePromise = null;
 
 function produtoValido(produto) {
   return produto?.ativo !== false
@@ -117,17 +118,50 @@ async function iniciarHomepage() {
   ligarPesquisaHero();
   atualizarCtaAutenticacao(auth.currentUser);
   auth._listeners.add(atualizarCtaAutenticacao);
-  try {
-    const produtos = await carregarCatalogo({ limite: 50, ordenacao: 'mais-recentes' });
-    renderizarCategorias(produtos);
-    renderizarNovos(produtos);
-    renderizarOfertas(produtos);
-  } catch (error) {
-    console.error('[VORA 313] Falha nas secções da homepage:', error);
-    estado(document.getElementById('categoriasHomeGrid'), 'Não foi possível carregar as categorias agora.', 'erro');
-    estado(document.getElementById('novosProdutosGrid'), 'Não foi possível carregar as novidades agora.', 'erro');
-    document.querySelector('[aria-labelledby="tituloOfertasReais"]')?.remove();
-  }
+    // A navegação por categoria não depende da rede; ela aparece logo ao
+    // abrir a página. Os cartões de ofertas/novidades são carregados apenas
+    // ao aproximar-se dessas secções, sem disputar a ligação com o catálogo.
+    renderizarCategorias([]);
+    carregarProdutosHomepageQuandoNecessario();
+}
+
+function carregarProdutosHomepage() {
+    if (produtosHomepagePromise) return produtosHomepagePromise;
+    produtosHomepagePromise = carregarCatalogo({ limite: 50, ordenacao: 'mais-recentes' })
+        .then((produtos) => {
+            renderizarCategorias(produtos);
+            renderizarNovos(produtos);
+            renderizarOfertas(produtos);
+            return produtos;
+        })
+        .catch((error) => {
+            produtosHomepagePromise = null;
+            console.error('[VORA 313] Falha nas secções da homepage:', error);
+            estado(document.getElementById('novosProdutosGrid'), 'Não foi possível carregar as novidades agora.', 'erro');
+            document.querySelector('[aria-labelledby="tituloOfertasReais"]')?.remove();
+            throw error;
+        });
+    return produtosHomepagePromise;
+}
+
+function carregarProdutosHomepageQuandoNecessario() {
+    const secoes = [
+        document.getElementById('ofertasReaisGrid')?.closest('section'),
+        document.getElementById('novosProdutosGrid')?.closest('section')
+    ].filter(Boolean);
+    if (!secoes.length) return;
+
+    const iniciar = () => { void carregarProdutosHomepage().catch(() => {}); };
+    if (!('IntersectionObserver' in window)) {
+        window.setTimeout(iniciar, 300);
+        return;
+    }
+    const observador = new IntersectionObserver((entradas) => {
+        if (!entradas.some((entrada) => entrada.isIntersecting)) return;
+        observador.disconnect();
+        iniciar();
+    }, { rootMargin: '700px 0px' });
+    secoes.forEach((secao) => observador.observe(secao));
 }
 
 document.addEventListener('DOMContentLoaded', iniciarHomepage, { once: true });

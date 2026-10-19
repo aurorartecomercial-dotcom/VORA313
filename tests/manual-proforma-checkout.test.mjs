@@ -47,6 +47,6 @@ assert.match(styles, /\.vora-home-benefit-card\.seller\s*\{/);
 assert.match(styles, /#004f43/);
 assert.match(styles, /\.v31-mobile-nav\s*\{/);
 assert.match(styles, /#003f35/);
-assert.match(serviceWorker, /vora313-cache-v70-busca-inteligente/);
+assert.match(serviceWorker, /vora313-cache-v71-desempenho/);
 
 console.log('OK: fatura proforma manual, WhatsApp e contraste visual protegidos.');

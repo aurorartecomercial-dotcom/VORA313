@@ -247,13 +247,10 @@ export async function obterProdutoPublico(id) {
     .maybeSingle();
   if (error) throw error;
   if (!data) return null;
-  const { data: resumo, error: erroResumo } = await supabase
-    .from('produto_avaliacoes_resumo')
-    .select('media,total')
-    .eq('produto_id', produtoId)
-    .maybeSingle();
-  if (erroResumo) console.warn('Resumo de avaliação indisponível:', erroResumo);
-  return mapearProdutoSupabase({ ...data, avaliacao_media: resumo?.media || 0, avaliacao_total: resumo?.total || 0 });
+  // A página de detalhe já carrega avaliações de forma assíncrona depois de
+  // mostrar o produto. Evitar uma segunda consulta em série aqui reduz o
+  // tempo até a primeira imagem e a descrição aparecerem.
+  return mapearProdutoSupabase(data);
 }
 
 export async function obterVendedoresPublicos() {

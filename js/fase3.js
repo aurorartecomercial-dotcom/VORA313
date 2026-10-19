@@ -13,7 +13,7 @@ export async function initRecomendacoes() {
     if (historico.length === 0) return;
 
     try {
-        const { carregarCatalogo, criarCardProduto } = await import('./catalogo.js?v=7-preco-sem-limite');
+        const { carregarCatalogo, criarCardProduto } = await import('./catalogo.js?v=8-desempenho');
         const catalogo = await carregarCatalogo({ limite: 50, ordenacao: 'mais-recentes' });
         const recomendados = obterRecomendacoes(catalogo, historico);
         if (recomendados.length === 0) return;

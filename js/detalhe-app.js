@@ -1,5 +1,5 @@
 import { initCarrinho, abrirSacola, adicionarProdutoCarrinho } from './carrinho.js?v=12-proforma-sem-sessao';
-import { obterProdutoPublico, buscarCatalogo, criarCardProduto } from './catalogo.js?v=7-preco-sem-limite';
+import { obterProdutoPublico, buscarCatalogo, criarCardProduto } from './catalogo.js?v=8-desempenho';
 import { initMobileMenu } from './menu.js';
 import { adicionarAvaliacao, consultarElegibilidadeAvaliacao, obterAvaliacao, obterAvaliacoesRecentes } from './avaliacoes.js';
 import { atualizarMetaTags, escapeHTML, mostrarToast, IMAGEM_FALLBACK, imagemProdutoSegura, urlSegura } from './utils.js';
@@ -13,6 +13,17 @@ let quantidadeSelecionada = 1;
 let variacaoSelecionada = {};
 
 const normalizar = (valor) => String(valor || '').trim().toLocaleLowerCase();
+
+function executarQuandoLivre(tarefa, timeout = 1000) {
+    const executar = () => Promise.resolve().then(tarefa).catch((erro) => {
+        console.warn('Não foi possível concluir um conteúdo secundário do produto:', erro);
+    });
+    if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(executar, { timeout });
+    } else {
+        window.setTimeout(executar, 250);
+    }
+}
 
 function precoNumero(produto) {
     const valor = String(produto?.preco || '').replace(/[^0-9,.-]/g, '').replace(/\./g, '').replace(',', '.');
@@ -32,7 +43,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.__carrinhoInicializado = true;
     }
     initMobileMenu();
-    await initFavoritos();
+    // Favoritos não podem segurar a abertura de um produto: o estado é
+    // atualizado quando a resposta chegar, sem atrasar a imagem e os dados.
+    void initFavoritos();
     const params = new URLSearchParams(window.location.search);
     const idProduto = params.get('id');
 
@@ -51,11 +64,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     renderizarDetalhes(produtoAtual);
     registarProdutoVisto(produtoAtual);
-    void registarVisualizacaoPublica(produtoAtual);
-    await renderizarRecomendacoes(produtoAtual);
     atualizarMetaTags(produtoAtual.nome, produtoAtual.descricao || 'Detalhes do produto', imagemProdutoSegura(produtoAtual.imagens?.[0], ''));
     registrarVista(produtoAtual);
-    carregarAvaliacaoAsync(produtoAtual.id);
+    // Avaliações, métricas e recomendações enriquecem a página, mas são
+    // posteriores ao conteúdo que o cliente abriu para ver.
+    executarQuandoLivre(() => registarVisualizacaoPublica(produtoAtual));
+    executarQuandoLivre(() => renderizarRecomendacoes(produtoAtual));
+    executarQuandoLivre(() => carregarAvaliacaoAsync(produtoAtual.id));
 });
 
 // Os cartões de produtos relacionados são criados depois do carregamento e
@@ -162,14 +177,14 @@ function renderizarDetalhes(prod) {
 
     const miniaturasHtml = imagens.map((src, i) => `
         <button type="button" class="miniatura-produto ${i === 0 ? 'ativa' : ''}" data-index="${i}" aria-label="Ver imagem ${i + 1}">
-            <img src="${escaparAtributo(imagemProdutoSegura(src, IMAGEM_FALLBACK))}" alt="${escaparAtributo(prod.nome)} - imagem ${i + 1}" loading="lazy" onerror="this.onerror=null;this.src='${IMAGEM_FALLBACK}';">
+            <img src="${escaparAtributo(imagemProdutoSegura(src, IMAGEM_FALLBACK))}" alt="${escaparAtributo(prod.nome)} - imagem ${i + 1}" loading="lazy" decoding="async" onerror="this.onerror=null;this.src='${IMAGEM_FALLBACK}';">
         </button>`).join('');
 
     container.innerHTML = `
         <div class="detalhes-layout">
             <div class="detalhes-imagem-principal">
                 <div class="detalhes-imagem-wrap">
-                    <img id="detalhesImg" src="${escaparAtributo(principal)}" alt="${escaparAtributo(prod.nome)}" onerror="this.onerror=null;this.src='${IMAGEM_FALLBACK}';">
+                    <img id="detalhesImg" src="${escaparAtributo(principal)}" alt="${escaparAtributo(prod.nome)}" loading="eager" decoding="async" fetchpriority="high" onerror="this.onerror=null;this.src='${IMAGEM_FALLBACK}';">
                 </div>
                 <div class="detalhes-miniaturas" id="miniaturas">${miniaturasHtml}</div>
                 ${videoHtml}
